@@ -9,6 +9,11 @@ describe("dispatch", () => {
     expect(reply).toEqual({ ok: false, error: "unknown command nope" });
   });
 
+  it("does not resolve inherited names like constructor or toString from a renderer", async () => {
+    const reply = await dispatch("constructor", {}, null, {}, {});
+    expect(reply).toEqual({ ok: false, error: "unknown command constructor" });
+  });
+
   it("maps a handler returning undefined to value: null", async () => {
     const commands: Record<string, Handler> = { noop: () => undefined };
     const reply = await dispatch("noop", {}, undefined, {}, commands);

@@ -16,7 +16,14 @@ const DEV_URL = process.env.ELECTRON_RENDERER_URL;
  *  loop is what makes a second one free. */
 const emitter: Emitter = {
   emit(name, payload) {
-    for (const win of BrowserWindow.getAllWindows()) win.webContents.send(name, payload);
+    for (const win of BrowserWindow.getAllWindows()) {
+      if (win.isDestroyed()) continue;
+      try {
+        win.webContents.send(name, payload);
+      } catch {
+        /* a window closing mid-send is not an error */
+      }
+    }
   },
 };
 
