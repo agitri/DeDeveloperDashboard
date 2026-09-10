@@ -15,6 +15,63 @@ function tauriHandlers(): string[] | null {
   return [...body.matchAll(/commands::(\w+)/g)].map((m) => m[1]!);
 }
 
+/**
+ * Every Tauri command phase 0 has deliberately not ported yet. Built from the
+ * diff of the two lists at the time of writing — a NEW command landing in
+ * `lib.rs` is not in this set, so it fails the test below until someone
+ * acknowledges it here (by porting it, or by adding it to this list).
+ */
+const NOT_YET_PORTED = new Set([
+  "projects_list",
+  "project_register",
+  "project_unregister",
+  "editors_list",
+  "terminals_list",
+  "launch_path",
+  "open_in_editor",
+  "project_reload",
+  "project_launch",
+  "items_query",
+  "repos_list",
+  "repo_add_local",
+  "repo_forget",
+  "calendar_list",
+  "calendar_event_save",
+  "calendar_event_delete",
+  "repo_scan",
+  "repo_link",
+  "repo_unlink",
+  "repo_clone",
+  "dev_servers_list",
+  "dev_server_probe",
+  "dev_server_stop",
+  "widget_instructions_load",
+  "widget_instructions_save",
+  "widget_instructions_clear",
+  "widget_instructions_template",
+  "widget_instructions_compile",
+  "eol_board",
+  "eol_watch",
+  "eol_unwatch",
+  "eol_watchlist",
+  "products_list",
+  "product_approve",
+  "product_revoke",
+  "product_start",
+  "product_stop",
+  "product_log",
+  "mcp_consent",
+  "mcp_probe",
+  "sync_now",
+  "item_action",
+  "cache_clear",
+  "ai_actions_for",
+  "ai_draft",
+  "ai_context_for",
+  "connection_connect",
+  "connection_uses_oauth",
+]);
+
 describe("the command registry", () => {
   it.skipIf(tauriHandlers() === null)("only registers names the Tauri app has, so the frontend contract holds", () => {
     const known = new Set(tauriHandlers()!);
@@ -22,19 +79,15 @@ describe("the command registry", () => {
     expect(invented).toEqual([]);
   });
 
-  it("has every phase-0 command", () => {
-    for (const name of [
-      "global_load", "global_appearance_save",
-      "environment_create", "environment_update", "environment_set_active", "environment_delete",
-      "layout_load", "layout_save", "layout_file_write", "layout_file_read",
-      "settings_load", "settings_save", "keymap_load", "keymap_save",
-      "event_log", "events_query", "events_clear",
-      "secret_set", "secret_exists", "secret_delete",
-      "paths_info", "path_exists",
-    ]) {
-      expect(commands[name], name).toBeTypeOf("function");
-    }
-  });
+  it.skipIf(tauriHandlers() === null)(
+    "every Tauri command is either registered or acknowledged as not yet ported",
+    () => {
+      const unaccountedFor = tauriHandlers()!.filter(
+        (name) => !(name in commands) && !NOT_YET_PORTED.has(name),
+      );
+      expect(unaccountedFor).toEqual([]);
+    },
+  );
 
   it("dispatches with the Tauri argument keys", async () => {
     const { home } = scratchEnv("registry");
