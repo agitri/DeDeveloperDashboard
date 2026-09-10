@@ -11,12 +11,14 @@ import { isArray, isBoolean, isNumber, isString, isPlainRecord, optional, record
 import { defaultAppearance } from "./settings";
 import type {
   AppearanceSettings,
+  Connection,
   Environment,
   EventInput,
   EventRow,
   Global,
   GridPos,
   Layout,
+  Settings,
   Tab,
   TabGroup,
   Widget,
@@ -24,12 +26,14 @@ import type {
 
 export type {
   AppearanceSettings,
+  Connection,
   Environment,
   EventInput,
   EventRow,
   Global,
   GridPos,
   Layout,
+  Settings,
   Tab,
   TabGroup,
   Widget,

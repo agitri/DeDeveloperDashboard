@@ -2,10 +2,11 @@
  * `settings.json` per environment: AI routing, voice, data, and the connection
  * records (never secrets). Port of `settings.rs`.
  */
-import type { Settings, AppearanceSettings, Connection } from "../renderer/src/types";
+import type { Settings, AppearanceSettings, Connection } from "./models";
 import type { EnvRoot } from "./paths";
+import { DddError } from "./error";
 import { readJson, writeJson } from "./store";
-import { isBoolean, isNumber, isString, optional, record } from "./json";
+import { isBoolean, isNumber, isString, optional, record, required } from "./json";
 
 export type { Settings, AppearanceSettings, Connection };
 
@@ -125,15 +126,37 @@ function dataFromJson(raw: unknown): Settings["data"] {
   return { statsLoggingEnabled: optional(o, "statsLoggingEnabled", isBoolean, true) };
 }
 
+const CONNECTION_STATUSES: readonly ConnectionStatus[] = ["disconnected", "connected", "expired", "error"];
+
+function isConnectionStatus(v: unknown): v is ConnectionStatus {
+  return typeof v === "string" && (CONNECTION_STATUSES as readonly string[]).includes(v);
+}
+
+/** Rust's `Connection` has no `#[serde(default)]` on `status`, and serde
+ *  rejects a value outside the enum by name rather than "invalid type". */
+function statusFromJson(o: Record<string, unknown>): ConnectionStatus {
+  const v = o.status;
+  if (v === undefined) throw DddError.json("missing field `status`");
+  if (!isConnectionStatus(v)) {
+    const variants = CONNECTION_STATUSES.map((s) => `\`${s}\``).join(", ");
+    throw DddError.json(`unknown variant \`${String(v)}\`, expected one of ${variants}`);
+  }
+  return v;
+}
+
+function isStringArray(v: unknown): v is string[] {
+  return Array.isArray(v) && v.every(isString);
+}
+
 function connectionFromJson(raw: unknown): Connection {
   const o = record(raw, "connection");
   return {
-    id: String(o.id),
-    provider: String(o.provider),
-    label: String(o.label),
-    status: (o.status as ConnectionStatus) ?? "disconnected",
-    scopes: Array.isArray(o.scopes) ? (o.scopes as string[]) : [],
-    config: isStringMap(o.config) ? o.config : {},
+    id: required(o, "id", isString),
+    provider: required(o, "provider", isString),
+    label: required(o, "label", isString),
+    status: statusFromJson(o),
+    scopes: optional(o, "scopes", isStringArray, [] as string[]),
+    config: optional(o, "config", isStringMap, {}),
     lastSyncAt: optional(o, "lastSyncAt", isString, null as string | null),
     error: optional(o, "error", isString, null as string | null),
   };

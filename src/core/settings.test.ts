@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
+import { DddError } from "./error";
 import { scratchEnv } from "./testing";
 import {
   appearanceFromJson,
@@ -65,6 +66,45 @@ describe("with_default_routing", () => {
     const stored = defaultSettings();
     stored.ai.routing["mail.classify"] = "anthropic";
     expect(withDefaultRouting(stored).ai.routing["mail.classify"]).toBe("anthropic");
+  });
+});
+
+describe("connections on disk", () => {
+  it("fills scopes, config, lastSyncAt and error when omitted", () => {
+    const s = settingsFromJson({
+      connections: [{ id: "c1", provider: "github", label: "GitHub", status: "connected" }],
+    });
+    expect(s.connections).toEqual([
+      {
+        id: "c1",
+        provider: "github",
+        label: "GitHub",
+        status: "connected",
+        scopes: [],
+        config: {},
+        lastSyncAt: null,
+        error: null,
+      },
+    ]);
+  });
+
+  it("refuses a connection missing a required field, as serde would", () => {
+    expect(() =>
+      settingsFromJson({ connections: [{ id: "c1", provider: "github", status: "connected" }] }),
+    ).toThrow(/missing field `label`/);
+  });
+
+  it("refuses a status outside the enum, as serde would", () => {
+    let error: unknown;
+    try {
+      settingsFromJson({
+        connections: [{ id: "c1", provider: "github", label: "GitHub", status: "weird" }],
+      });
+    } catch (e) {
+      error = e;
+    }
+    expect(error).toBeInstanceOf(DddError);
+    expect((error as DddError).kind).toBe("json");
   });
 });
 
