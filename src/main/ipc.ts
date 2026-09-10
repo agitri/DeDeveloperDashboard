@@ -6,13 +6,12 @@
  */
 import { BrowserWindow, dialog, ipcMain, shell, type IpcMainInvokeEvent } from "electron";
 import { DddError } from "../core/error";
-import { commands, type Handler } from "./commands";
-
-type HostHandler = (args: Record<string, any>, event: IpcMainInvokeEvent) => unknown;
+import { commands } from "./commands";
+import { dispatch, type HostHandler } from "./dispatch";
 
 const LAYOUT_FILTER = [{ name: "DDD layout", extensions: ["json"] }];
 
-const owner = (event: IpcMainInvokeEvent) => BrowserWindow.fromWebContents(event.sender) ?? undefined;
+const owner = (event: unknown) => BrowserWindow.fromWebContents((event as IpcMainInvokeEvent).sender) ?? undefined;
 
 /** The commands that were Tauri plugins: dialogs pick paths, the shell opens things. */
 const host: Record<string, HostHandler> = {
@@ -47,15 +46,5 @@ const host: Record<string, HostHandler> = {
 };
 
 export function registerIpc(): void {
-  ipcMain.handle("ddd:invoke", async (event, cmd: unknown, args: unknown) => {
-    const name = String(cmd);
-    const handler: HostHandler | Handler | undefined = host[name] ?? commands[name];
-    if (!handler) return { ok: false, error: `unknown command ${name}` };
-    try {
-      const value = await (handler as HostHandler)((args as Record<string, any>) ?? {}, event);
-      return { ok: true, value: value === undefined ? null : value };
-    } catch (e) {
-      return { ok: false, error: e instanceof Error ? e.message : String(e) };
-    }
-  });
+  ipcMain.handle("ddd:invoke", (event, cmd: unknown, args: unknown) => dispatch(cmd, args, event, host, commands));
 }
