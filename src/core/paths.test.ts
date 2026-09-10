@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { existsSync } from "node:fs";
+import { existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { scratchEnv } from "./testing";
 import { DddFolder, EnvRoot, dddHome, globalFile, globalKeymapFile, pathsInfo, validateEnvId } from "./paths";
+import { DddError } from "./error";
 
 describe("paths", () => {
   it("honours DDD_HOME", () => {
@@ -53,5 +56,30 @@ describe("paths", () => {
       projectsFile: env.projectsFile(),
       eventsDb: env.eventsDb(),
     });
+  });
+
+  it("wraps mkdir failures in DddError.io", () => {
+    // Create a temp directory and write a file to it
+    const tempDir = mkdtempSync(join(tmpdir(), "ddd-test-mkdir-"));
+    const filePath = join(tempDir, "not-a-dir");
+    writeFileSync(filePath, "content");
+
+    // Set DDD_HOME to that file's path so mkdir will fail
+    process.env.DDD_HOME = filePath;
+
+    // Try to open an environment, which should fail when trying to create directories
+    let error: unknown;
+    try {
+      EnvRoot.open("default");
+    } catch (e) {
+      error = e;
+    }
+
+    expect(error).toBeInstanceOf(DddError);
+    expect((error as DddError).kind).toBe("io");
+    expect((error as DddError).message).toMatch(/^io: /);
+
+    // Restore DDD_HOME to a valid scratch environment for subsequent tests
+    scratchEnv("restore");
   });
 });

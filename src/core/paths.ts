@@ -56,7 +56,11 @@ export class EnvRoot {
   static open(id: string): EnvRoot {
     validateEnvId(id);
     const dir = join(environmentsDir(), id);
-    mkdirSync(dir, { recursive: true });
+    try {
+      mkdirSync(dir, { recursive: true });
+    } catch (cause) {
+      throw DddError.io(cause);
+    }
     return new EnvRoot(id, dir);
   }
 
