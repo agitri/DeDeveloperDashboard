@@ -874,10 +874,6 @@ describe("launching", () => {
     await expect(launch(missing, null, "claude")).rejects.toThrow(`${missing} is not a directory`);
   });
 
-  it("refuses an empty template", async () => {
-    await expect(launch(tmpdir(), "{dir}".replace("{dir}", ""), "claude")).rejects.toThrow();
-    await expect(launch(tmpdir(), '"" {cmd}'.slice(3), "claude")).rejects.toThrow();
-  });
 });
 
 describe("opening an editor", () => {
@@ -904,15 +900,7 @@ describe("opening an editor", () => {
 });
 ```
 
-The "refuses an empty template" case is contrived on purpose: a template that contains `{dir}`/`{cmd}` but splits to nothing (`"" {cmd}` minus its first three characters is `{cmd}` — a one-part template that spawns `claude`; that is NOT empty). Replace that `it` with this exact one instead:
-
-```ts
-  it("refuses an empty template", async () => {
-    await expect(launch(tmpdir(), "'' {cmd}".slice(0, 2) + " {cmd}".slice(0, 0) + "{cmd}".replace("{cmd}", "''"), "claude")).rejects.toThrow("empty terminal template");
-  });
-```
-
-If that reads as too clever, the simplest honest form is: a template whose only parts are an empty quoted string plus a placeholder that substitutes to empty — `launch(dir, "'' {cmd}", "")` gives parts `["", ""]`; the Rust would spawn a program named `""` and fail with an io error, not "empty". So the truly empty case is a template of only quotes: `launch(tmpdir(), "'' {cmd}".slice(0, 2), "claude")` — but that has no placeholder and takes the platform path. Conclusion: an empty template is unreachable through `launch` (the placeholder check guarantees at least one part), exactly as in the Rust. **Drop the "refuses an empty template" test entirely** and note in the report that the branch is unreachable, mirrored from the Rust.
+Note: an "empty template" is unreachable through `launch` — the placeholder check guarantees at least one part — exactly as in the Rust, so there is deliberately no test for that branch.
 
 - [ ] **Step 2: Run them to verify they fail**
 
@@ -1205,7 +1193,7 @@ export async function openInEditor(dir: string, editor: string | null | undefine
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `npx vitest run src/core/launcher.test.ts && npx tsc -p tsconfig.node.json`
-Expected: 9 passed (after dropping the empty-template test); tsc clean.
+Expected: 9 passed; tsc clean.
 
 - [ ] **Step 5: Commit**
 
