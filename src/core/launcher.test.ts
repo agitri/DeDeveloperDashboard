@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { launch, linuxCandidates, openInEditor, resolveTerminal, shellQuote, splitTemplate, writeLaunchScript } from "./launcher";
+import { KNOWN_EDITORS, KNOWN_TERMINALS, MAC_APP_ROOTS, detect, detectEditors, detectTerminals, launch, linuxCandidates, openInEditor, resolveTerminal, shellQuote, splitTemplate, writeLaunchScript } from "./launcher";
 
 const tempdir = () => mkdtempSync(join(tmpdir(), "ddd-launcher-test-"));
 
@@ -103,5 +103,46 @@ describe("opening an editor", () => {
     await waitFor(proof);
     expect(readFileSync(proof, "utf8").trim()).toBe(dir);
     rmSync(dir, { recursive: true });
+  });
+});
+
+describe("the app catalogs", () => {
+  it("have unique ids", () => {
+    for (const catalog of [KNOWN_EDITORS, KNOWN_TERMINALS]) {
+      const ids = catalog.map((a) => a.id);
+      expect(new Set(ids).size).toBe(ids.length);
+    }
+  });
+
+  it("every entry is findable on some platform", () => {
+    // An entry with neither a bundle nor a CLI can never be detected anywhere,
+    // which makes it a typo rather than a catalog row.
+    for (const app of [...KNOWN_EDITORS, ...KNOWN_TERMINALS]) {
+      expect(app.bundle !== "" || app.cli !== "", app.name).toBe(true);
+    }
+  });
+
+  it("detection never throws and returns only catalog entries", () => {
+    for (const [catalog, found] of [[KNOWN_EDITORS, detectEditors()], [KNOWN_TERMINALS, detectTerminals()]] as const) {
+      for (const app of found) {
+        expect(catalog.some((k) => k.id === app.id), app.id).toBe(true);
+        expect(app.target).not.toBe("");
+      }
+    }
+  });
+
+  it("on macOS the target is the bundle name and the bundle is present", () => {
+    if (process.platform !== "darwin") return;
+    for (const app of detect([...KNOWN_EDITORS, ...KNOWN_TERMINALS], "darwin")) {
+      const known = [...KNOWN_EDITORS, ...KNOWN_TERMINALS].find((k) => k.id === app.id)!;
+      expect(app.target).toBe(known.bundle);
+      expect(MAC_APP_ROOTS.some((root) => existsSync(join(root, `${known.bundle}.app`)))).toBe(true);
+    }
+    // Terminal.app ships with every Mac.
+    expect(detectTerminals().some((a) => a.id === "terminal")).toBe(true);
+  });
+
+  it("off macOS, an app with no CLI is never offered", () => {
+    expect(detect([{ id: "x", name: "X", bundle: "X", cli: "" }], "linux")).toEqual([]);
   });
 });
