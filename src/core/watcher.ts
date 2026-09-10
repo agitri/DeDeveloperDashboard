@@ -21,6 +21,24 @@ export interface ProjectChanged {
   projectId: string;
 }
 
+/** True when a watch callback is macOS's spurious FSEvents replay rather
+ *  than a real change. A watch freshly registered on a directory created
+ *  moments earlier can replay one callback naming the watched directory
+ *  itself rather than any real child (seen for `.ddd` right after it is
+ *  created). That replay's `filename` joins onto a path that does not
+ *  exist — there is no real child sharing the watched directory's own
+ *  name — which is exactly what tells it apart from a legitimate change
+ *  to a file that happens to be named the same as the watched directory:
+ *  only treat it as the replay when the joined path is not actually
+ *  there. This also means a real deletion of the watched `.ddd` folder
+ *  itself (named after its own basename, and gone by the time this
+ *  checks) is swallowed too — an accepted trade-off of the same
+ *  discriminator. */
+export function isSelfNamedReplay(target: string, filename: string | null): boolean {
+  if (filename === null || filename !== basename(target)) return false;
+  return !existsSync(join(target, filename));
+}
+
 /** Map a changed path back to the project that owns it, ignoring anything
  *  outside `.ddd/` so a shallow root watch does not fire on unrelated edits. */
 export function routeFor(routes: Map<string, ProjectChanged>, path: string): ProjectChanged | null {
@@ -83,18 +101,9 @@ export class ProjectWatcher {
       const recursive = target === ddd;
       try {
         const w = watch(target, { recursive }, (_event, filename) => {
-          const name = filename?.toString();
+          const name = filename?.toString() ?? null;
+          if (isSelfNamedReplay(target, name)) return;
           const changedPath = name ? join(target, name) : target;
-          // A watch freshly registered on a directory created moments earlier
-          // can replay one spurious FSEvents callback naming the watched
-          // directory itself rather than any real child (macOS quirk — seen
-          // for `.ddd` right after it is created). That replay's `filename`
-          // joins onto a path that does not exist (there is no real child
-          // sharing the watched directory's own name), which is exactly what
-          // tells it apart from a legitimate change to a file that happens to
-          // be named the same as the watched directory: only drop the event
-          // when the joined path is not actually there.
-          if (name === basename(target) && !existsSync(changedPath)) return;
           const changed = routeFor(routes, changedPath);
           if (changed) this.queue(changed);
         });

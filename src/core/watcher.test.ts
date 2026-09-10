@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { mkdirSync, mkdtempSync, realpathSync, utimesSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { recordingEmitter } from "./emitter";
-import { DEBOUNCE_MS, ProjectWatcher, routeFor, type ProjectChanged } from "./watcher";
+import { DEBOUNCE_MS, isSelfNamedReplay, ProjectWatcher, routeFor, type ProjectChanged } from "./watcher";
 
 const routes = () => new Map<string, ProjectChanged>([["/tmp/io", { environmentId: "work", projectId: "io-1" }]]);
 
@@ -26,10 +26,40 @@ describe("routing a changed path to its project", () => {
 });
 
 const tempdir = (name: string) => realpathSync(mkdtempSync(join(tmpdir(), `ddd-watch-${name}-`)));
-// This sandbox's forked test workers occasionally drop the very first
-// FSEvents notification for a fresh watch outright (verified separately
-// against a plain, unsandboxed `node` process, where the same watch is
-// reliable) — rare on a real machine, but reliably reproducible here.
+
+describe("phantom replay", () => {
+  it("is true for a callback naming its own watched .ddd, when nothing really appeared there", () => {
+    const root = tempdir("replay-1");
+    const target = join(root, ".ddd");
+    mkdirSync(target);
+    expect(isSelfNamedReplay(target, ".ddd")).toBe(true);
+  });
+
+  it("is false once a real child named .ddd exists inside the watched .ddd", () => {
+    const root = tempdir("replay-2");
+    const target = join(root, ".ddd");
+    mkdirSync(target);
+    mkdirSync(join(target, ".ddd"));
+    expect(isSelfNamedReplay(target, ".ddd")).toBe(false);
+  });
+
+  it("is false under a shallow root watch when .ddd really appeared under the root", () => {
+    const root = tempdir("replay-3");
+    mkdirSync(join(root, ".ddd"));
+    // The folder appearing must never be dropped: a shallow watch on the
+    // root reports it as (root, ".ddd"), and that is a real child, not a
+    // replay of the root's own name.
+    expect(isSelfNamedReplay(root, ".ddd")).toBe(false);
+  });
+
+  it("is false for an ordinary filename", () => {
+    const root = tempdir("replay-4");
+    const target = join(root, ".ddd");
+    mkdirSync(target);
+    expect(isSelfNamedReplay(target, "todos.json")).toBe(false);
+  });
+});
+
 // Gives up loudly on timeout instead of quietly returning: a condition that
 // never comes true should fail with a clear "timed out" error at the point
 // that waited for it, not surface as a confusing mismatch (or an undefined
@@ -38,24 +68,6 @@ const until = async (pred: () => boolean, ms = 8000) => {
   const t0 = Date.now();
   while (!pred()) {
     if (Date.now() - t0 >= ms) throw new Error(`until: condition not met within ${ms}ms`);
-    await new Promise((r) => setTimeout(r, 25));
-  }
-};
-// `nudge` repeats the filesystem change every 300ms until it is observed;
-// since a burst of repeats of the same change is exactly what "one project
-// per burst" already has to coalesce, this does not weaken what these two
-// tests assert (they look for the first event belonging to their own
-// project, so a second, later burst from an overlapping nudge would not fail
-// them).
-const untilNudged = async (pred: () => boolean, nudge: () => void, ms = 8000) => {
-  const t0 = Date.now();
-  let last = 0;
-  while (!pred()) {
-    if (Date.now() - t0 >= ms) throw new Error(`untilNudged: condition not met within ${ms}ms`);
-    if (Date.now() - last > 300) {
-      nudge();
-      last = Date.now();
-    }
     await new Promise((r) => setTimeout(r, 25));
   }
 };
@@ -77,19 +89,8 @@ describe("watching registered projects", () => {
       // An editor save is several events; a `/todo` is one file, twice.
       writeFileSync(join(dir, ".ddd", "todos.json"), '{"todos":[]}');
       writeFileSync(join(dir, ".ddd", "todos.json"), '{"todos":[{"id":"t","text":"x"}]}');
-      // This test asserts an exact one-element array, so it cannot use the
-      // repeated `untilNudged` (a nudge whose OS delivery is delayed past the
-      // debounce window would register as a second, distinct burst). If
-      // nothing arrived within the first wait, one extra write is a single
-      // retry, not a second burst, and by then any delayed original delivery
-      // has settled.
-      try {
-        await until(() => emitter.events.length > 0, 3000);
-      } catch {
-        writeFileSync(join(dir, ".ddd", "todos.json"), '{"todos":[{"id":"t","text":"x"}]}');
-        await until(() => emitter.events.length > 0, 5000);
-      }
-      await new Promise((r) => setTimeout(r, DEBOUNCE_MS + 100));
+      await until(() => emitter.events.length > 0, 8000);
+      await new Promise((r) => setTimeout(r, DEBOUNCE_MS + 200));
       expect(emitter.events).toEqual([{ name: "ddd://project-changed", payload: { environmentId: "work", projectId: "p1" } }]);
     },
     15000,
@@ -105,13 +106,8 @@ describe("watching registered projects", () => {
       await new Promise((r) => setTimeout(r, 250));
 
       mkdirSync(join(dir, ".ddd"));
-      // The root watch is shallow (non-recursive): it only sees direct
-      // children of `dir` changing, so the nudge has to touch `.ddd` itself
-      // (a fresh write inside it is a grandchild and would go unseen).
-      await untilNudged(
-        () => emitter.events.length > 0,
-        () => utimesSync(join(dir, ".ddd"), new Date(), new Date()),
-      );
+      await until(() => emitter.events.length > 0, 8000);
+      await new Promise((r) => setTimeout(r, DEBOUNCE_MS + 200));
       expect(emitter.events[0]).toEqual({ name: "ddd://project-changed", payload: { environmentId: "work", projectId: "p2" } });
     },
     15000,
@@ -142,15 +138,10 @@ describe("watching registered projects", () => {
       watcher.sync("personal", [{ id: "pb", path: b }]);
       await new Promise((r) => setTimeout(r, 250));
       writeFileSync(join(b, ".ddd", "recap.md"), "# recap");
-      // Both projects' `.ddd` folders were just created, so either watch
-      // could also be settling in; assert on the first event that belongs to
-      // *this* project rather than assuming events[0] is it.
-      const isForPb = (e: { payload: unknown }) => (e.payload as ProjectChanged).projectId === "pb";
-      await untilNudged(
-        () => emitter.events.some(isForPb),
-        () => writeFileSync(join(b, ".ddd", "recap.md"), "# recap"),
-      );
-      expect(emitter.events.find(isForPb)!.payload).toEqual({ environmentId: "personal", projectId: "pb" });
+      await until(() => emitter.events.length > 0, 8000);
+      await new Promise((r) => setTimeout(r, DEBOUNCE_MS + 200));
+      expect(emitter.events[0]!.payload).toEqual({ environmentId: "personal", projectId: "pb" });
+      expect(emitter.events.some((e) => (e.payload as ProjectChanged).projectId === "pa")).toBe(false);
     },
     15000,
   );
