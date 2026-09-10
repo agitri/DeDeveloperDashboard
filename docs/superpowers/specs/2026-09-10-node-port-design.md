@@ -181,7 +181,7 @@ source shows up as a failing test here rather than a blank widget.
 
 Same file names, same responsibilities, same public function names in
 camelCase. Rust `Result<T, Error>` becomes a thrown `DddError` with the same
-five kinds (`io`, `json`, `sqlite`, `keychain`, `config`, `notFound`,
+seven kinds (`io`, `json`, `sqlite`, `keychain`, `config`, `notFound`,
 `invalid`) and the same message text, because the frontend shows those
 messages.
 
