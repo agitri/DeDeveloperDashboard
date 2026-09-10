@@ -30,7 +30,11 @@ const DDL = `
 function withDb<T>(env: EnvRoot, body: (db: DatabaseSync) => T): T {
   let db: DatabaseSync;
   try {
-    db = new DatabaseSync(env.eventsDb());
+    // rusqlite calls `sqlite3_busy_timeout(db, 5000)` on every open (§5.8);
+    // `node:sqlite` defaults the busy timeout to 0, so without this a write
+    // that collides with the Rust app writing the same file fails instantly
+    // (SQLITE_BUSY) instead of waiting the same 5s the Rust side waits.
+    db = new DatabaseSync(env.eventsDb(), { timeout: 5000 });
   } catch (e) {
     throw DddError.sqlite(e);
   }
