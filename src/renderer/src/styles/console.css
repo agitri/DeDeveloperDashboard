@@ -1,0 +1,717 @@
+/* ============================================================================
+   The Console visual system — the design handoff, ported.
+   ==========================================================================
+   Source: docs/design/design_handoff_ddd_console/ddd.css. Substance unchanged;
+   one structural edit: every rule is scoped under [data-look="console"], so
+   `?look=classic` still renders what shipped and the two can be compared.
+   Tokens on :root stay unscoped — inert until something reads them.
+
+   The markup was ported to match: .w-head / .w-body / .row-mark / .row-time /
+   .status / .empty / the rail all exist in the components now. If something
+   here does not apply, the markup is what is wrong — do not add an adapter.
+   ========================================================================== */
+
+/* ============================================================================
+   DDD — visual system (Nocturne-derived)
+   Paste whole. Two themes via [data-theme] on the root; [data-look="console"]
+   on the root as well (kept as a hook so the look can be swapped later).
+   The environment colour is the ONLY saturated colour the chrome owns.
+   Fonts: bundle Inter + JetBrains Mono (@fontsource) — no CDN at runtime.
+   ========================================================================== */
+
+[data-look="console"] {
+  --font-ui: "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* The six environment colours — fixed, deuteranopia-validated. */
+  --env-1: #2f6ae8; --env-2: #c96a00; --env-3: #00a99f;
+  --env-4: #c026a3; --env-5: #7c3aed; --env-6: #6b8f00;
+  /* Repainted live by the active environment. Focus, active tab, primary. */
+  --env: var(--env-1);
+
+  /* Grid physics (react-grid-layout). Do not change. */
+  --grid-cols: 12; --grid-row: 26px; --grid-gap: 10px; --grid-pad: 12px;
+
+  /* Type scale — a fixed 8-step scale; density moves spacing, not sizes. */
+  --fs-1: 10px; --fs-2: 11px; --fs-3: 12px; --fs-4: 13px;
+  --fs-5: 15px; --fs-6: 20px; --fs-7: 28px; --fs-8: 44px;
+  --lh: 1.4;
+
+  /* Spacing — Nocturne's 0.7× scale, rounded to the pixel. */
+  --sp-1: 3px; --sp-2: 6px; --sp-3: 8px; --sp-4: 11px; --sp-6: 17px; --sp-8: 22px;
+
+  --r-sm: 4px; --r-md: 8px; --r-lg: 14px;
+
+  /* Motion — brief and purposeful. Nothing runs while you are not looking. */
+  --ease: cubic-bezier(.2, 0, 0, 1);
+  --t-fast: 120ms;   /* hover, focus, reveal */
+  --t-move: 180ms;   /* grid reflow, toast */
+  --fade: 24px;      /* rules fade to transparent over this at each end */
+}
+
+/* --- themes --------------------------------------------------------------- */
+/* Console's palette, and only Console's: `data-look` and `data-theme` are both
+   attributes of <html>, so these must be COMPOUND selectors. Written as
+   descendants they match nothing at all — which stranded the app in the dark
+   palette — and written bare they repaint classic too. */
+[data-look="console"], [data-look="console"][data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #161826;
+  --surface: #232532;
+  --surface-2: #2b2d3d;
+  --text: #e9e9ed;
+  --text-2: #b2b6ca;
+  --text-3: #75798c;
+  --line: color-mix(in srgb, var(--text) 10%, transparent);
+  --line-strong: color-mix(in srgb, var(--text) 22%, transparent);
+  --ok: oklch(74% 0.12 155);
+  --warn: oklch(78% 0.12 80);
+  --err: oklch(70% 0.16 22);
+  --shadow-sm: 0 0 0 1px #2e3040;
+  --shadow-md: 0 0 0 1px #3f424d, 0 6px 18px rgba(0, 0, 0, .55);
+  --shadow-lg: 0 0 0 1px #595d6c, 0 16px 40px rgba(0, 0, 0, .65);
+}
+[data-look="console"][data-theme="light"] {
+  color-scheme: light;
+  --bg: #eceef6;
+  --surface: #f9fafe;
+  --surface-2: #fdfdff;
+  --text: #1f212b;
+  --text-2: #4f5363;
+  --text-3: #7d8193;
+  --line: color-mix(in srgb, var(--text) 10%, transparent);
+  --line-strong: color-mix(in srgb, var(--text) 22%, transparent);
+  --ok: oklch(52% 0.13 155);
+  --warn: oklch(56% 0.13 78);
+  --err: oklch(54% 0.18 24);
+  --shadow-sm: 0 0 0 1px rgba(30, 32, 50, .10), 0 1px 2px rgba(30, 32, 50, .05);
+  --shadow-md: 0 0 0 1px rgba(30, 32, 50, .12), 0 6px 18px rgba(30, 32, 50, .12);
+  --shadow-lg: 0 0 0 1px rgba(30, 32, 50, .14), 0 16px 40px rgba(30, 32, 50, .18);
+}
+[data-look="console"][data-env="work"] { --env: var(--env-1); }
+[data-look="console"][data-env="personal"] { --env: var(--env-2); }
+[data-look="console"][data-env="client"] { --env: var(--env-3); }
+[data-look="console"][data-env="side"] { --env: var(--env-4); }
+[data-look="console"][data-env="lab"] { --env: var(--env-5); }
+[data-look="console"][data-env="home"] { --env: var(--env-6); }
+
+/* --- look: console — everything monospace, solid rules, status in brackets */
+[data-look="console"] { --panel: var(--bg); --font-ui: var(--font-mono); --r-md: 2px; --r-sm: 2px; --fade: 0px; }
+
+/* --- base -----------------------------------------------------------------
+ * `.ddd` and `data-look` are both on <html>, so `[data-look="console"] .ddd`
+ * asks for a `.ddd` *inside* the element that already is one — it matched
+ * nothing, and this whole base layer never applied. Everything here was quietly
+ * standing in from global.css instead: the box-sizing reset, the scrollbars,
+ * the focus ring. The same mistake made the light theme unreachable.
+ */
+[data-look="console"], [data-look="console"] * { box-sizing: border-box; }
+[data-look="console"] {
+  background: var(--bg); color: var(--text);
+  font: 400 var(--fs-4) / var(--lh) var(--font-ui);
+  -webkit-font-smoothing: antialiased; user-select: none;
+}
+[data-look="console"] :focus { outline: none; }
+[data-look="console"] :focus-visible { outline: 2px solid var(--env); outline-offset: 2px; border-radius: 2px; }
+[data-look="console"] ::selection { background: color-mix(in srgb, var(--env) 30%, transparent); }
+[data-look="console"] ::-webkit-scrollbar { width: 8px; height: 8px; }
+[data-look="console"] ::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 99px; border: 2px solid transparent; background-clip: content-box; }
+[data-look="console"] button, [data-look="console"] input, [data-look="console"] textarea { font: inherit; color: inherit; }
+@media (prefers-reduced-motion: reduce) {[data-look="console"] * { transition-duration: 0ms !important; animation: none !important; } }
+
+/* A rule that fades at both ends — the Nocturne signature, as a background. */
+[data-look="console"] .rule {
+  background: linear-gradient(to right, transparent, var(--line) var(--fade),
+    var(--line) calc(100% - var(--fade)), transparent) no-repeat bottom / 100% 1px;
+}
+
+/* Small mono label: the voice of every kicker, fact and unit. */
+[data-look="console"] .label {
+  font: 500 var(--fs-1) / 1 var(--font-mono);
+  letter-spacing: .1em; text-transform: uppercase; color: var(--text-3);
+}
+[data-look="console"] .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* --- window & chrome ------------------------------------------------------ */
+[data-look="console"] .window {
+  position: relative; display: grid; overflow: hidden;
+  background: var(--bg); color: var(--text);
+}
+[data-look="console"] .window { grid-template-columns: 44px minmax(0, 1fr); transition: grid-template-columns var(--t-move) var(--ease); }
+[data-look="console"] .window.rail-wide { grid-template-columns: 172px minmax(0, 1fr); }
+
+/* environment segment — used by the "two worlds" demo and any horizontal chrome */
+[data-look="console"] .env-seg {
+  display: inline-flex; align-items: center; gap: 6px; height: 20px; padding: 0 6px;
+  border: 1px solid transparent; border-radius: var(--r-sm); color: var(--text-2);
+  font: 500 var(--fs-2) / 1 var(--font-mono); letter-spacing: .06em; text-transform: uppercase;
+  cursor: pointer; transition: border-color var(--t-fast) var(--ease);
+}
+[data-look="console"] .env-seg i { width: 8px; height: 8px; border-radius: 2px; background: var(--c); flex: none; }
+[data-look="console"] .env-seg.active { border-color: var(--c); color: var(--text); }
+[data-look="console"] .env-seg .bd { width: 14px; height: 14px; display: grid; place-items: center; border-radius: 3px; font-size: 9px; color: var(--text-3); }
+[data-look="console"] .env-seg .bd.active { background: var(--c); color: #fff; }
+[data-look="console"] .chrome-spacer { flex: 1; }
+
+/* the rail — a 44px column of environment blocks; the ground tints toward the env */
+[data-look="console"] .chrome-rail {
+  display: flex; flex-direction: column; align-items: center; gap: var(--sp-2);
+  padding: var(--sp-3) 0; background: var(--surface); border-right: 1px solid var(--line-strong);
+}
+[data-look="console"] .board { background: color-mix(in srgb, var(--env) 4%, var(--bg)); }
+[data-look="console"] .rail-env {
+  width: 28px; height: 28px; display: grid; place-items: center; border-radius: 3px;
+  border: 1px solid var(--c); color: var(--c); font: 600 12px / 1 var(--font-mono); cursor: pointer;
+}
+[data-look="console"] .rail-env.active { background: var(--c); color: var(--bg); }
+[data-look="console"] .rail-env[aria-expanded="true"] { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+/* Click the active block: its boards fan out beneath it as tiles in its colour. */
+[data-look="console"] .rail-boards { display: flex; flex-direction: column; gap: 3px; margin-top: -6px; padding-top: 3px; width: 28px; border-left: 1px solid var(--c); border-right: 1px solid var(--c); border-bottom: 1px solid var(--c); border-radius: 0 0 3px 3px; padding: 5px 2px 3px; animation: rail-fan var(--t-move) var(--ease); }
+[data-look="console"] .rail-tile {
+  height: 20px; display: grid; place-items: center; border-radius: 2px; cursor: pointer;
+  font: 500 8px / 1 var(--font-mono); letter-spacing: .06em; color: var(--text-3);
+  border: 1px solid transparent; transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+[data-look="console"] .rail-tile:hover { color: var(--c); border-color: color-mix(in srgb, var(--c) 50%, transparent); }
+[data-look="console"] .rail-tile.active { color: var(--c); background: color-mix(in srgb, var(--c) 16%, transparent); border-color: var(--c); }
+@keyframes rail-fan { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+[data-look="console"] .rail-bd { font: 400 var(--fs-1) / 1 var(--font-mono); color: var(--text-3); margin-top: -2px; }
+[data-look="console"] .rail-bd b { color: var(--c); font-weight: 600; }
+[data-look="console"] .rail-spacer { flex: 1; }
+/* Un-collapsed rail: blocks and tiles become bars carrying their full names. */
+[data-look="console"] .rail-toggle { width: 28px; height: 20px; border: 0; background: transparent; color: var(--text-3); font: 500 12px / 1 var(--font-mono); cursor: pointer; border-radius: 2px; }
+[data-look="console"] .rail-toggle:hover { color: var(--text); background: color-mix(in srgb, var(--text) 8%, transparent); }
+[data-look="console"] .rail-name, [data-look="console"] .rail-tile-name { display: none; }
+[data-look="console"] .rail-wide .chrome-rail { align-items: stretch; padding: var(--sp-3) var(--sp-3); }
+[data-look="console"] .rail-wide .rail-toggle { align-self: flex-end; }
+[data-look="console"] .rail-wide .rail-env { width: auto; height: 28px; display: flex; align-items: center; gap: var(--sp-3); padding: 0 var(--sp-3); }
+[data-look="console"] .rail-wide .rail-env .rail-letter { width: 12px; text-align: center; }
+[data-look="console"] .rail-wide .rail-name { display: inline; font: 500 var(--fs-2) / 1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; }
+[data-look="console"] .rail-wide .rail-boards { width: auto; padding: 5px 4px 4px; }
+[data-look="console"] .rail-wide .rail-tile { height: 22px; display: flex; align-items: center; gap: var(--sp-2); padding: 0 var(--sp-2); font-size: var(--fs-2); letter-spacing: 0; }
+[data-look="console"] .rail-wide .rail-tile-code { display: none; }
+[data-look="console"] .rail-wide .rail-tile-name { display: inline; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-look="console"] .rail-wide .rail-tile-idx { color: var(--text-3); font-size: var(--fs-1); }
+/* A tab group inside an environment: a named pill in its own colour, its tabs
+   indented beneath it on a coloured spine. Click the pill to collapse. */
+[data-look="console"] .rail-group { display: flex; flex-direction: column; gap: 2px; margin-top: 2px; }
+[data-look="console"] .rail-group-pill {
+  display: flex; align-items: center; gap: var(--sp-2); height: 20px; padding: 0 var(--sp-2); border-radius: 2px; cursor: pointer;
+  font: 500 var(--fs-1) / 1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--g);
+  background: color-mix(in srgb, var(--g) 12%, transparent);
+}
+[data-look="console"] .rail-group-pill:hover { background: color-mix(in srgb, var(--g) 20%, transparent); }
+[data-look="console"] .rail-group-pill i { width: 6px; height: 6px; border-radius: 50%; background: var(--g); flex: none; }
+[data-look="console"] .rail-group-pill span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-look="console"] .rail-group-pill .rail-group-count { margin-left: auto; color: var(--text-3); letter-spacing: 0; }
+[data-look="console"] .rail-group-tabs { display: flex; flex-direction: column; gap: 2px; margin-left: 6px; padding-left: 5px; border-left: 2px solid color-mix(in srgb, var(--g) 55%, transparent); }
+[data-look="console"] .rail-group-tabs .rail-tile { height: 20px; }
+/* collapsed rail: the group is a colour-banded stack of short tiles */
+[data-look="console"] .chrome-rail:not(.rail-wide .chrome-rail) .rail-group-pill span, [data-look="console"] .chrome-rail:not(.rail-wide .chrome-rail) .rail-group-pill .rail-group-count { display: none; }
+[data-look="console"] .chrome-rail:not(.rail-wide .chrome-rail) .rail-group-pill { height: 12px; justify-content: center; padding: 0; }
+[data-look="console"] .chrome-rail:not(.rail-wide .chrome-rail) .rail-group-tabs { margin-left: 0; padding-left: 0; border-left: 0; }
+[data-look="console"] .chrome-rail:not(.rail-wide .chrome-rail) .rail-group-tabs .rail-tile { background: color-mix(in srgb, var(--g) 22%, transparent); color: var(--g); }
+[data-look="console"] .chrome-rail:not(.rail-wide .chrome-rail) .rail-group-tabs .rail-tile:hover { background: color-mix(in srgb, var(--g) 34%, transparent); border-color: transparent; }
+[data-look="console"] .chrome-rail:not(.rail-wide .chrome-rail) .rail-group-tabs .rail-tile.active { background: var(--g); color: var(--bg); border-color: var(--g); }
+[data-look="console"] .rail-wide .rail-bd { text-align: left; padding-left: var(--sp-3); }
+[data-look="console"] .rail-wide .rail-clock { align-self: flex-start; }
+
+/* --- board (react-grid-layout, expressed as CSS grid for mockups) --------- */
+[data-look="console"] .board {
+  display: grid; align-content: start; overflow: auto; min-height: 0;
+  grid-template-columns: repeat(var(--grid-cols), minmax(0, 1fr));
+  grid-auto-rows: var(--grid-row); gap: var(--grid-gap); padding: var(--grid-pad);
+}
+
+/* --- widget frame ---------------------------------------------------------- */
+[data-look="console"] .widget {
+  position: relative; display: flex; flex-direction: column;
+  min-width: 0; min-height: 0; overflow: hidden; container-type: inline-size;
+  background: var(--surface); border-radius: var(--r-md); box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--t-fast) var(--ease);
+}
+[data-look="console"] .widget:focus-within, [data-look="console"] .widget.focused {
+  box-shadow: 0 0 0 1px var(--env), 0 0 0 4px color-mix(in srgb, var(--env) 22%, transparent);
+}
+[data-look="console"] .w-head { /* the drag handle */
+  display: flex; align-items: center; gap: var(--sp-2); height: 28px; flex: none;
+  padding: 0 var(--sp-3); cursor: grab;
+}
+[data-look="console"] .w-kicker { font: 500 var(--fs-1) / 1 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--env); white-space: nowrap; }
+[data-look="console"] .w-title { font-size: var(--fs-3); color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+[data-look="console"] .w-count { margin-left: auto; font: 400 var(--fs-2) / 1 var(--font-mono); color: var(--text-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+[data-look="console"] .w-actions { display: flex; gap: 2px; opacity: 0; transition: opacity var(--t-fast) var(--ease); }
+[data-look="console"] .w-count + .w-actions { margin-left: var(--sp-2); }
+[data-look="console"] .w-actions:first-child, [data-look="console"] .w-title + .w-actions, [data-look="console"] .w-kicker + .w-actions { margin-left: auto; }
+[data-look="console"] .widget:hover .w-actions, [data-look="console"] .widget:focus-within .w-actions, [data-look="console"] .widget.focused .w-actions { opacity: 1; }
+[data-look="console"] .w-body { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; }
+[data-look="console"] .w-resize { /* the resize handle: bottom-right corner */
+  position: absolute; right: 4px; bottom: 4px; width: 9px; height: 9px;
+  border-right: 2px solid var(--text-3); border-bottom: 2px solid var(--text-3);
+  border-radius: 0 0 2px 0; opacity: 0; cursor: nwse-resize; transition: opacity var(--t-fast) var(--ease);
+}
+[data-look="console"] .widget:hover .w-resize, [data-look="console"] .widget.focused .w-resize { opacity: .7; }
+
+[data-look="console"] .widget { background: transparent; box-shadow: none; border: 1px solid var(--line-strong); border-radius: 2px; }
+[data-look="console"] .widget:focus-within, [data-look="console"] .widget.focused { border-color: var(--env); box-shadow: none; }
+/* Keyboard focus gets the outline as well as the border. Tab moves this focus
+ * without moving the document's, so `:focus-within` never fires for it and a
+ * 1px border going from faint grey to solid is the only signal — too little for
+ * the one state the whole keyboard model depends on. `:focus-within` keeps just
+ * the border: it fires whenever any field inside is focused, and a ring there
+ * would fight the thing you are actually typing into. */
+[data-look="console"] .widget.focused { outline: 2px solid var(--env); outline-offset: 2px; }
+[data-look="console"] .w-head { height: 22px; background: color-mix(in srgb, var(--text) 7%, transparent); }
+[data-look="console"] .w-kicker { color: var(--text-2); }
+[data-look="console"] .w-kicker::before { content: "▪ "; color: var(--env); }
+[data-look="console"] .rule { background: none; border-bottom: 1px solid var(--line); }
+
+/* --- rows ------------------------------------------------------------------ */
+[data-look="console"] .rows { display: flex; flex-direction: column; padding: 2px 0; }
+[data-look="console"] .row {
+  position: relative; display: grid; grid-template-columns: 10px minmax(0, 1fr) auto;
+  column-gap: var(--sp-2); align-items: start; padding: var(--sp-2) var(--sp-3);
+  cursor: default; transition: background var(--t-fast) var(--ease);
+}
+[data-look="console"] .row { --row-hover: color-mix(in srgb, var(--text) 4%, var(--panel)); }
+[data-look="console"] .row:hover, [data-look="console"] .row.is-hover { background-color: var(--row-hover); }
+[data-look="console"] .row.is-selected { box-shadow: inset 2px 0 0 var(--env); background-color: color-mix(in srgb, var(--env) 8%, transparent); }
+[data-look="console"] .row-mark { width: 6px; height: 6px; border-radius: 50%; margin-top: 6px; background: transparent; }
+[data-look="console"] .row.unread .row-mark { background: var(--env); }
+[data-look="console"] .row-main { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+[data-look="console"] .row-title {
+  display: flex; align-items: center; gap: var(--sp-2); min-width: 0;
+  font-size: var(--fs-4); line-height: 1.35; color: var(--text);
+}
+[data-look="console"] .row-title > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-look="console"] .row.unread .row-title { font-weight: 500; }
+[data-look="console"] .row-sub {
+  display: flex; gap: var(--sp-2) var(--sp-3); flex-wrap: wrap; min-width: 0;
+  font: 400 var(--fs-2) / 1.3 var(--font-mono); color: var(--text-3); font-variant-numeric: tabular-nums;
+}
+[data-look="console"] .row-sub > * { white-space: nowrap; }
+[data-look="console"] .row-sub .path { max-width: 100%; overflow: hidden; text-overflow: ellipsis; direction: rtl; text-align: left; }
+[data-look="console"] .row-sub .path bdi { unicode-bidi: plaintext; }
+[data-look="console"] .row-sub .missing { color: var(--text-3); font-style: italic; opacity: .8; }
+[data-look="console"] .row-time { font: 400 var(--fs-2) / 1.35 var(--font-mono); color: var(--text-3); font-variant-numeric: tabular-nums; padding-top: 2px; white-space: nowrap; }
+[data-look="console"] .row-actions {
+  position: absolute; right: var(--sp-3); top: 50%; transform: translateY(-50%);
+  display: flex; gap: 2px; padding-left: 10px; opacity: 0; pointer-events: none;
+  background: var(--row-hover); box-shadow: -14px 0 14px -4px var(--row-hover);
+  transition: opacity var(--t-fast) var(--ease);
+}
+[data-look="console"] .row:hover .row-actions, [data-look="console"] .row.is-hover .row-actions, [data-look="console"] .row:focus-within .row-actions { opacity: 1; pointer-events: auto; }
+[data-look="console"] .row:hover .row-time, [data-look="console"] .row.is-hover .row-time { visibility: hidden; }
+
+/* The keyboard's row cursor, treated as a hover that does not move.
+ *
+ * Console's action strip is absolutely positioned over the end of the row and
+ * masks what is behind it by painting `--row-hover` — which works only while
+ * that is the row's actual background. A selected row is painted from the
+ * environment colour instead, so the strip has to be told the new value or the
+ * path underneath shows through around the buttons. Redefining the variable
+ * keeps one mechanism rather than adding a second. */
+[data-look="console"] .row.selected {
+  --row-hover: color-mix(in srgb, var(--env) 10%, var(--panel));
+  background-color: var(--row-hover);
+}
+[data-look="console"] .row.selected .row-actions { opacity: 1; pointer-events: auto; }
+[data-look="console"] .row.selected .row-time { visibility: hidden; }
+[data-look="console"] .row-detail { padding: 0 var(--sp-3) var(--sp-3) calc(var(--sp-3) + 10px + var(--sp-2)); display: flex; flex-direction: column; gap: var(--sp-2); }
+[data-look="console"] .row-detail .row-sub { color: var(--text-2); }
+[data-look="console"] .row-detail .row-sub .label { color: var(--text-3); }
+@container (max-width: 300px) {
+  [data-look="console"] .row { grid-template-columns: 10px minmax(0, 1fr); }
+  [data-look="console"] .row-sub, [data-look="console"] .row-actions, [data-look="console"] .row-time { display: none; }
+  [data-look="console"] .row-title { font-size: var(--fs-3); }
+}
+
+/* --- status ---------------------------------------------------------------- */
+/* Colour never travels alone: the word is always there. */
+[data-look="console"] .status {
+  display: inline-flex; align-items: center; gap: 5px; flex: none;
+  font: 500 var(--fs-2) / 1 var(--font-mono); letter-spacing: .04em; text-transform: uppercase; color: var(--text-2);
+}
+[data-look="console"] .status i { width: 7px; height: 7px; border-radius: 50%; background: var(--s); flex: none; }
+[data-look="console"] .status[data-state="up"], [data-look="console"] .status[data-state="ok"], [data-look="console"] .status[data-state="live"] { --s: var(--ok); }
+[data-look="console"] .status[data-state="busy"], [data-look="console"] .status[data-state="warn"] { --s: var(--warn); color: var(--warn); }
+[data-look="console"] .status[data-state="down"], [data-look="console"] .status[data-state="ended"], [data-look="console"] .status[data-state="err"] { --s: var(--err); color: var(--err); }
+[data-look="console"] .status[data-state="unknown"] { --s: transparent; color: var(--text-3); font-weight: 400; text-transform: none; letter-spacing: 0; }
+[data-look="console"] .status[data-state="unknown"] i { border: 1.5px dashed var(--text-3); }
+[data-look="console"] .status i { display: none; }
+[data-look="console"] .status::before { content: "["; }
+[data-look="console"] .status::after { content: "]"; }
+[data-look="console"] .status[data-state="up"], [data-look="console"] .status[data-state="ok"], [data-look="console"] .status[data-state="live"] { color: var(--ok); }
+
+/* --- buttons, tags, kbd ---------------------------------------------------- */
+[data-look="console"] .btn {
+  display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 8px;
+  border: 1px solid var(--line-strong); border-radius: var(--r-sm); background: var(--panel);
+  color: var(--text); font: 500 var(--fs-3) / 1 var(--font-ui); cursor: pointer; white-space: nowrap;
+  transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+}
+[data-look="console"] .btn:hover { background: color-mix(in srgb, var(--text) 7%, var(--panel)); }
+[data-look="console"] .btn:active { background: color-mix(in srgb, var(--text) 14%, var(--panel)); }
+[data-look="console"] .btn-primary { color: var(--env); border-color: var(--env); }
+[data-look="console"] .btn-primary:hover { background: color-mix(in srgb, var(--env) 12%, var(--panel)); }
+[data-look="console"] .btn-ghost { border-color: transparent; color: var(--text-2); background: transparent; }
+[data-look="console"] .btn-ghost:hover { color: var(--text); }
+[data-look="console"] .btn-sm { height: 20px; padding: 0 6px; font-size: var(--fs-2); }
+[data-look="console"] .btn-icon { width: 22px; height: 22px; padding: 0; justify-content: center; }
+[data-look="console"] .btn-danger { color: var(--err); }
+[data-look="console"] .btn:disabled { opacity: .45; cursor: not-allowed; }
+[data-look="console"] .kbd {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 16px; height: 16px; padding: 0 4px;
+  border: 1px solid var(--line-strong); border-bottom-width: 2px; border-radius: 3px;
+  font: 500 var(--fs-1) / 1 var(--font-mono); color: var(--text-2);
+}
+[data-look="console"] .tag {
+  display: inline-flex; align-items: center; height: 18px; padding: 0 6px; border-radius: 3px;
+  font: 500 var(--fs-1) / 1 var(--font-mono); letter-spacing: .04em;
+  background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text-2);
+}
+[data-look="console"] .tag-env { background: color-mix(in srgb, var(--env) 18%, transparent); color: var(--text); }
+
+/* --- empty state ------------------------------------------------------------ */
+/* "Nothing is listening" is news, not failure: prose, calm, no icon, no red. */
+[data-look="console"] .empty { padding: var(--sp-4) var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-1); max-width: 44ch; }
+[data-look="console"] .empty-title { font-size: var(--fs-5); font-weight: 500; line-height: 1.3; color: var(--text); }
+[data-look="console"] .empty-body { font-size: var(--fs-4); line-height: 1.5; color: var(--text-2); text-wrap: pretty; }
+[data-look="console"] .empty-meta { margin-top: var(--sp-2); font: 400 var(--fs-2) / 1 var(--font-mono); color: var(--text-3); }
+[data-look="console"] .empty .btn { align-self: flex-start; margin-top: var(--sp-2); }
+@container (max-width: 300px) {[data-look="console"] .empty-body { display: none; } }
+
+/* --- prose (notes, long empty states) --------------------------------------- */
+[data-look="console"] .prose { padding: var(--sp-3) var(--sp-4); font-size: 14px; line-height: 1.55; color: var(--text); max-width: 62ch; user-select: text; text-wrap: pretty; }
+[data-look="console"] .prose h1, [data-look="console"] .prose h2, [data-look="console"] .prose h3 { font-weight: 500; line-height: 1.25; margin: 0 0 .4em; letter-spacing: -.01em; }
+[data-look="console"] .prose h1 { font-size: var(--fs-6); } [data-look="console"] .prose h2 { font-size: var(--fs-5); } [data-look="console"] .prose h3 { font-size: 14px; }
+[data-look="console"] .prose p { margin: 0 0 .7em; }
+[data-look="console"] .prose ul { margin: 0 0 .7em; padding-left: 1.2em; }
+[data-look="console"] .prose li { margin: .15em 0; }
+[data-look="console"] .prose code { font: 400 .88em / 1 var(--font-mono); padding: 1px 4px; border-radius: 3px; background: color-mix(in srgb, var(--text) 8%, transparent); }
+[data-look="console"] .prose a { color: var(--env); text-underline-offset: 3px; }
+[data-look="console"] .prose li.done { color: var(--text-3); text-decoration: line-through; }
+
+/* --- calendar --------------------------------------------------------------- */
+/* One markup, three views: the container width picks the view. */
+[data-look="console"] .cal { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+[data-look="console"] .cal-bar { display: flex; align-items: center; gap: var(--sp-1); padding: 0 var(--sp-2) var(--sp-1); flex: none; }
+[data-look="console"] .cal-month { font-size: var(--fs-3); font-weight: 500; color: var(--text-2); margin-left: var(--sp-2); }
+[data-look="console"] .cal-grid {
+  display: none; flex: 1; min-height: 0; padding: 0 var(--sp-2) var(--sp-2);
+  grid-template-columns: repeat(7, minmax(0, 1fr)); grid-template-rows: auto; grid-auto-rows: minmax(0, 1fr);
+}
+[data-look="console"] .cal-head { font: 500 var(--fs-1) / 1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); padding: 2px 4px 4px; }
+[data-look="console"] .cal-day { min-width: 0; min-height: 0; overflow: hidden; padding: 3px 4px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 2px; }
+[data-look="console"] .cal-day.outside .cal-date { opacity: .4; }
+[data-look="console"] .cal-day.today { border-top: 2px solid var(--env); padding-top: 2px; }
+[data-look="console"] .cal-date { font: 400 var(--fs-2) / 1 var(--font-mono); color: var(--text-2); font-variant-numeric: tabular-nums; }
+/* Today is a 2px rule above the cell and a coloured date — not a filled pill.
+ * Classic paints one, so it has to be cleared here or the number is knocked
+ * out of a solid block and becomes unreadable. */
+[data-look="console"] .cal-day.today .cal-date {
+  color: var(--env);
+  font-weight: 600;
+  background: none;
+  padding: 0;
+  border-radius: 0;
+}
+[data-look="console"] .cal-day.weekend { background: color-mix(in srgb, var(--text) 2.5%, transparent); }
+[data-look="console"] .cal-pill {
+  display: flex; align-items: center; gap: 4px; min-width: 0; padding: 1px 3px; border-radius: 3px;
+  font-size: var(--fs-2); line-height: 1.3; color: var(--text);
+  background: color-mix(in srgb, var(--pill, var(--text-3)) 14%, transparent);
+}
+[data-look="console"] .cal-pill::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--pill, var(--text-3)); flex: none; }
+[data-look="console"] .cal-pill span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-look="console"] .cal-pill .cal-time { color: var(--text-3); font-family: var(--font-mono); font-size: var(--fs-1); flex: none; }
+[data-look="console"] .cal-agenda { display: flex; flex-direction: column; }
+[data-look="console"] .cal-agenda .label { padding: var(--sp-2) var(--sp-3) 0; }
+[data-look="console"] .cal-mini { display: none; align-items: baseline; gap: var(--sp-3); padding: 0 var(--sp-3); min-width: 0; }
+[data-look="console"] .cal-mini-num { font: 500 var(--fs-7) / 1 var(--font-ui); letter-spacing: -.02em; color: var(--env); font-variant-numeric: tabular-nums; }
+[data-look="console"] .cal-mini-next { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+[data-look="console"] .cal-mini-next span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-2); color: var(--text-2); }
+[data-look="console"] .cal-mini-next .label { color: var(--text-3); }
+@container (min-width: 640px) {[data-look="console"] .cal-grid { display: grid; }[data-look="console"] .cal-agenda { display: none; } }
+@container (max-width: 300px) {[data-look="console"] .cal-agenda, [data-look="console"] .cal-bar { display: none; }[data-look="console"] .cal-mini { display: flex; } }
+
+/* --- stats ------------------------------------------------------------------ */
+[data-look="console"] .stat-nums { display: flex; gap: var(--sp-6); padding: var(--sp-1) var(--sp-3) var(--sp-2); flex-wrap: wrap; }
+[data-look="console"] .stat-num b { display: block; font: 500 var(--fs-6) / 1.1 var(--font-ui); letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
+[data-look="console"] .stat-num span { font: 400 var(--fs-1) / 1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); }
+[data-look="console"] .stat-chart { flex: 1; min-height: 40px; padding: 0 var(--sp-3) var(--sp-3); }
+[data-look="console"] .stat-chart svg { display: block; width: 100%; height: 100%; overflow: visible; }
+[data-look="console"] .stat-chart rect { fill: color-mix(in srgb, var(--env) 45%, var(--panel)); }
+[data-look="console"] .stat-chart rect.today { fill: var(--env); }
+[data-look="console"] .stat-chart line { stroke: var(--line-strong); }
+[data-look="console"] .stat-axis { display: flex; justify-content: space-between; font: 400 var(--fs-1) / 1 var(--font-mono); color: var(--text-3); padding: 0 var(--sp-3) var(--sp-2); }
+@container (max-width: 300px) {[data-look="console"] .stat-nums { gap: var(--sp-3); }[data-look="console"] .stat-num:nth-child(n+2) { display: none; }[data-look="console"] .stat-axis { display: none; } }
+
+/* --- launcher --------------------------------------------------------------- */
+[data-look="console"] .launch { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: var(--sp-2); padding: var(--sp-1) var(--sp-3) var(--sp-3); }
+[data-look="console"] .launch-tile {
+  display: flex; flex-direction: column; justify-content: space-between; gap: var(--sp-2); min-height: 54px; min-width: 0;
+  padding: var(--sp-2) var(--sp-3); border: 1px solid var(--line); border-radius: var(--r-sm); background: transparent;
+  text-align: left; cursor: pointer; transition: border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
+}
+[data-look="console"] .launch-tile:hover { border-color: var(--env); background: color-mix(in srgb, var(--env) 6%, transparent); }
+[data-look="console"] .launch-kind { font: 500 var(--fs-1) / 1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); }
+[data-look="console"] .launch-kind b { color: var(--env); font-weight: 500; }
+[data-look="console"] .launch-name { font-size: var(--fs-3); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-look="console"] .launch-tile.add { border-style: dashed; color: var(--text-3); justify-content: center; align-items: center; }
+
+/* --- toast ------------------------------------------------------------------ */
+[data-look="console"] .toast {
+  position: absolute; left: 50%; bottom: 40px; transform: translateX(-50%);
+  padding: var(--sp-2) var(--sp-4); border-radius: var(--r-sm); background: var(--surface-2); box-shadow: var(--shadow-md);
+  font-size: var(--fs-3); animation: toast-in var(--t-move) var(--ease);
+}
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, 6px); } to { opacity: 1; transform: translate(-50%, 0); } }
+/* A row that just changed flashes once (300ms) — the only motion on a poll. */
+@keyframes row-fresh { from { background-color: color-mix(in srgb, var(--env) 16%, transparent); } to { background-color: transparent; } }
+[data-look="console"] .row.is-fresh { animation: row-fresh 300ms var(--ease); }
+
+/* --- shell integration ----------------------------------------------------
+ * The mockup's `.board` was a static grid; here it holds the real Canvas,
+ * SettingsPage or EnvironmentOverview, so it needs to be a filling, clipping
+ * grid cell. Nothing aesthetic — the look comes from the rules above.
+ */
+[data-look="console"] .window { height: 100%; }
+[data-look="console"] .board {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+[data-look="console"] .board > * { flex: 1; min-height: 0; }
+/* The canvas draws the ground in classic; in Console the board does, so the
+ * canvas gets out of the way rather than painting over the environment tint. */
+[data-look="console"] .canvas { background: transparent; background-image: none; }
+
+/* The clock at the foot of the rail. */
+[data-look="console"] .rail-clock {
+  font: 400 var(--fs-1) / 1 var(--font-mono);
+  color: var(--text-3);
+  padding-bottom: 2px;
+}
+[data-look="console"] .rail-toggle .kbd { pointer-events: none; }
+
+/* A row that stacks a detail panel under its main line (ItemsWidget).
+ * The design's `.row` is itself the three-column grid; when a row has two
+ * levels, the grid belongs to the line rather than to the row — otherwise the
+ * whole line lands in the 10px mark column and the title disappears into it. */
+[data-look="console"] .row.stacked {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+[data-look="console"] .row.stacked .row-line {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  column-gap: var(--sp-2);
+  align-items: start;
+}
+
+/* A selected row keeps its actions visible — the keyboard has no hover. */
+[data-look="console"] .row-actions[data-open] { opacity: 1; pointer-events: auto; }
+/* …and the timestamp yields to them, per the design. */
+[data-look="console"] .row:hover .row-time,
+[data-look="console"] .row:focus-within .row-time { visibility: hidden; }
+
+/* --- where this app and the design disagree, with reasons ----------------- */
+
+/* The calendar. The design switches month/agenda/mini purely by container
+ * width, so `.cal-grid` is `display: none` until 640px and `.cal-agenda` is
+ * hidden above it. This app's calendar has an explicit Month / Week / Agenda
+ * control that the user clicks, and a container query that overrides a control
+ * someone just pressed is a bug, not a responsive design — at 5 columns it
+ * rendered a header and nothing else.
+ *
+ * So the chosen view wins at every width, and the design's look — mono weekday
+ * heads, the 2px rule on today, event pills — is kept. The width-driven
+ * switch is worth revisiting as a *product* decision; it is not one a
+ * stylesheet gets to make behind the component's back. */
+[data-look="console"] .cal-grid { display: grid; }
+@container (min-width: 640px) {
+  [data-look="console"] .cal-agenda { display: flex; }
+}
+
+/* Stats. The design's `.stat-nums` is a bare flex row; classic's is a bordered
+ * grid of tiles. Both style the same two elements, so the classic chrome has to
+ * be cleared here rather than left to show through as an empty framed box
+ * beside the one figure that survives a narrow widget. */
+[data-look="console"] .stat-nums { background: none; border: 0; border-radius: 0; }
+[data-look="console"] .stat-num { background: none; box-shadow: none; padding: 0; }
+
+/* The dev board's footer tool — a port field and a copy button — is wider than
+ * a 2-column widget. It wraps rather than forcing the whole board to scroll
+ * sideways, which is the one thing a fixed-size canvas must never do. */
+[data-look="console"] .filter-bar { flex-wrap: wrap; row-gap: var(--sp-1); }
+@container (max-width: 300px) {
+  [data-look="console"] .filter-bar .mono-label { display: none; }
+}
+
+/* Adding a board. The tab strip had a `+`; the rail that replaces it needs one
+ * too, or an environment becomes a closed set. Dashed, like the design's
+ * `.launch-tile.add`, so it reads as an affordance rather than a board. */
+[data-look="console"] .rail-add {
+  border-style: dashed;
+  color: var(--text-3);
+  background: none;
+  cursor: pointer;
+  justify-content: center;
+}
+[data-look="console"] .rail-add:hover { color: var(--c); border-color: var(--c); }
+
+/* Renaming a board, in the rail where its name is. */
+[data-look="console"] .rail-rename {
+  height: 22px;
+  padding: 0 var(--sp-2);
+  font: 400 var(--fs-2) / 1 var(--font-mono);
+  background: var(--bg);
+  border-color: var(--c);
+}
+
+/* Shortcut chips, while ⌘ is held. Hidden when the rail is collapsed: there the
+ * tile already shows its number, and a chip beside it in 44px would be the same
+ * fact twice, illegibly. */
+[data-look="console"] .rail-hint { display: none; }
+[data-look="console"] .rail-wide .rail-hint {
+  display: inline-flex;
+  margin-left: auto;
+  font-size: 9px;
+  padding: 0 3px;
+}
+
+/* The collapsed rail shows a tab's three-letter code and nothing else. The
+ * design put a number under it as well, and a row of numbers under a collapsed
+ * environment; at 44px that is the same tab identified twice, and it reads as
+ * noise rather than as a shortcut.
+ *
+ * The number is not lost — holding ⌘ swaps the code for it, which is the
+ * moment you are looking for a number in the first place. */
+[data-look="console"] .rail-tile-idx { display: none; }
+[data-look="console"] .chrome-rail[data-hints] .rail-tile-code { display: none; }
+[data-look="console"] .chrome-rail[data-hints] .rail-tile-idx {
+  display: inline;
+  font: 500 var(--fs-2) / 1 var(--font-mono);
+  color: var(--c);
+}
+/* Wide, the number sits before the name and the code is already hidden by the
+ * design's own rule above — so the swap is a collapsed-rail affair only. */
+[data-look="console"] .rail-wide .rail-tile-idx { display: inline; }
+
+/* How many tabs an environment holds, at the right-hand end of its bar. Only
+ * when the rail is wide: collapsed, its tiles are directly beneath it and
+ * counting them is not something you need a number for. */
+[data-look="console"] .rail-env-count { display: none; }
+[data-look="console"] .rail-wide .rail-env-count {
+  display: inline;
+  margin-left: auto;
+  font: 400 var(--fs-2) / 1 var(--font-mono);
+  color: color-mix(in srgb, currentColor 65%, transparent);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A chart's hover targets are full-height rectangles that must stay invisible.
+ * The design styles `.stat-chart rect` wholesale, and a CSS `fill` beats the
+ * `fill="transparent"` attribute — which painted one opaque block per day over
+ * the entire chart. Bars are `.bar`; targets are `.hit`. */
+[data-look="console"] .stat-chart rect.hit { fill: transparent; }
+
+/* --- reordering, and moving tabs in and out of groups --------------------
+ * The drag behaviour the tab strip had, in a column. `-webkit-user-drag` is
+ * load-bearing rather than decorative: without it WebKit — which is what the
+ * Tauri window is — never decides to begin the drag at all.
+ */
+[data-look="console"] .rail-tile {
+  -webkit-user-drag: element;
+  user-select: none;
+}
+/* Where the tab would land. A line across the rail, in the environment's
+ * colour, because a caret between two 20px tiles has to be unmissable. */
+[data-look="console"] .rail-caret {
+  display: block;
+  height: 2px;
+  margin: -1px 0;
+  background: var(--c);
+  border-radius: 1px;
+}
+/* A group being dropped into says so, rather than leaving you to infer it from
+ * where the caret happens to be. */
+[data-look="console"] .rail-group.targeted .rail-group-pill {
+  background: color-mix(in srgb, var(--g) 30%, transparent);
+}
+[data-look="console"] .rail-group.targeted .rail-group-tabs {
+  border-left-color: var(--g);
+}
+/* Renaming a group, inside its pill. */
+[data-look="console"] .rail-group-pill .rail-rename { height: 18px; width: 100%; }
+
+/* A group is dragged by its pill, and the whole run goes with it. */
+[data-look="console"] .rail-group-pill { -webkit-user-drag: element; }
+/* While it is in flight, the run it belongs to fades rather than disappearing:
+ * you are moving it, not deleting it, and losing sight of it mid-drag is how
+ * you drop it somewhere you did not mean to. */
+[data-look="console"] .rail-group.lifting { opacity: 0.45; }
+
+/* An environment's own key, shown on its bar in place of the tab count while
+ * ⌘ is held — the count is not the thing you are looking for at that moment. */
+[data-look="console"] .rail-env-hint { display: none; }
+[data-look="console"] .rail-wide .rail-env-hint {
+  display: inline-flex;
+  margin-left: auto;
+  font-size: 9px;
+  padding: 0 3px;
+}
+
+/* --- the title bar's lane ------------------------------------------------
+ * The Console rail starts at the top-left corner, which on macOS is exactly
+ * where the traffic lights are drawn. A left-hand lane cannot help — collapsed,
+ * the rail is 44px and the lights are wider than that, so they would spill onto
+ * the board as well. So the whole grid moves down instead, and the row it makes
+ * is the shared `.titlebar`.
+ */
+[data-look="console"] .window { grid-template-rows: var(--titlebar) minmax(0, 1fr); }
+[data-look="console"] .titlebar { grid-column: 1 / -1; }
+
+/* --- a row is placed by column, not by the order of its children ---------
+ * `.row` is a three-column grid — mark, main, time — and until now each child
+ * simply took the next lane. A widget whose rows have no unread mark therefore
+ * put its main content in the 10px mark lane, which is why the repositories
+ * widget rendered every title as a single letter.
+ *
+ * Naming the columns makes the grid tolerant of which parts a row happens to
+ * have, which is the only way it can serve five widgets with different rows.
+ */
+[data-look="console"] .row > .row-mark { grid-column: 1; }
+[data-look="console"] .row > .row-main { grid-column: 2; }
+[data-look="console"] .row > .row-time { grid-column: 3; }
+/* A row with no mark should not keep the lane empty either. */
+[data-look="console"] .row:not(:has(> .row-mark)) { grid-template-columns: 0 minmax(0, 1fr) auto; }
+
+/* A path is the one fact that is always too long. Truncated from the left, so
+ * the end you actually read — the repository, not `/Users` — survives. */
+[data-look="console"] .row-sub .path {
+  direction: rtl;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* --- products -------------------------------------------------------------- */
+[data-look="console"] .product-log {
+  font: 400 var(--fs-2) / 1.5 var(--font-mono);
+  color: var(--text-2);
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+  border-radius: 2px;
+  padding: var(--sp-2);
+  max-height: 220px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

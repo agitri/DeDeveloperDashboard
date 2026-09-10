@@ -1,0 +1,1411 @@
+/* ---------------------------------------------------------------------------
+   DDD — visual system
+
+   Direction: an instrument panel, not a SaaS dashboard. Dense, hairline-ruled,
+   monospace-labelled. The one rule everything else follows: saturated colour is
+   reserved for environment identity (§5.9). Chrome is graphite; a coloured
+   thing on screen is telling you which world you are in. That is why there is
+   no brand accent here — the accent is whatever environment you are looking at.
+--------------------------------------------------------------------------- */
+
+@import "@fontsource/ibm-plex-sans/400.css";
+@import "@fontsource/ibm-plex-sans/500.css";
+@import "@fontsource/ibm-plex-sans/600.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+@import "react-grid-layout/css/styles.css";
+@import "react-resizable/css/styles.css";
+
+:root {
+  --font-ui: "IBM Plex Sans", ui-sans-serif, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", monospace;
+
+  --bg: #f2f2ef;
+  --surface: #ffffff;
+  --raised: #fbfbf9;
+  --sunken: #eaeae5;
+  --line: #dedcd5;
+  --line-strong: #c2bfb6;
+  --ink: #16181c;
+  --ink-2: #4b4f58;
+  --ink-3: #8b8f99;
+  --ok: #1a7f37;
+  --warn: #9a6700;
+  --err: #cf222e;
+  --shadow: 0 1px 2px rgb(20 22 28 / 0.06), 0 8px 24px rgb(20 22 28 / 0.08);
+  --grid-dot: rgb(20 22 28 / 0.09);
+
+  /* Overridden per active tab; every focus ring and active marker reads it. */
+  --accent: #2f6ae8;
+
+  --r: 4px;
+  --rail: 38px;
+  --strip: 34px;
+  --titlebar: 28px;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+}
+
+:root[data-theme="dark"] {
+  --bg: #0c0d10;
+  --surface: #14161a;
+  --raised: #191c22;
+  --sunken: #0a0b0e;
+  --line: #23262e;
+  --line-strong: #343945;
+  --ink: #e7e9ee;
+  --ink-2: #a2a9b6;
+  --ink-3: #686f7d;
+  --ok: #3fb950;
+  --warn: #d29922;
+  --err: #f85149;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.5), 0 12px 32px rgb(0 0 0 / 0.45);
+  --grid-dot: rgb(255 255 255 / 0.055);
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+  /* The chrome is not a document; nothing here should be text-selectable by
+     accident while dragging widgets around. */
+  user-select: none;
+}
+
+button, input, textarea, select { font: inherit; color: inherit; }
+
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 99px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-track { background: transparent; }
+
+/* Focus is never invisible — keyboard UX dies without it (§5.10). */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-radius: 2px;
+}
+
+/* --- primitives ---------------------------------------------------------- */
+
+.mono-label {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  background: var(--raised);
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid transparent;
+  border-radius: var(--r);
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: background 120ms var(--ease), color 120ms var(--ease), border-color 120ms var(--ease);
+}
+.icon-btn:hover { background: var(--raised); color: var(--ink); border-color: var(--line); }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--raised);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 120ms var(--ease), border-color 120ms var(--ease);
+}
+.btn:hover { border-color: var(--line-strong); background: var(--surface); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.danger { color: var(--err); border-color: color-mix(in srgb, var(--err) 40%, var(--line)); }
+
+.field {
+  width: 100%;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface);
+  color: var(--ink);
+  user-select: text;
+}
+.field:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+
+/* --- shell --------------------------------------------------------------- */
+
+.shell {
+  display: grid;
+  grid-template-rows: var(--titlebar) var(--rail) var(--strip) 1fr;
+  height: 100%;
+}
+
+/* --- the window's title bar ----------------------------------------------
+ * The one strip that is about the window rather than the board, and the only
+ * place either look can be picked up by.
+ *
+ * It is a real element rather than the system's own bar because the window runs
+ * with an overlay title bar: content extends under the system chrome, so the OS
+ * never sees the click. The drag is `data-tauri-drag-region` in the markup —
+ * not the `-webkit-app-region` this replaces, which is a Chromium property that
+ * neither WKWebView nor WebView2 implements, and which therefore never once
+ * moved this window.
+ */
+.titlebar {
+  height: var(--titlebar);
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  background: var(--sunken);
+  border-bottom: 1px solid var(--line);
+  overflow: hidden;
+  cursor: default;
+  user-select: none;
+}
+/* macOS draws its traffic lights into this strip; 78px is where the third one
+ * ends. Everywhere else the OS draws its buttons outside the webview. */
+:root[data-platform="mac"] .titlebar { padding-left: 78px; }
+/* 32 rather than 28: the lights occupy roughly the top 30px, and a strip that
+ * only just clears them clips on a zoomed display. */
+:root[data-platform="mac"] { --titlebar: 32px; }
+
+.titlebar-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 11px;
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.titlebar-swatch {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+}
+
+.rail {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+
+/* macOS draws its traffic lights over the rail; leave them a lane. */
+:root[data-platform="mac"] .rail { padding-left: 78px; }
+
+.mark {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  font-size: 11px;
+}
+.mark b { color: var(--ink); font-weight: 500; }
+.mark span { color: var(--ink-3); font-size: 9.5px; letter-spacing: 0.08em; }
+
+.rail-spacer { flex: 1; }
+
+.palette-hint {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 24px;
+  padding: 0 8px 0 9px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--bg);
+  color: var(--ink-3);
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 120ms var(--ease), color 120ms var(--ease);
+}
+.palette-hint:hover { border-color: var(--line-strong); color: var(--ink-2); }
+
+/* --- tab strip ----------------------------------------------------------- */
+
+.strip {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--line);
+  background: var(--sunken);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+.strip::-webkit-scrollbar { display: none; }
+
+/* An environment is a tab group: a coloured label, then its tabs. */
+.env-group { display: flex; align-items: stretch; }
+
+/* The environment reads as a tab, but one with no close affordance: it is the
+   container its tabs live in, not a peer of them. */
+.env-tab {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  margin-right: 2px;
+  border-right: 1px solid var(--line);
+  background: color-mix(in srgb, var(--env) 30%, var(--surface));
+}
+.env-name,
+.env-gear {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 100%;
+  padding: 0 4px 0 8px;
+  border: none;
+  background: transparent;
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.env-gear {
+  padding: 0 8px 0 2px;
+  font-size: 11px;
+  letter-spacing: 0;
+  opacity: 0.55;
+}
+.env-name:hover,
+.env-gear:hover { color: var(--ink); opacity: 1; }
+.env-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 99px;
+  background: var(--env);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--env) 22%, transparent);
+}
+.env-label span { color: var(--ink-3); }
+
+.tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 100%;
+  padding: 0 11px;
+  border: none;
+  border-right: 1px solid transparent;
+  /* Every tab wears its own colour, not just a marker stripe: a resting tint
+     you can scan at a glance, and the full weight of it when active. Mixing
+     into --surface rather than using the raw hex is what keeps --ink legible
+     on all six environment colours in both themes — the mix darkens against a
+     dark surface and lightens against a light one, so contrast never depends
+     on which colour you picked. */
+  background: color-mix(in srgb, var(--tab-color, var(--accent)) 22%, var(--surface));
+  color: var(--ink-2);
+  font-size: 12.5px;
+  white-space: nowrap;
+  cursor: pointer;
+  /* A `<button draggable>` does not reliably start a drag from a real mouse in
+     Blink or WebKit — form controls swallow the gesture. This is the property
+     that actually makes the element draggable by hand, and its absence is why
+     synthetic DragEvents worked while a human dragging the tab did nothing. */
+  -webkit-user-drag: element;
+  /* Or the gesture becomes a text selection instead of a drag. */
+  user-select: none;
+  transition: color 120ms var(--ease), background 120ms var(--ease);
+}
+.tab:hover {
+  color: var(--ink-2);
+  background: color-mix(in srgb, var(--tab-color, var(--accent)) 36%, var(--surface));
+}
+
+.tab.active {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--tab-color, var(--accent)) 58%, var(--surface));
+  border-right-color: var(--line);
+}
+.tab.active::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 -1px 0;
+  height: 1px;
+  background: var(--surface);
+}
+
+.tab .tab-idx {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--ink-3);
+  opacity: 0.65;
+}
+.tab input {
+  width: 9ch;
+  border: none;
+  background: transparent;
+  color: inherit;
+  outline: none;
+  user-select: text;
+}
+
+.strip-add {
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  border: none;
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+  font-size: 15px;
+}
+.strip-add:hover { color: var(--ink); }
+
+/* --- canvas -------------------------------------------------------------- */
+
+.canvas {
+  position: relative;
+  overflow: auto;
+  background-color: var(--bg);
+  /* Blueprint dot grid: makes the board read as a surface you arrange things on. */
+  background-image: radial-gradient(var(--grid-dot) 1px, transparent 1px);
+  background-size: 22px 22px;
+  background-position: -1px -1px;
+}
+
+.canvas-empty {
+  display: grid;
+  place-content: center;
+  gap: 12px;
+  justify-items: center;
+  height: 100%;
+  color: var(--ink-3);
+  text-align: center;
+}
+.canvas-empty h2 { margin: 0; font-size: 15px; font-weight: 500; color: var(--ink-2); }
+
+/* --- widgets ------------------------------------------------------------- */
+
+.widget {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface);
+  box-shadow: 0 1px 0 rgb(0 0 0 / 0.02);
+  transition: border-color 140ms var(--ease), box-shadow 140ms var(--ease);
+}
+.widget.focused {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), 0 0 0 5px color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.widget-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 27px;
+  padding: 0 6px 0 9px;
+  border-bottom: 1px solid var(--line);
+  background: var(--raised);
+  cursor: grab;
+}
+.widget-head:active { cursor: grabbing; }
+.widget-head .title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.widget-actions { display: flex; gap: 2px; opacity: 0; transition: opacity 120ms var(--ease); }
+.widget:hover .widget-actions,
+.widget.focused .widget-actions { opacity: 1; }
+
+.widget-body { flex: 1; overflow: auto; padding: 10px; }
+.widget-body.flush { padding: 0; }
+
+/* react-grid-layout, restyled to match the panel language. */
+.react-grid-item.react-grid-placeholder {
+  background: color-mix(in srgb, var(--accent) 16%, transparent) !important;
+  border: 1px dashed var(--accent);
+  border-radius: var(--r);
+  opacity: 1 !important;
+}
+.react-grid-item > .react-resizable-handle::after {
+  border-right-color: var(--line-strong);
+  border-bottom-color: var(--line-strong);
+  width: 6px;
+  height: 6px;
+}
+.react-grid-item.react-draggable-dragging { z-index: 20; box-shadow: var(--shadow); }
+
+/* --- list rows (the shape every item widget uses) ------------------------ */
+
+.rows { display: flex; flex-direction: column; }
+.row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--line);
+  cursor: default;
+}
+.row:last-child { border-bottom: none; }
+.row.selected {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.row .row-main { flex: 1; min-width: 0; }
+.row .row-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row .row-sub { color: var(--ink-3); font-size: 11.5px; }
+
+/* --- overlays ------------------------------------------------------------ */
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  justify-content: center;
+  padding-top: 14vh;
+  background: color-mix(in srgb, var(--sunken) 62%, transparent);
+  backdrop-filter: blur(3px);
+  animation: fade 120ms var(--ease);
+}
+@keyframes fade { from { opacity: 0; } }
+
+.panel {
+  width: min(600px, calc(100vw - 48px));
+  max-height: 62vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  animation: rise 140ms var(--ease);
+}
+@keyframes rise { from { opacity: 0; transform: translateY(-6px) scale(0.995); } }
+
+.panel-input {
+  width: 100%;
+  height: 42px;
+  padding: 0 14px;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  outline: none;
+  user-select: text;
+}
+.panel-input::placeholder { color: var(--ink-3); }
+
+.panel-list { overflow: auto; padding: 4px; }
+.panel-group {
+  padding: 9px 10px 4px;
+}
+.panel-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  border-radius: var(--r);
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.panel-row .sub { color: var(--ink-3); font-size: 11.5px; }
+.panel-row.active { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+/* `.grow` is global — see the widget primitives at the end of this file. */
+.panel-empty { padding: 22px; text-align: center; color: var(--ink-3); }
+
+/* --- hint overlay -------------------------------------------------------- */
+
+.hint {
+  position: absolute;
+  z-index: 40;
+  pointer-events: none;
+  animation: hint 110ms var(--ease);
+}
+@keyframes hint { from { opacity: 0; transform: scale(0.9); } }
+
+/* --- settings ------------------------------------------------------------ */
+
+.settings {
+  display: grid;
+  grid-template-columns: 184px 1fr;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+}
+.settings-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 12px 8px;
+  border-right: 1px solid var(--line);
+  background: var(--surface);
+  overflow: auto;
+}
+.settings-nav button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 9px;
+  border: none;
+  border-radius: var(--r);
+  background: transparent;
+  color: var(--ink-2);
+  text-align: left;
+  cursor: pointer;
+}
+.settings-nav button:hover { background: var(--raised); color: var(--ink); }
+.settings-nav button.active { background: color-mix(in srgb, var(--accent) 13%, transparent); color: var(--ink); }
+
+.settings-body { overflow: auto; padding: 24px 28px 64px; }
+.settings-body h1 { margin: 0 0 2px; font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
+.settings-body .lede { margin: 0 0 22px; color: var(--ink-3); max-width: 62ch; }
+
+.card {
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--surface);
+  margin-bottom: 12px;
+}
+.card-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.card-body { padding: 12px; }
+
+.setting-row {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 14px;
+  align-items: center;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line);
+}
+.setting-row:last-child { border-bottom: none; }
+.setting-row .label { color: var(--ink-2); }
+.setting-row .desc { color: var(--ink-3); font-size: 11.5px; margin-top: 2px; }
+.setting-row .control { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.status-dot {
+  width: 7px; height: 7px; border-radius: 99px; flex: none;
+  background: var(--ink-3);
+}
+.status-dot.connected { background: var(--ok); }
+.status-dot.expired { background: var(--warn); }
+.status-dot.error { background: var(--err); }
+
+.pathline {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-2);
+  user-select: text;
+  overflow-wrap: anywhere;
+}
+
+.note {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--accent);
+  border-radius: var(--r);
+  background: var(--raised);
+  color: var(--ink-2);
+  font-size: 12px;
+}
+
+/* --- toast --------------------------------------------------------------- */
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  z-index: 80;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 99px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  animation: rise 140ms var(--ease);
+}
+
+/* --- project card -------------------------------------------------------- */
+
+.project {
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--surface);
+  overflow: hidden;
+}
+.project + .project { margin-top: 9px; }
+.project.selected { border-color: var(--accent); box-shadow: inset 2px 0 0 var(--accent); }
+.project-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 11px;
+  border-bottom: 1px solid var(--line);
+}
+.project-head .name { font-weight: 500; }
+.project-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 14px;
+  padding: 8px 11px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-2);
+}
+.project-meta .k { color: var(--ink-3); }
+.project-section { padding: 9px 11px; border-top: 1px solid var(--line); }
+.recap {
+  margin: 0;
+  white-space: pre-wrap;
+  font-size: 12px;
+  color: var(--ink-2);
+  max-height: 9.5em;
+  overflow: auto;
+  user-select: text;
+}
+.todo { display: flex; gap: 8px; align-items: baseline; padding: 2px 0; }
+.todo .box { font-family: var(--font-mono); color: var(--ink-3); }
+.todo.done { color: var(--ink-3); text-decoration: line-through; }
+
+/* --- context menu ---------------------------------------------------------
+   Right-click is where people look for "what can I do to this". Same surface
+   language as the palette: a floating card, dense rows, no icons. */
+.menu {
+  position: fixed;
+  z-index: 90;
+  min-width: 168px;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.22);
+  font-size: 12.5px;
+}
+.menu-row-wrap { position: relative; }
+.menu-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 24px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.menu-row:hover:not(:disabled),
+.menu-row.cursor:not(:disabled) { background: var(--bg); color: var(--ink); }
+.menu-row:disabled { color: var(--ink-3); cursor: default; }
+.menu-row.danger { color: var(--err); }
+.menu-more { margin-left: auto; color: var(--ink-3); }
+.menu-sep { height: 1px; margin: 4px 6px; background: var(--line); }
+
+.widget-editor {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+}
+.widget-editor .field { height: 22px; min-width: 0; }
+.widget-editor .btn { height: 22px; padding: 0 9px; }
+
+/* --- tab groups and drag --------------------------------------------------
+   A group is a run of tabs under one pill, which is why the ordering code
+   keeps a group's tabs adjacent: a split run has no pill that can span it. */
+.tab-run { display: flex; align-items: stretch; }
+.tab-run.grouped {
+  align-items: center;
+  gap: 0;
+  margin: 3px 2px;
+  padding: 0 2px 0 0;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--grp) 16%, transparent);
+  outline: 1px solid color-mix(in srgb, var(--grp) 42%, transparent);
+}
+.tab-run.grouped .tab { height: calc(100% - 6px); border-radius: 5px; }
+
+.group-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 20px;
+  margin: 0 2px;
+  padding: 0 7px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 11px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.group-pill:hover { background: color-mix(in srgb, var(--grp) 26%, transparent); }
+.group-pill .group-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--grp);
+}
+.group-pill input { width: 8ch; border: none; background: transparent; color: inherit; outline: none; }
+.group-count {
+  padding: 0 4px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--grp) 34%, transparent);
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+}
+
+/* Where the dragged tab will land. */
+.tab-caret {
+  width: 2px;
+  margin: 4px 0;
+  border-radius: 1px;
+  background: var(--accent);
+}
+
+/* --- notes ---------------------------------------------------------------- */
+.note-edit { display: flex; flex-direction: column; height: 100%; }
+.note-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+.note-toolbar .btn { height: 21px; min-width: 24px; padding: 0 6px; font-size: 11px; }
+.note-area {
+  flex: 1;
+  width: 100%;
+  border: none;
+  outline: none;
+  resize: none;
+  padding: 9px 11px;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  user-select: text;
+}
+.note-empty {
+  padding: 18px;
+  color: var(--ink-3);
+  cursor: text;
+  height: 100%;
+}
+.note-view {
+  padding: 9px 12px;
+  height: 100%;
+  overflow: auto;
+  font-size: 12.5px;
+  line-height: 1.62;
+  color: var(--ink-2);
+  user-select: text;
+}
+.note-view p, .note-view ul, .note-view ol, .note-view blockquote { margin: 0 0 7px; }
+.note-view ul, .note-view ol { padding-left: 19px; }
+.note-view li { margin: 1px 0; }
+.note-view .note-h {
+  margin: 11px 0 5px;
+  color: var(--ink);
+  font-weight: 600;
+  line-height: 1.3;
+}
+.note-view h1.note-h { font-size: 16px; }
+.note-view h2.note-h { font-size: 14px; }
+.note-view h3.note-h { font-size: 13px; }
+.note-view h4.note-h, .note-view h5.note-h, .note-view h6.note-h { font-size: 12.5px; }
+.note-view > .note-h:first-child { margin-top: 0; }
+.note-view blockquote {
+  padding-left: 9px;
+  border-left: 2px solid var(--line);
+  color: var(--ink-3);
+}
+.note-view hr { height: 1px; margin: 10px 0; border: none; background: var(--line); }
+.note-view a { color: var(--accent); }
+.note-code {
+  margin: 0 0 7px;
+  padding: 7px 9px;
+  border-radius: 6px;
+  background: var(--bg);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  overflow-x: auto;
+}
+.note-inline-code {
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: var(--bg);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+}
+/* A task item loses its bullet — the checkbox is the marker. Its neighbours
+   in the same list keep theirs. */
+.note-view li.task { display: flex; align-items: baseline; gap: 6px; list-style: none; }
+.note-view input[type="checkbox"] { accent-color: var(--accent); cursor: pointer; }
+
+/* --- calendar ------------------------------------------------------------- */
+.cal { display: flex; flex-direction: column; height: 100%; }
+.cal-bar {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--line);
+}
+.cal-bar .btn { height: 22px; padding: 0 9px; }
+.cal-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  /* The weekday row is explicit and sized to its text; every day row after it
+     is implicit and shares the remaining height. */
+  grid-template-rows: auto;
+  grid-auto-rows: minmax(46px, 1fr);
+  overflow: auto;
+}
+.cal-head {
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--line);
+  text-align: center;
+}
+.cal-day {
+  min-width: 0;
+  padding: 3px 4px;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  overflow: hidden;
+}
+.cal-day.outside { background: color-mix(in srgb, var(--bg) 60%, transparent); }
+.cal-day.outside .cal-date { color: var(--ink-3); opacity: 0.6; }
+.cal-day.today .cal-date {
+  color: var(--surface);
+  background: var(--accent);
+  border-radius: 4px;
+  padding: 0 4px;
+}
+.cal-date { font-family: var(--font-mono); font-size: 10px; color: var(--ink-3); display: inline-block; }
+.cal-pill {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-top: 2px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--pill) 26%, var(--surface));
+  border-left: 2px solid var(--pill);
+  font-size: 10.5px;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cal-time { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-3); }
+.cal-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; }
+.cal-empty { padding: 18px; color: var(--ink-3); }
+
+.section-head {
+  padding: 9px 10px 4px;
+  border-top: 1px solid var(--line);
+}
+
+/* Landing on one card in a list of several: say which one, briefly. */
+@keyframes card-flash {
+  from { box-shadow: 0 0 0 2px var(--accent); }
+  to { box-shadow: 0 0 0 2px transparent; }
+}
+.card.flash { animation: card-flash 1.4s var(--ease); }
+
+/* Two groups in the settings nav: what the app is, and what one world is. */
+.settings-nav .nav-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 9px 6px;
+}
+.settings-nav .nav-head:first-child { padding-top: 0; }
+
+/* The environment reads as selected when its overview is showing. */
+.env-tab.active { background: color-mix(in srgb, var(--env) 62%, var(--surface)); }
+.env-tab.active .env-name { color: var(--ink); }
+.env-count {
+  padding: 0 4px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--env) 45%, transparent);
+  font-size: 9.5px;
+  letter-spacing: 0;
+}
+
+/* --- environment overview -------------------------------------------------- */
+.canvas.overview { padding: 14px 16px; overflow: auto; }
+.overview-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 14px;
+}
+.overview-head h1 { margin: 0; font-size: 17px; }
+.overview-head .btn { height: 24px; }
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 10px;
+}
+.overview-card {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-height: 92px;
+  padding: 10px 11px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--card);
+  border-radius: 8px;
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 120ms var(--ease), transform 120ms var(--ease);
+}
+.overview-card:hover {
+  border-color: color-mix(in srgb, var(--card) 55%, var(--line));
+  transform: translateY(-1px);
+}
+.overview-card-head { display: flex; align-items: center; gap: 7px; }
+.overview-card-head .name { color: var(--ink); font-size: 13px; }
+.overview-card-head .group {
+  padding: 0 5px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--grp) 24%, transparent);
+}
+.overview-card-body { display: flex; flex-wrap: wrap; gap: 4px; flex: 1; }
+.overview-card-body .chip {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--ink-2);
+  font-size: 10.5px;
+}
+.overview-card-body .empty { color: var(--ink-3); font-size: 11px; }
+.overview-card-foot { color: var(--ink-3); }
+
+/* --- launcher -------------------------------------------------------------- */
+.launcher-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--line);
+}
+.launcher-bar .btn { height: 22px; padding: 0 9px; }
+.launcher-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 7px;
+  padding: 9px;
+}
+.launcher-cell { position: relative; display: flex; }
+.launcher-cell .icon-btn {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  opacity: 0;
+  transition: opacity 120ms var(--ease);
+}
+.launcher-cell:hover .icon-btn { opacity: 0.7; }
+.launcher-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: 1;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 120ms var(--ease), transform 120ms var(--ease);
+}
+.launcher-btn:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  transform: translateY(-1px);
+}
+.launcher-btn:disabled { color: var(--ink-3); cursor: default; }
+.launcher-btn .kindmark {
+  flex: none;
+  min-width: 22px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  text-align: center;
+}
+.launcher-btn .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.launcher-btn .gone { margin-left: auto; color: var(--warn); font-size: 10.5px; }
+
+/* The group a drop would join, while a tab is in flight. */
+.tab-run.grouped.targeted {
+  background: color-mix(in srgb, var(--grp) 34%, transparent);
+  outline: 1px solid color-mix(in srgb, var(--grp) 75%, transparent);
+}
+
+/* A row that is hidden, shown only while the hidden list is revealed. */
+.row.dimmed { opacity: 0.45; }
+
+/* `>_` is a prompt, not punctuation — it only reads as one in a mono face. */
+.btn.glyph { font-family: var(--font-mono); letter-spacing: -0.5px; }
+
+/* Connections that need someone other than the user. Said plainly and early:
+   discovering it after an hour in a cloud console is the failure mode. */
+.admin-flag {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--warn) 18%, transparent);
+  color: var(--warn);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  white-space: nowrap;
+  cursor: help;
+}
+.admin-note {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border-left: 2px solid color-mix(in srgb, var(--warn) 60%, transparent);
+  background: color-mix(in srgb, var(--warn) 8%, transparent);
+  color: var(--ink-2);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+/* --- widget primitives ---------------------------------------------------
+ *
+ * Everything below was inline `style={{…}}` in a widget, repeated across four
+ * or five of them. It lives here now for one reason: a design language split
+ * between a stylesheet and two hundred inline objects is not a language, it is
+ * a habit — and it cannot be reviewed, restyled or handed to anyone.
+ *
+ * The line this file draws: **style is a class, data is inline.** A button's
+ * height is style. A status dot's colour is the answer to "is it up", computed
+ * per row, and belongs in the markup — a class per verdict would be a palette
+ * hidden in a switch statement.
+ */
+
+/* The row-action button. Widgets are dense, so their buttons are smaller than
+ * the 26px default and sit in a row rather than a form. */
+.btn.sm { height: 22px; padding: 0 8px; }
+/* Smaller still: a disclosure sitting inside a line of secondary text. */
+.btn.xs { height: 18px; padding: 0 6px; }
+
+/* A widget's own filter bar: scope toggles, a search box, an action or two.
+ * Copy-pasted into three widgets before it was named. */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--line);
+}
+/* The same bar pinned under the rows — the empty-state tool in the dev board. */
+.filter-bar.footer { border-bottom: none; border-top: 1px solid var(--line); }
+/* The search box in such a bar: takes the slack, never collapses to nothing. */
+/* The search box in such a bar takes the slack, and never collapses to nothing. */
+.filter-bar .grow { min-width: 60px; }
+.filter-bar .field { height: 22px; }
+/* Pushes what follows to the right-hand end of the bar. */
+.end { margin-left: auto; }
+
+/* One line of explanation inside a widget body — "slowed down", "could not
+ * refresh", "showing the 200 most recent". */
+.widget-note { padding: 6px 10px; }
+.widget-note.warn { color: var(--warn); }
+
+/* What a widget says when it has nothing to show. Deliberately roomier than a
+ * row: this is the one place a widget is allowed to use prose. */
+.widget-empty { padding: 10px 12px; }
+.widget-empty-title { font-weight: 600; margin-bottom: 4px; }
+.widget-empty-body { line-height: 1.5; }
+
+/* The block an item expands into: a draft, a comment box, an explanation. */
+.item-detail { padding: 8px 0 2px 15px; }
+.item-detail.stack { display: flex; flex-direction: column; gap: 6px; }
+/* A drafted reply: monospace, growable, and not a one-line field. */
+.field.draft { height: auto; padding: 8px; resize: vertical; font-family: var(--font-mono); }
+/* Model output, which arrives with its own line breaks. */
+.drafted { white-space: pre-wrap; }
+
+/* A row that stacks a detail panel under its main line. */
+.row.stacked { flex-direction: column; align-items: stretch; }
+.row.stacked .row-line { display: flex; align-items: center; gap: 9px; }
+/* Set off from what precedes it. */
+.spaced { margin-top: 10px; }
+
+/* A label introducing the block beneath it. */
+.mono-label.caption { margin-bottom: 6px; }
+/* A list set off from what precedes it. */
+.rows.spaced { margin-top: 10px; }
+
+/* A stack of charts, each with a caption. */
+.chart-stack { display: flex; flex-direction: column; gap: 14px; }
+.chart-caption { color: var(--ink-3); font-size: 12px; }
+.chart-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; }
+.chart-figure { font-size: 11.5px; color: var(--ink-2); font-family: var(--font-mono); }
+
+/* Takes the slack in a flex row. Was defined three times under three different
+ * parents, with two different min-widths — which is how a design language rots. */
+.grow { flex: 1; min-width: 0; }
+
+/* What a widget shows instead of rows: an error, or nothing yet. */
+.widget-error { padding: 12px; color: var(--err); }
+
+/* An icon button carrying a word rather than a glyph — the [AI] affordance. */
+.icon-btn.text {
+  width: auto;
+  padding: 0 5px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+.icon-btn.text.on { color: var(--accent); }
+
+/* The line above a widget's body saying what its instructions narrowed it to.
+ * A button, because clicking it opens them — an empty widget must be
+ * explainable, not mysterious. */
+.instruction-strip {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 3px 10px;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  cursor: pointer;
+}
+.instruction-strip.warn { color: var(--warn); }
+
+/* The instructions panel: a widget-editor holding prose rather than two fields. */
+.widget-editor.instructions { max-height: min(80%, 420px); overflow-y: auto; }
+.field.prose { width: 100%; min-height: 110px; resize: vertical; font-family: inherit; }
+.button-row { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+.panel-error { margin-top: 8px; color: var(--warn); line-height: 1.5; }
+.understood { margin-top: 10px; }
+.unmet { margin-top: 8px; }
+.compiled-by { margin-top: 8px; color: var(--ink-3); }
+
+/* A widget with nothing at all in it yet — roomier than an empty state, because
+ * there is no list above it to sit under. */
+.widget-blank { padding: 18px; }
+
+/* A label whose tooltip is the point. */
+.help { cursor: help; }
+
+/* A status dot. The size is style and lives here; the colour is a verdict and
+ * stays in the markup, beside the value it was computed from. */
+.dot { width: 7px; height: 7px; border-radius: 4px; flex: 0 0 auto; }
+.dot.sm { width: 6px; height: 6px; border-radius: 3px; }
+
+/* Text tone. Named for the role rather than the colour, so a repaint is a
+ * change to four declarations instead of a search for `--ink-3`. */
+.ink-2 { color: var(--ink-2); }
+.ink-3 { color: var(--ink-3); }
+.tone-ok { color: var(--ok); }
+.tone-warn { color: var(--warn); }
+.tone-err { color: var(--err); }
+
+/* Secondary text inside a row title, which is otherwise 600 weight. */
+.row-title .soft { color: var(--ink-2); font-weight: 400; }
+
+/* A finding's product and cycle, column-aligned down a drill-down list. */
+.finding-name { display: inline-block; min-width: 90px; }
+
+/* The live-URL editor under an expanded row: a filter bar with no borders. */
+.filter-bar.url-field { border: none; padding: 6px 0 0; }
+
+/* A row body that opens something when clicked. */
+.row-main.clickable { cursor: pointer; }
+
+/* A field sized for a port number rather than a sentence. */
+.field.narrow { width: 70px; }
+/* Long enough for a URL, short enough not to eat a row. */
+.field.url { max-width: 320px; }
+
+/* A fact appended after a row's main text: a path, a PID, a timestamp. */
+.meta { margin-left: 8px; }
+
+/* A row title carrying badges beside the text rather than text alone. */
+.row-title.badged { display: flex; align-items: center; gap: 8px; }
+
+/* What a row expands into — a container list, a set of findings. Indented past
+ * the dot so it reads as belonging to the row above it. */
+.row-detail { padding: 0 10px 8px 26px; }
+.row-detail .row-sub { padding: 2px 0; }
+
+/* --- names the Console system introduced ---------------------------------
+ *
+ * The markup carries both vocabularies so one component tree serves two looks
+ * (see src/lib/look.ts). These give the new names a classic appearance; the
+ * Console rules for the same names live in console.css, scoped to its look.
+ */
+
+/* The widget header's parts. Classic had a label and a title and nothing else,
+ * so the count and the resize mark are simply absent rather than restyled. */
+.w-count { margin-left: auto; color: var(--ink-3); font-size: 11px; }
+.w-resize { display: none; }
+
+/* A verdict as a word. Classic showed a coloured dot plus text; the dot is
+ * still drawn by each widget, so here the word only takes its colour. */
+.status { font-size: 11.5px; }
+.status > i { display: none; }
+.status[data-state="up"], .status[data-state="ok"], .status[data-state="live"] { color: var(--ok); }
+.status[data-state="busy"], .status[data-state="warn"] { color: var(--warn); }
+.status[data-state="down"], .status[data-state="ended"], .status[data-state="err"] { color: var(--err); }
+.status[data-state="unknown"] { color: var(--ink-3); }
+
+/* An empty state. Classic's version of the same three parts. */
+.empty { padding: 10px 12px; display: flex; flex-direction: column; gap: 3px; max-width: 44ch; }
+.empty-title { font-weight: 600; }
+.empty-body { line-height: 1.5; color: var(--ink-2); }
+.empty-meta { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); }
+
+/* A row's unread mark and its timestamp. */
+.row-mark { width: 6px; height: 6px; border-radius: 50%; background: transparent; flex: 0 0 auto; }
+.row.unread .row-mark { background: var(--accent); }
+.row-time { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); white-space: nowrap; }
+
+/* Actions belonging to a row rather than to the widget's header. Classic keeps
+ * them in the flow and reveals them on hover, which is what `.widget-actions`
+ * did when they shared a class. */
+.row-actions { display: flex; gap: 2px; opacity: 0; transition: opacity 120ms var(--ease); }
+.row:hover .row-actions,
+.row:focus-within .row-actions,
+/* The keyboard's row cursor reveals a row's actions the same way hover does.
+ * They are what `h`/`l` walks; leaving them at `opacity: 0` would mean moving a
+ * focus ring across buttons nobody can see. */
+.row.selected .row-actions,
+.row-actions[data-open] { opacity: 1; }
+
+/* Stats, in the vocabulary the Console system introduced. Classic keeps the
+ * bordered tile grid it always had. */
+.stat-nums {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  overflow: hidden;
+}
+.stat-num { background: var(--surface); padding: 9px 10px; box-shadow: inset -1px -1px 0 var(--line); }
+.stat-num b { display: block; font-family: var(--font-mono); font-size: 17px; font-weight: 400; font-variant-numeric: tabular-nums; }
+.stat-num span {
+  font-family: var(--font-mono); font-size: 9.5px; font-weight: 500;
+  letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink-3);
+}
+.stat-chart svg rect.bar { fill: var(--accent); }
+.stat-chart svg rect.hit { fill: transparent; }
+
+/* Launcher tiles under their Console names. */
+.launch-kind b { font-weight: 500; }
+
+/* Prose: the register for sentences rather than labels. */
+.prose { line-height: 1.55; max-width: 62ch; user-select: text; }
+
+/* Same reasoning as the Console sheet: a filter bar wraps rather than making
+ * the canvas scroll sideways. */
+.filter-bar { flex-wrap: wrap; row-gap: 3px; }
+
+/* A product's captured output. Monospace and scrollable in its own box: a
+ * service left up for a month prints long lines, and the board must never
+ * scroll sideways because one of them did. */
+.product-log {
+  margin: 0;
+  max-height: 220px;
+  overflow: auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--ink-2);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
