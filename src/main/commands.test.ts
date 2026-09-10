@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it } from "vitest";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, resolve, join } from "node:path";
@@ -8,7 +8,9 @@ import { recordingEmitter } from "../core/emitter";
 import { ProjectWatcher } from "../core/watcher";
 
 const emitter = recordingEmitter();
-const commands = createCommands({ emit: emitter, watcher: new ProjectWatcher(emitter) });
+const watcher = new ProjectWatcher(emitter);
+const commands = createCommands({ emit: emitter, watcher });
+afterAll(() => watcher.close());
 
 const TAURI_LIB = resolve(__dirname, "../../../DDD/src-tauri/src/lib.rs");
 

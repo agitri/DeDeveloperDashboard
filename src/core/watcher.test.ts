@@ -23,6 +23,14 @@ describe("routing a changed path to its project", () => {
   it("matches the .ddd folder itself appearing", () => {
     expect(routeFor(routes(), "/tmp/io/.ddd")).not.toBeNull();
   });
+
+  it("does not mistake a root containing .. for being outside another root", () => {
+    // A sibling-named path like <root>/..cache must not trip the
+    // "outside the root" check just because it starts with "..".
+    const withDots = new Map<string, ProjectChanged>([["/tmp/..io", { environmentId: "work", projectId: "io-1" }]]);
+    expect(routeFor(withDots, "/tmp/..io/.ddd/todos.json")?.projectId).toBe("io-1");
+    expect(routeFor(withDots, "/tmp/other/.ddd/x")).toBeNull();
+  });
 });
 
 const tempdir = (name: string) => realpathSync(mkdtempSync(join(tmpdir(), `ddd-watch-${name}-`)));
@@ -138,6 +146,29 @@ describe("watching registered projects", { retry: 2 }, () => {
     await new Promise((r) => setTimeout(r, DEBOUNCE_MS + 200));
     expect(emitter.events).toEqual([]);
   });
+
+  it(
+    "rebuilds after close() so a later sync of the same list watches again",
+    async () => {
+      const dir = tempdir("reclose");
+      mkdirSync(join(dir, ".ddd"));
+      const emitter = recordingEmitter();
+      watcher = new ProjectWatcher(emitter);
+      const list = [{ id: "p4", path: dir }];
+      watcher.sync("work", list);
+      watcher.close();
+      // Same list: without registry.clear() in close(), sync() would hit its
+      // "nothing changed" early return and never rebuild the watchers.
+      watcher.sync("work", list);
+      await new Promise((r) => setTimeout(r, SETTLE_MS));
+
+      writeFileSync(join(dir, ".ddd", "todos.json"), '{"todos":[]}');
+      await until(() => emitter.events.length > 0, 8000);
+      await new Promise((r) => setTimeout(r, DEBOUNCE_MS + 200));
+      expect(emitter.events[0]).toEqual({ name: "ddd://project-changed", payload: { environmentId: "work", projectId: "p4" } });
+    },
+    15000,
+  );
 
   it(
     "watches the union across environments",

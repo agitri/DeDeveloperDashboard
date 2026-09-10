@@ -44,8 +44,13 @@ export function isSelfNamedReplay(target: string, filename: string | null): bool
 export function routeFor(routes: Map<string, ProjectChanged>, path: string): ProjectChanged | null {
   for (const [root, changed] of routes) {
     const rest = relative(root, path);
-    if (rest === "" || rest.startsWith("..")) continue;
-    if (rest.split(sep)[0] === ".ddd") return changed;
+    if (rest === "") continue;
+    const first = rest.split(sep)[0];
+    // A root that itself contains ".." (e.g. "/tmp/..io") must not be
+    // mistaken for "outside the root" just because relative()'s first
+    // segment happens to start with the same two characters.
+    if (first === "..") continue;
+    if (first === ".ddd") return changed;
   }
   return null;
 }
@@ -81,6 +86,10 @@ export class ProjectWatcher {
     if (this.timer) clearTimeout(this.timer);
     this.timer = null;
     this.pending.clear();
+    // Without this, a later sync() with the same project list hits the
+    // early "nothing changed" return above and never rebuilds the (now
+    // closed) watchers.
+    this.registry.clear();
   }
 
   /** Rebuilt wholesale whenever the registry changes; simpler than diffing,
