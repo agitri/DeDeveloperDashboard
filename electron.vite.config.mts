@@ -6,5 +6,7 @@ export default defineConfig({
   // a native module (@napi-rs/keyring) needs.
   main: { plugins: [externalizeDepsPlugin()] },
   preload: { plugins: [externalizeDepsPlugin()] },
-  renderer: { plugins: [react()] },
+  // DEV_CSP hardcodes ws://localhost:5173 / http://localhost:5173 — pin the
+  // dev server's port so it can never drift from what the policy allows.
+  renderer: { plugins: [react()], server: { port: 5173, strictPort: true } },
 });
