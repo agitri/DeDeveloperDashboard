@@ -6,7 +6,7 @@ import type { Settings, AppearanceSettings, Connection } from "./models";
 import type { EnvRoot } from "./paths";
 import { DddError } from "./error";
 import { readJson, writeJson } from "./store";
-import { isBoolean, isNumber, isString, optional, record, required } from "./json";
+import { isArray, isBoolean, isNumber, isString, optional, record, required } from "./json";
 
 export type { Settings, AppearanceSettings, Connection };
 
@@ -107,7 +107,8 @@ function aiFromJson(raw: unknown): Settings["ai"] {
   if (raw === undefined || raw === null) return d;
   const o = record(raw, "ai");
   return {
-    defaultProvider: optional(o, "defaultProvider", isString, d.defaultProvider),
+    // No `#[serde(default)]` in the Rust: present block, absent field → error.
+    defaultProvider: required(o, "defaultProvider", isString),
     ollamaUrl: optional(o, "ollamaUrl", isString, ""),
     openaiCompatibleUrl: optional(o, "openaiCompatibleUrl", isString, null as string | null),
     routing: optional(o, "routing", isStringMap, {}),
@@ -120,14 +121,14 @@ function aiFromJson(raw: unknown): Settings["ai"] {
 }
 
 function voiceFromJson(raw: unknown): Settings["voice"] {
-  const d = defaultVoiceSettings();
-  if (raw === undefined || raw === null) return d;
+  if (raw === undefined || raw === null) return defaultVoiceSettings();
   const o = record(raw, "voice");
   return {
-    enabled: optional(o, "enabled", isBoolean, d.enabled),
-    sttMode: optional(o, "sttMode", isString, d.sttMode),
-    sttModel: optional(o, "sttModel", isString, d.sttModel),
-    ttsEngine: optional(o, "ttsEngine", isString, d.ttsEngine),
+    // No `#[serde(default)]` in the Rust: present block, absent field → error.
+    enabled: required(o, "enabled", isBoolean),
+    sttMode: required(o, "sttMode", isString),
+    sttModel: required(o, "sttModel", isString),
+    ttsEngine: required(o, "ttsEngine", isString),
     ttsVoice: optional(o, "ttsVoice", isString, null as string | null),
     microphone: optional(o, "microphone", isString, null as string | null),
   };
@@ -182,7 +183,7 @@ export function settingsFromJson(raw: unknown): Settings {
     ai: aiFromJson(o.ai),
     voice: voiceFromJson(o.voice),
     data: dataFromJson(o.data),
-    connections: Array.isArray(o.connections) ? o.connections.map(connectionFromJson) : [],
+    connections: optional(o, "connections", isArray, [] as unknown[]).map(connectionFromJson),
   };
 }
 

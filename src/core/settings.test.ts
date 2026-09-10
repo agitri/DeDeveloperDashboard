@@ -40,6 +40,25 @@ describe("settings defaults", () => {
     expect(partial.ai.anthropicModel).toBe("claude-opus-5");
   });
 
+  it("requires defaultProvider when the ai block is present, as serde would", () => {
+    expect(() => settingsFromJson({ ai: {} })).toThrow(/missing field `defaultProvider`/);
+  });
+
+  it("requires sttMode (and the other undefaulted fields) when the voice block is present", () => {
+    expect(() => settingsFromJson({ voice: { enabled: true } })).toThrow(/missing field `sttMode`/);
+  });
+
+  it("refuses connections that are not an array, as serde would", () => {
+    let error: unknown;
+    try {
+      settingsFromJson({ connections: "x" });
+    } catch (e) {
+      error = e;
+    }
+    expect(error).toBeInstanceOf(DddError);
+    expect((error as DddError).kind).toBe("json");
+  });
+
   it("reads a legacy appearance block, falling back to defaults when it is unusable", () => {
     expect(appearanceFromJson({ theme: "dark", defaultRefreshSeconds: 120 })).toEqual({
       theme: "dark",
