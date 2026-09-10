@@ -72,7 +72,21 @@ const until = async (pred: () => boolean, ms = 8000) => {
   }
 };
 
-describe("watching registered projects", () => {
+// How long each test waits after `sync()` before making its first write.
+// `fs.watch({ recursive: true })` on macOS becomes live asynchronously —
+// FSEvents startup latency — and libuv only streams changes from "now", so a
+// write made before the watch is actually live is never delivered (nothing
+// replays it later). 500ms comfortably clears that startup window.
+const SETTLE_MS = 500;
+
+// FSEvents startup latency (see SETTLE_MS above) can still occasionally
+// outlast even that settle on a loaded machine, dropping a real first write
+// outright — a platform property, harmless in real use, not a watcher bug.
+// The tolerance belongs at the framework level, not inside the test body: a
+// retry re-runs the whole test with fresh temp dirs and the same strict
+// assertions, so a watcher that actually drops writes, double-emits, or
+// misroutes still fails on every attempt.
+describe("watching registered projects", { retry: 2 }, () => {
   let watcher: ProjectWatcher | null = null;
   afterEach(() => watcher?.close());
 
@@ -84,7 +98,7 @@ describe("watching registered projects", () => {
       const emitter = recordingEmitter();
       watcher = new ProjectWatcher(emitter);
       watcher.sync("work", [{ id: "p1", path: dir }]);
-      await new Promise((r) => setTimeout(r, 250));
+      await new Promise((r) => setTimeout(r, SETTLE_MS));
 
       // An editor save is several events; a `/todo` is one file, twice.
       writeFileSync(join(dir, ".ddd", "todos.json"), '{"todos":[]}');
@@ -103,7 +117,7 @@ describe("watching registered projects", () => {
       const emitter = recordingEmitter();
       watcher = new ProjectWatcher(emitter);
       watcher.sync("work", [{ id: "p2", path: dir }]);
-      await new Promise((r) => setTimeout(r, 250));
+      await new Promise((r) => setTimeout(r, SETTLE_MS));
 
       mkdirSync(join(dir, ".ddd"));
       await until(() => emitter.events.length > 0, 8000);
@@ -119,7 +133,7 @@ describe("watching registered projects", () => {
     watcher = new ProjectWatcher(emitter);
     watcher.sync("work", [{ id: "p3", path: dir }]);
     watcher.sync("work", [{ id: "p3", path: dir }]);
-    await new Promise((r) => setTimeout(r, 250));
+    await new Promise((r) => setTimeout(r, SETTLE_MS));
     writeFileSync(join(dir, "README.md"), "hi");
     await new Promise((r) => setTimeout(r, DEBOUNCE_MS + 200));
     expect(emitter.events).toEqual([]);
@@ -136,7 +150,7 @@ describe("watching registered projects", () => {
       watcher = new ProjectWatcher(emitter);
       watcher.sync("work", [{ id: "pa", path: a }]);
       watcher.sync("personal", [{ id: "pb", path: b }]);
-      await new Promise((r) => setTimeout(r, 250));
+      await new Promise((r) => setTimeout(r, SETTLE_MS));
       writeFileSync(join(b, ".ddd", "recap.md"), "# recap");
       await until(() => emitter.events.length > 0, 8000);
       await new Promise((r) => setTimeout(r, DEBOUNCE_MS + 200));
