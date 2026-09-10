@@ -28,6 +28,38 @@ describe("global.json", () => {
     expect(() => globalFromJson({ environments: [] })).toThrow(DddError);
     expect(() => globalFromJson({ environments: [] })).toThrow(/missing field `activeEnvironmentId`/);
   });
+
+  it("reads a present appearance block strictly, in Rust field order", () => {
+    const g = globalFromJson({
+      environments: [],
+      activeEnvironmentId: "default",
+      appearance: { theme: "dark", defaultRefreshSeconds: 60 },
+    });
+    expect(Object.keys(g.appearance!)).toEqual([
+      "theme",
+      "look",
+      "terminalApp",
+      "editor",
+      "launchCommand",
+      "defaultRefreshSeconds",
+      "showShortcutHints",
+    ]);
+    expect(g.appearance).toEqual({
+      theme: "dark",
+      look: "classic",
+      terminalApp: null,
+      editor: null,
+      launchCommand: "claude",
+      defaultRefreshSeconds: 60,
+      showShortcutHints: false,
+    });
+  });
+
+  it("errors on an appearance block missing a required field, unlike the legacy migration reader", () => {
+    expect(() =>
+      globalFromJson({ environments: [], activeEnvironmentId: "default", appearance: { theme: "dark" } }),
+    ).toThrow(/missing field `defaultRefreshSeconds`/);
+  });
 });
 
 describe("layout.json", () => {

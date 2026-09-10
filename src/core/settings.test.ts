@@ -4,6 +4,7 @@ import { DddError } from "./error";
 import { scratchEnv } from "./testing";
 import {
   appearanceFromJson,
+  defaultAppearance,
   defaultSettings,
   settingsFromJson,
   settingsLoad,
@@ -51,6 +52,14 @@ describe("settings defaults", () => {
     });
     expect(appearanceFromJson({ theme: "dark" }).theme).toBe("system");
     expect(appearanceFromJson(null).theme).toBe("system");
+  });
+
+  it("discards the whole legacy block, not just the bad field, on any failure", () => {
+    // `showShortcutHints` is the wrong type — `serde_json::from_value(..).ok()`
+    // fails the whole struct, so even the otherwise-valid theme is dropped.
+    expect(
+      appearanceFromJson({ theme: "dark", defaultRefreshSeconds: 60, showShortcutHints: "yes" }),
+    ).toEqual(defaultAppearance());
   });
 });
 

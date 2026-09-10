@@ -54,6 +54,20 @@ describe("appearance on global.json", () => {
     expect(globalLoad().appearance.theme).toBe("dark");
   });
 
+  it("a blank global.json gets defaults without migrating or writing, as read_json does", () => {
+    const { env } = scratchEnv("appearance-blank");
+    writeFileSync(
+      env.settingsFile(),
+      JSON.stringify({ version: 1, appearance: { theme: "dark", defaultRefreshSeconds: 60 }, connections: [] }),
+    );
+    writeFileSync(globalFile(), "  \n");
+
+    const g = globalLoad();
+    expect(g.appearance.theme).toBe("system");
+    // No migration ran — the file on disk is exactly as blank as it was.
+    expect(readFileSync(globalFile(), "utf8")).toBe("  \n");
+  });
+
   it("a fresh install gets defaults rather than none", () => {
     scratchEnv("appearance-fresh");
     const g = globalLoad();

@@ -17,7 +17,9 @@ export function globalLoad(): Global {
     writeJson(path, g);
     return g;
   }
-  const stored: StoredGlobal = readJson(path, globalFromJson, () => ({ ...defaultGlobal(), appearance: null }) as StoredGlobal);
+  // Rust's `read_json` returns `Global::default()` — appearance already filled,
+  // no migration, no write — for a file that is missing or unparsable.
+  const stored: StoredGlobal = readJson(path, globalFromJson, () => defaultGlobal() as StoredGlobal);
   if (stored.appearance === null) {
     stored.appearance = migrateAppearance(stored.activeEnvironmentId);
     // Written back once so the migration never runs again, and so the adopted

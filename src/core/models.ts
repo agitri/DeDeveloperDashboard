@@ -8,7 +8,7 @@
  */
 import { DddError } from "./error";
 import { isArray, isBoolean, isNumber, isString, isPlainRecord, optional, record, required } from "./json";
-import { defaultAppearance } from "./settings";
+import { appearanceRequired, defaultAppearance } from "./settings";
 import type {
   AppearanceSettings,
   Connection,
@@ -73,7 +73,7 @@ export function defaultGlobal(): Global {
 export function globalFromJson(raw: unknown): StoredGlobal {
   const o = record(raw, "global");
   const environments = required(o, "environments", isArray).map(environmentFromJson);
-  const appearance = o.appearance === undefined || o.appearance === null ? null : (o.appearance as AppearanceSettings);
+  const appearance = o.appearance === undefined || o.appearance === null ? null : appearanceRequired(o.appearance);
   return {
     version: optional(o, "version", isNumber, 1),
     environments,

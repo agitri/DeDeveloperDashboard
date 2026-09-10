@@ -66,23 +66,36 @@ export function defaultSettings(): Settings {
 }
 
 /**
- * The Rust reads a legacy `appearance` block with `serde_json::from_value(..).ok()
- * .unwrap_or_default()`: a block missing a field without a default (`theme`,
- * `defaultRefreshSeconds`) is discarded whole, not patched.
+ * `global.json`'s `appearance` field, deserialized the way serde deserializes
+ * `Option<AppearanceSettings>`: present and non-null means every field is read
+ * with its own default, and `theme` / `defaultRefreshSeconds` — which carry no
+ * `#[serde(default)]` in the Rust — are required.
  */
-export function appearanceFromJson(raw: unknown): AppearanceSettings {
-  if (typeof raw !== "object" || raw === null) return defaultAppearance();
-  const o = raw as Record<string, unknown>;
-  if (!isString(o.theme) || !isNumber(o.defaultRefreshSeconds)) return defaultAppearance();
+export function appearanceRequired(raw: unknown): AppearanceSettings {
+  const o = record(raw, "appearance");
   return {
-    theme: o.theme as AppearanceSettings["theme"],
+    theme: required(o, "theme", isString) as AppearanceSettings["theme"],
     look: optional(o, "look", isString, "classic") as AppearanceSettings["look"],
     terminalApp: optional(o, "terminalApp", isString, null as string | null),
     editor: optional(o, "editor", isString, null as string | null),
     launchCommand: optional(o, "launchCommand", isString, "claude"),
-    defaultRefreshSeconds: o.defaultRefreshSeconds,
+    defaultRefreshSeconds: required(o, "defaultRefreshSeconds", isNumber),
     showShortcutHints: optional(o, "showShortcutHints", isBoolean, false),
   };
+}
+
+/**
+ * The Rust reads a legacy `appearance` block with `serde_json::from_value(..).ok()
+ * .unwrap_or_default()`: ANY failure — a wrong type, or a missing `theme` /
+ * `defaultRefreshSeconds` — discards the whole block and returns defaults,
+ * rather than patching just the bad field.
+ */
+export function appearanceFromJson(raw: unknown): AppearanceSettings {
+  try {
+    return appearanceRequired(raw);
+  } catch {
+    return defaultAppearance();
+  }
 }
 
 function isStringMap(v: unknown): v is Record<string, string> {
