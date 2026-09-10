@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { launch, openInEditor, resolveTerminal, shellQuote, splitTemplate, writeLaunchScript } from "./launcher";
+import { launch, linuxCandidates, openInEditor, resolveTerminal, shellQuote, splitTemplate, writeLaunchScript } from "./launcher";
 
 const tempdir = () => mkdtempSync(join(tmpdir(), "ddd-launcher-test-"));
 
@@ -44,6 +44,23 @@ describe("the launch script", () => {
     expect(body).toContain('exec "${SHELL:-/bin/sh}" -l');
     if (process.platform !== "win32") expect(statSync(path).mode & 0o777).toBe(0o755);
     rmSync(path);
+  });
+});
+
+describe("linux candidate list", () => {
+  it("an empty-string terminal preference is tried on its own, not treated as unset", () => {
+    expect(linuxCandidates("", undefined)).toEqual([""]);
+  });
+
+  it("no preference falls back to $TERMINAL then the usual suspects", () => {
+    expect(linuxCandidates(null, "foot").slice(0, 2)).toEqual(["foot", "x-terminal-emulator"]);
+    const defaults = linuxCandidates(null, undefined);
+    expect(defaults[0]).toBe("x-terminal-emulator");
+    expect(defaults[defaults.length - 1]).toBe("xterm");
+  });
+
+  it("a configured terminal wins outright, ignoring $TERMINAL", () => {
+    expect(linuxCandidates("kitty", "foot")).toEqual(["kitty"]);
   });
 });
 

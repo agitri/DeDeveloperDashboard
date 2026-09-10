@@ -111,6 +111,24 @@ export async function launch(dir: string, terminal: string | null | undefined, c
   await launchPlatform(dir, terminal ?? null, command);
 }
 
+/** The Linux candidate list: the configured terminal on its own — even an
+ *  empty string, which the Rust also tries and lets fail — else `$TERMINAL`,
+ *  else the usual suspects, in this exact order. */
+export function linuxCandidates(terminal: string | null, envTerminal: string | undefined): string[] {
+  if (terminal !== null) return [terminal];
+  return [
+    ...(envTerminal ? [envTerminal] : []),
+    "x-terminal-emulator",
+    "gnome-terminal",
+    "konsole",
+    "wezterm",
+    "alacritty",
+    "kitty",
+    "xfce4-terminal",
+    "xterm",
+  ];
+}
+
 async function launchPlatform(dir: string, terminal: string | null, command: string): Promise<void> {
   if (process.platform === "darwin") {
     const script = writeLaunchScript(dir, command);
@@ -137,19 +155,7 @@ async function launchPlatform(dir: string, terminal: string | null, command: str
 
   // Linux: the configured terminal, else $TERMINAL, else the usual suspects.
   const script = writeLaunchScript(dir, command);
-  const candidates = terminal
-    ? [terminal]
-    : [
-        ...(process.env.TERMINAL ? [process.env.TERMINAL] : []),
-        "x-terminal-emulator",
-        "gnome-terminal",
-        "konsole",
-        "wezterm",
-        "alacritty",
-        "kitty",
-        "xfce4-terminal",
-        "xterm",
-      ];
+  const candidates = linuxCandidates(terminal, process.env.TERMINAL);
   for (const candidate of candidates) {
     // gnome-terminal dropped `-e` in favour of `--`; everything else kept `-e`.
     const separator = candidate.includes("gnome-terminal") ? "--" : "-e";
