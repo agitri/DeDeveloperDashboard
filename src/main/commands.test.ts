@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { existsSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { basename, resolve, join } from "node:path";
 import { scratchEnv } from "../core/testing";
 import { HOST_COMMANDS, createCommands } from "./commands";
 import { recordingEmitter } from "../core/emitter";
+import { ProjectWatcher } from "../core/watcher";
 
-const commands = createCommands({ emit: recordingEmitter() });
+const emitter = recordingEmitter();
+const commands = createCommands({ emit: emitter, watcher: new ProjectWatcher(emitter) });
 
 const TAURI_LIB = resolve(__dirname, "../../../DDD/src-tauri/src/lib.rs");
 
@@ -25,15 +28,6 @@ function tauriHandlers(): string[] | null {
  * acknowledges it here (by porting it, or by adding it to this list).
  */
 const NOT_YET_PORTED = new Set([
-  "projects_list",
-  "project_register",
-  "project_unregister",
-  "editors_list",
-  "terminals_list",
-  "launch_path",
-  "open_in_editor",
-  "project_reload",
-  "project_launch",
   "items_query",
   "repos_list",
   "repo_add_local",
@@ -116,5 +110,53 @@ describe("the command registry", () => {
     const onDisk = JSON.parse(readFileSync(`${home}/environments/default/layout.json`, "utf8"));
     expect(onDisk.tabs[0].widgets).toEqual([]);
     expect(onDisk.groups).toEqual([]);
+  });
+});
+
+describe("project commands", () => {
+  it("register, list, reload, unregister — with the Tauri argument keys", async () => {
+    scratchEnv("registry-projects");
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), "ddd-cmd-proj-")));
+    mkdirSync(join(dir, ".ddd"));
+    writeFileSync(join(dir, ".ddd", "config.json"), JSON.stringify({ name: "Cmd" }));
+
+    expect(await commands.projects_list!({ env: "default" })).toEqual([]);
+    const card = (await commands.project_register!({ env: "default", path: dir })) as { id: string; name: string; exists: boolean };
+    expect(card.name).toBe("Cmd");
+    expect(card.exists).toBe(true);
+    const listed = (await commands.projects_list!({ env: "default" })) as { id: string }[];
+    expect(listed.map((p) => p.id)).toEqual([card.id]);
+    const reloaded = (await commands.project_reload!({ env: "default", id: card.id })) as { name: string };
+    expect(reloaded.name).toBe("Cmd");
+    await expect(commands.project_reload!({ env: "default", id: "nope" })).rejects.toThrow('project "nope"');
+    await commands.project_unregister!({ env: "default", id: card.id });
+    expect(await commands.projects_list!({ env: "default" })).toEqual([]);
+  });
+
+  it("lists editors and terminals without throwing", async () => {
+    expect(Array.isArray(await commands.editors_list!({}))).toBe(true);
+    expect(Array.isArray(await commands.terminals_list!({}))).toBe(true);
+  });
+
+  it("launching a project logs an event and honours a project's own terminal template", async () => {
+    const { env } = scratchEnv("registry-launch");
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), "ddd-cmd-launch-")));
+    const proof = join(dir, "proof.txt");
+    mkdirSync(join(dir, ".ddd"));
+    // The project's config wins over the global terminal, and a template is
+    // a full command — so this launches nothing visible.
+    writeFileSync(join(dir, ".ddd", "config.json"), JSON.stringify({ terminal: `/bin/sh -c "echo {cmd} > ${proof}"` }));
+    const card = (await commands.project_register!({ env: "default", path: dir })) as { id: string };
+    await commands.project_launch!({ env: "default", id: card.id });
+    for (let i = 0; i < 50 && !existsSync(proof); i++) await new Promise((r) => setTimeout(r, 20));
+    expect(readFileSync(proof, "utf8").trim()).toBe("claude");
+    const rows = (await commands.events_query!({ env: "default", kindPrefix: "project." })) as { kind: string; project: string }[];
+    expect(rows[0]).toMatchObject({ kind: "project.launch", project: basename(dir) });
+    void env;
+  });
+
+  it("refuses to launch or open what is not there", async () => {
+    await expect(commands.launch_path!({ path: "/nowhere/at/all" })).rejects.toThrow("is not a directory");
+    await expect(commands.open_in_editor!({ path: "/nowhere/at/all" })).rejects.toThrow("is not a directory");
   });
 });

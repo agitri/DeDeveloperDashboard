@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { bootstrap } from "../core/bootstrap";
 import type { Emitter } from "../core/emitter";
+import { ProjectWatcher } from "../core/watcher";
 import { CSP, DEV_CSP } from "./csp";
 import { createCommands } from "./commands";
 import { registerIpc } from "./ipc";
@@ -18,6 +19,8 @@ const emitter: Emitter = {
     for (const win of BrowserWindow.getAllWindows()) win.webContents.send(name, payload);
   },
 };
+
+const watcher = new ProjectWatcher(emitter);
 
 /** The smoke never touches the real `~/.ddd` (spec §8): give it a scratch home
  *  unless the caller pinned one. Must run before `bootstrap()`. */
@@ -102,12 +105,22 @@ function smoke(win: BrowserWindow): void {
       const secretExists = await invoke("secret_exists", { env: "default", key: "smoke-none" });
       if (secretExists !== false) throw new Error(`secret_exists: expected false, got ${secretExists}`);
 
+      const none = (await invoke("projects_list", { env: "default" })) as unknown[];
+      if (none.length !== 0) throw new Error(`projects_list: expected 0, got ${none.length}`);
+      const home = process.env.DDD_HOME!;
+      const card = (await invoke("project_register", { env: "default", path: home })) as { exists: boolean; git: { isRepo: boolean } };
+      if (!card.exists || card.git.isRepo) throw new Error(`project_register: unexpected card ${JSON.stringify(card)}`);
+      const one = (await invoke("projects_list", { env: "default" })) as unknown[];
+      if (one.length !== 1) throw new Error(`projects_list: expected 1, got ${one.length}`);
+      await invoke("editors_list");
+      await invoke("terminals_list");
+
       const cspEnforced = (await win.webContents.executeJavaScript(CSP_PROBE)) as boolean;
       console.log(cspEnforced ? "ddd: smoke csp enforced" : "ddd: smoke csp NOT enforced");
       if (!cspEnforced) throw new Error("csp not enforced");
 
       console.log(
-        `ddd: smoke ok — ${g.environments.length} environment(s), paths_info, event_log/events_query (1 row), secret_exists(false), csp enforced`,
+        `ddd: smoke ok — ${g.environments.length} environment(s), paths_info, event_log/events_query (1 row), secret_exists(false), projects (register/list), csp enforced`,
       );
       const shotPath = process.env.DDD_SMOKE_SHOT;
       if (shotPath) {
@@ -132,7 +145,7 @@ app.whenReady().then(() => {
     console.error(`ddd: bootstrap failed: ${e instanceof Error ? e.message : e}`);
   }
   installCsp();
-  registerIpc(createCommands({ emit: emitter }));
+  registerIpc(createCommands({ emit: emitter, watcher }));
   const win = createWindow();
   if (process.env.DDD_SMOKE) smoke(win);
 

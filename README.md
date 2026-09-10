@@ -35,7 +35,7 @@ start) unless one is already set, so it never touches your real `~/.ddd`.
 | Phase | Contents | State |
 |---|---|---|
 | 0 | global.json, environments, layout, settings, keymap, events, secrets, paths; the app boots to the starter board | **done** |
-| 1 | projects, launcher, `.ddd/` watching | |
+| 1 | projects, launcher, `.ddd/` watching: register a folder, launch Claude Code in it, `/todo` reaches the card | **done** |
 | 2 | sync engine, GitHub, the approval gate | |
 | 3 | AI providers, ICM, widget instructions | |
 | 4 | calendar, repos, dev servers, EOL | |

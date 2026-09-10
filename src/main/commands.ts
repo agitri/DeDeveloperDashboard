@@ -20,7 +20,12 @@ import { appearanceRequired, settingsFromJson, settingsLoad, settingsSave } from
 import { keymapLoad, keymapSave } from "../core/keymap";
 import * as events from "../core/events";
 import * as secrets from "../core/secrets";
+import * as projects from "../core/projects";
+import * as launcher from "../core/launcher";
+import { DddError } from "../core/error";
 import type { Emitter } from "../core/emitter";
+import type { ProjectWatcher } from "../core/watcher";
+import type { EventInput } from "../core/models";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Handler = (args: Record<string, any>) => unknown;
@@ -29,6 +34,9 @@ export type Handler = (args: Record<string, any>) => unknown;
  *  tests build one with a recording emitter. */
 export interface CommandDeps {
   emit: Emitter;
+  /** One watcher for the whole app: the set of watched paths is the union
+   *  across environments, even though the registries themselves are not. */
+  watcher: ProjectWatcher;
 }
 
 /** Commands the host adds on top of the Tauri set (dialogs and the shell,
@@ -43,7 +51,13 @@ export const HOST_COMMANDS: readonly string[] = [
 
 const root = (env: string) => EnvRoot.open(env);
 
-export function createCommands(_deps: CommandDeps): Record<string, Handler> {
+function findProject(env: EnvRoot, id: string) {
+  const entry = projects.registry(env).projects.find((p) => p.id === id);
+  if (!entry) throw DddError.notFound(`project ${JSON.stringify(id)}`);
+  return entry;
+}
+
+export function createCommands(deps: CommandDeps): Record<string, Handler> {
   return {
     // --- environments ---
     global_load: () => globalLoad(),
@@ -78,5 +92,67 @@ export function createCommands(_deps: CommandDeps): Record<string, Handler> {
     // --- paths ---
     paths_info: ({ env }) => pathsInfo(root(env)),
     path_exists: ({ path }) => existsSync(path),
+
+    // --- projects ---
+    /** Listing also re-points the file watcher. Doing it here means the watch
+     *  set can never drift from what the board is actually showing. */
+    projects_list: async ({ env }) => {
+      const r = root(env);
+      const reg = projects.registry(r);
+      try {
+        deps.watcher.sync(r.id, reg.projects);
+      } catch {
+        // A watch that cannot be set up must not take the list with it.
+      }
+      return projects.loadAll(reg.projects);
+    },
+    project_register: async ({ env, path }) => {
+      const r = root(env);
+      const entry = projects.register(r, path);
+      try {
+        deps.watcher.sync(r.id, projects.registry(r).projects);
+      } catch {
+        /* see projects_list */
+      }
+      return projects.load(entry.id, entry.path);
+    },
+    project_unregister: ({ env, id }) => {
+      const r = root(env);
+      projects.unregister(r, id);
+      try {
+        deps.watcher.sync(r.id, projects.registry(r).projects);
+      } catch {
+        /* see projects_list */
+      }
+    },
+    project_reload: async ({ env, id }) => {
+      const entry = findProject(root(env), id);
+      return projects.load(entry.id, entry.path);
+    },
+    /** Open the configured terminal in the project and start Claude Code.
+     *  The project's own `.ddd/config.json` wins over the global setting. */
+    project_launch: async ({ env, id }) => {
+      const r = root(env);
+      const entry = findProject(r, id);
+      const project = await projects.load(entry.id, entry.path);
+      const appearance = globalLoad().appearance;
+      const terminal = launcher.resolveTerminal(project.config.terminal, appearance.terminalApp);
+      await launcher.launch(entry.path, terminal, appearance.launchCommand);
+      const event: EventInput = { kind: "project.launch", source: "local", project: project.name };
+      events.log(r, event);
+    },
+    /** The path-based sibling of `project_launch`, for the launcher widget. */
+    launch_path: ({ path }) => {
+      const appearance = globalLoad().appearance;
+      return launcher.launch(path, appearance.terminalApp, appearance.launchCommand);
+    },
+    editors_list: () => launcher.detectEditors(),
+    terminals_list: () => launcher.detectTerminals(),
+    /** An explicit choice wins; otherwise the global default. */
+    open_in_editor: ({ path, editor }) => {
+      const configured = globalLoad().appearance.editor;
+      const explicit = typeof editor === "string" ? editor.trim() : "";
+      return launcher.openInEditor(path, explicit !== "" ? explicit : configured);
+    },
   };
 }
