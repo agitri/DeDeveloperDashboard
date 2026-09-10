@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { bootstrap } from "../core/bootstrap";
 import { CSP, DEV_CSP } from "./csp";
 import { registerIpc } from "./ipc";
+import { allowNavigation } from "./navigation";
 
 const DEV_URL = process.env.ELECTRON_RENDERER_URL;
 
@@ -48,7 +49,11 @@ function createWindow(): BrowserWindow {
     },
   });
   win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
-  win.webContents.on("will-navigate", (e) => e.preventDefault());
+  // A reload is a navigation to the page's own URL and must get through;
+  // everything else is refused. See navigation.ts.
+  win.webContents.on("will-navigate", (e, url) => {
+    if (!allowNavigation(win.webContents.getURL(), url)) e.preventDefault();
+  });
 
   if (DEV_URL) void win.loadURL(DEV_URL);
   else void win.loadFile(join(__dirname, "../renderer/index.html"));
