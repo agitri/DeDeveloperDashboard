@@ -1,14 +1,14 @@
 # DDD on Node.js — design
 
 **Date:** 2026-09-10
-**Source:** `../DDD` at commit `bc68474` (Tauri 2 + Rust backend, React/TypeScript frontend)
+**Source:** `../DDD` at commit `7fe0f68` (Tauri 2 + Rust backend, React/TypeScript frontend)
 **Target:** `nodeDDD` — an Electron app whose backend is a TypeScript port of the Rust
 
 ## 1. Goal
 
 Rebuild DDD (De Developer Dashboard) as a Node.js application with full feature
 parity, delivered in phases. The frontend is already React/TypeScript and is
-carried over; the Rust backend (about 19k lines behind 66 IPC commands) is
+carried over; the Rust backend (about 20k lines behind 71 IPC commands) is
 ported one module at a time to TypeScript running in Electron's main process.
 
 Both apps read and write the same `~/.ddd` directory, the same SQLite schemas
@@ -42,9 +42,9 @@ Sizes at HEAD:
 
 | Part | Lines | Notes |
 |---|---|---|
-| Rust backend | ~18.9k | 66 registered commands, 43 modules |
+| Rust backend | ~19.7k | 71 registered commands, 49 modules |
 | Frontend | ~16.5k | touches Tauri in `lib/ipc.ts` and one line of `RepoWidget.tsx` |
-| Uncommitted `products/` | ~0.8k | in flight in DDD on 2026-09-10; ported in the last phase |
+| `products/` | ~0.8k | landed in DDD on 2026-09-10 (`7fe0f68`); ported in the last phase |
 
 ## 3. Architecture
 
@@ -170,8 +170,7 @@ Tauri already converted them). `env` is always an environment id, narrowed to an
 `mcp_probe` land here with the MCP adapter.
 
 **Phase 6 — products.** `product_approve`, `product_revoke`, `product_start`,
-`product_stop`, and whatever else the DDD spec of 2026-09-10 adds by the time
-this phase starts.
+`product_stop`, `products_list`, `product_log`, as landed in DDD commit `7fe0f68`.
 
 A contract test reads `../DDD/src-tauri/src/lib.rs` when that path exists and
 asserts every name in `generate_handler![...]` is registered, so drift in the
@@ -312,6 +311,6 @@ Each phase ends with the app runnable and its tests green.
   build it is DDD. Documented in the README.
 - **Launcher paths on Windows and Linux** were untested in the Rust too. Ported
   blind, marked as such.
-- **DDD keeps moving.** The port targets `bc68474`. Changes landing in DDD
+- **DDD keeps moving.** The port targets `7fe0f68`. Changes landing in DDD
   after that are picked up per phase by re-reading the touched modules, and the
   handler contract test flags any new command.
