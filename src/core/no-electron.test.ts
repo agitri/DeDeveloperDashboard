@@ -19,7 +19,9 @@ function walk(dir: string, out: string[] = []): string[] {
 describe("core stays electron-free", () => {
   it("never imports electron", () => {
     const offenders = walk(__dirname).filter((file) =>
-      /(from\s+["']electron["']|require\(\s*["']electron["']\s*\))/.test(readFileSync(file, "utf8")),
+      /(from\s+["']electron(\/main|\/renderer)?["']|require\(\s*["']electron(\/main|\/renderer)?["']\s*\)|import\(\s*["']electron(\/main|\/renderer)?["']\s*\))/.test(
+        readFileSync(file, "utf8"),
+      ),
     );
     expect(offenders).toEqual([]);
   });

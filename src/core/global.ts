@@ -89,11 +89,14 @@ export function environmentUpdate(id: string, patch: EnvironmentPatch): Global {
   const g = globalLoad();
   const env = g.environments.find((e) => e.id === id);
   if (!env) throw DddError.notFound(`environment ${JSON.stringify(id)}`);
-  if (patch.name !== undefined) env.name = patch.name;
-  if (patch.color !== undefined) env.color = patch.color;
-  if (patch.collapsed !== undefined) env.collapsed = patch.collapsed;
+  // `!= null` skips both undefined and null: a JSON-IPC caller sending an
+  // absent field as `null` must never write a literal `null` into a field
+  // that is a plain string/boolean on disk.
+  if (patch.name != null) env.name = patch.name;
+  if (patch.color != null) env.color = patch.color;
+  if (patch.collapsed != null) env.collapsed = patch.collapsed;
   // Focus mode is a visibility toggle, never a data operation.
-  if (patch.hidden !== undefined) env.hidden = patch.hidden;
+  if (patch.hidden != null) env.hidden = patch.hidden;
   globalSave(g);
   return g;
 }

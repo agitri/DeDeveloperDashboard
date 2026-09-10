@@ -87,9 +87,9 @@ and tests implement with an array.
   One `ipcMain.handle("ddd:invoke", (cmd, args))` dispatches into it. Unknown
   command → rejected promise. Errors are rejected as their message string, which
   is what the Tauri `Error` serialized to.
-- `dialogs.ts` — the five commands that used to be Tauri plugins:
-  `dialog_save`, `dialog_open_file`, `dialog_pick_directory`, `open_external`,
-  `reveal_path`.
+- `ipc.ts` — the `ddd:invoke` channel and the five commands that used to be
+  Tauri plugins: `dialog_save`, `dialog_open_file`, `dialog_pick_directory`,
+  `open_external`, `reveal_path`.
 - `csp.ts` — the same policy `tauri.conf.json` ships, applied through
   `session.webRequest.onHeadersReceived`, with a test pinning it exactly as
   `lib.rs` pins the Tauri one.
@@ -271,7 +271,8 @@ Because it is process-global, tests that construct an `EnvRoot` run through a
 ## 8. Testing
 
 - **Unit:** every `#[cfg(test)]` block becomes a `.test.ts` beside its module.
-  vitest with `environment: node` for core and `jsdom` for renderer tests.
+  vitest with `environment: node` for all tests; the renderer tests stand up
+  `window` themselves, as in DDD.
 - **Contract:** `core/no-electron.test.ts` greps for `electron` imports under
   `core/`; `main/commands.test.ts` compares the registry with the Tauri
   handler list when `../DDD` is present; `main/csp.test.ts` pins the policy.

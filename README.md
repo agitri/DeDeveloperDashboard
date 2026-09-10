@@ -15,7 +15,12 @@ Design: `docs/superpowers/specs/2026-09-10-node-port-design.md`.
     npm run smoke            # build, boot, call global_load through the bridge, exit
     npm run build            # typecheck + electron-vite build → out/
 
+If `npm install` could not download the Electron binary (proxy, offline
+mirror, …), run `node node_modules/electron/install.js` once to fetch it.
+
 Set `DDD_HOME` to keep a dev instance away from your real board.
+`npm run smoke` uses a scratch `DDD_HOME` (a fresh temp directory, logged on
+start) unless one is already set, so it never touches your real `~/.ddd`.
 `DDD_SMOKE_SHOT=<path>` on `npm run smoke` also writes a PNG of the booted window to `<path>`.
 
 ## Where things are

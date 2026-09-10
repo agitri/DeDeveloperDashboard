@@ -100,6 +100,8 @@ describe("environments", () => {
     const work = g.environments.find((e) => e.id === "work")!;
     expect(work).toEqual({ id: "work", name: "Client", color: "#00a99f", hidden: true, collapsed: false });
     expect(() => environmentUpdate("nope", { name: "x" })).toThrow('environment "nope"');
+    // A `null` from a JSON-IPC caller means "not given", same as undefined.
+    expect(environmentUpdate("work", { name: null as unknown as string }).environments.find((e) => e.id === "work")!.name).toBe("Client");
   });
 
   it("switches the active one, if it exists", () => {
