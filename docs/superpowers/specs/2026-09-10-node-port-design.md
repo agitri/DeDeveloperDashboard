@@ -84,9 +84,11 @@ and tests implement with an array.
   title with overlay controls on macOS), runs `bootstrap()`, starts the
   scheduler loop, registers commands.
 - `commands.ts` — a `Record<string, Handler>` keyed by the Tauri command name.
-  One `ipcMain.handle("ddd:invoke", (cmd, args))` dispatches into it. Unknown
-  command → rejected promise. Errors are rejected as their message string, which
-  is what the Tauri `Error` serialized to.
+  One `ipcMain.handle("ddd:invoke", (cmd, args))` dispatches into it. The reply
+  is an envelope, `{ ok, value | error }` — never a rejected `ipcMain.handle`
+  promise — and the preload unwraps it, rejecting with the bare error string
+  so the renderer sees exactly what Tauri gave it. Unknown command is one such
+  envelope: `{ ok: false, error: "unknown command <name>" }`.
 - `ipc.ts` — the `ddd:invoke` channel and the five commands that used to be
   Tauri plugins: `dialog_save`, `dialog_open_file`, `dialog_pick_directory`,
   `open_external`, `reveal_path`.
@@ -260,8 +262,9 @@ Because it is process-global, tests that construct an `EnvRoot` run through a
 
 ## 7. Error handling
 
-- Core throws `DddError`. Main catches, rejects with `error.message`. The
-  renderer already treats a rejected invoke as a string.
+- Core throws `DddError`. `dispatch()` catches it and replies with the
+  `ddd:invoke` envelope, `{ ok, value | error }`; the preload rejects with the
+  bare error string, so the renderer sees what Tauri gave it.
 - Scheduler failures are recorded on the connection (`status`, `error`,
   `lastSyncAt`) and logged to stderr, never thrown out of the loop.
 - The watcher swallows per-path errors and keeps the other watches alive.
