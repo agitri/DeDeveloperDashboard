@@ -6,7 +6,7 @@
  */
 import { BrowserWindow, dialog, ipcMain, shell, type IpcMainInvokeEvent } from "electron";
 import { DddError } from "../core/error";
-import { commands } from "./commands";
+import type { Handler } from "./commands";
 import { dispatch, type HostHandler } from "./dispatch";
 
 const LAYOUT_FILTER = [{ name: "DDD layout", extensions: ["json"] }];
@@ -45,6 +45,6 @@ const host: Record<string, HostHandler> = {
   },
 };
 
-export function registerIpc(): void {
+export function registerIpc(commands: Record<string, Handler>): void {
   ipcMain.handle("ddd:invoke", (event, cmd: unknown, args: unknown) => dispatch(cmd, args, event, host, commands));
 }

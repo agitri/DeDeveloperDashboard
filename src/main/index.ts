@@ -3,11 +3,21 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { bootstrap } from "../core/bootstrap";
+import type { Emitter } from "../core/emitter";
 import { CSP, DEV_CSP } from "./csp";
+import { createCommands } from "./commands";
 import { registerIpc } from "./ipc";
 import { allowNavigation } from "./navigation";
 
 const DEV_URL = process.env.ELECTRON_RENDERER_URL;
+
+/** Every open window hears every event. There is one window today; the
+ *  loop is what makes a second one free. */
+const emitter: Emitter = {
+  emit(name, payload) {
+    for (const win of BrowserWindow.getAllWindows()) win.webContents.send(name, payload);
+  },
+};
 
 /** The smoke never touches the real `~/.ddd` (spec §8): give it a scratch home
  *  unless the caller pinned one. Must run before `bootstrap()`. */
@@ -122,7 +132,7 @@ app.whenReady().then(() => {
     console.error(`ddd: bootstrap failed: ${e instanceof Error ? e.message : e}`);
   }
   installCsp();
-  registerIpc();
+  registerIpc(createCommands({ emit: emitter }));
   const win = createWindow();
   if (process.env.DDD_SMOKE) smoke(win);
 

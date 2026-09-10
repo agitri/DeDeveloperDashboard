@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { scratchEnv } from "../core/testing";
-import { HOST_COMMANDS, commands } from "./commands";
+import { HOST_COMMANDS, createCommands } from "./commands";
+import { recordingEmitter } from "../core/emitter";
+
+const commands = createCommands({ emit: recordingEmitter() });
 
 const TAURI_LIB = resolve(__dirname, "../../../DDD/src-tauri/src/lib.rs");
 
