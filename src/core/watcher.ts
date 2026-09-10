@@ -6,7 +6,7 @@
  * files instead of being told about them. That is the whole coupling: one
  * side writes, the other side notices.
  */
-import { statSync, watch, type FSWatcher } from "node:fs";
+import { existsSync, statSync, watch, type FSWatcher } from "node:fs";
 import { basename, join, relative, sep } from "node:path";
 import type { Emitter } from "./emitter";
 import type { ProjectRef } from "./models";
@@ -84,13 +84,17 @@ export class ProjectWatcher {
       try {
         const w = watch(target, { recursive }, (_event, filename) => {
           const name = filename?.toString();
+          const changedPath = name ? join(target, name) : target;
           // A watch freshly registered on a directory created moments earlier
           // can replay one spurious FSEvents callback naming the watched
           // directory itself rather than any real child (macOS quirk — seen
-          // for `.ddd` right after it is created). A real child is never
-          // named identically to its own parent, so this is always noise.
-          if (name === basename(target)) return;
-          const changedPath = name ? join(target, name) : target;
+          // for `.ddd` right after it is created). That replay's `filename`
+          // joins onto a path that does not exist (there is no real child
+          // sharing the watched directory's own name), which is exactly what
+          // tells it apart from a legitimate change to a file that happens to
+          // be named the same as the watched directory: only drop the event
+          // when the joined path is not actually there.
+          if (name === basename(target) && !existsSync(changedPath)) return;
           const changed = routeFor(routes, changedPath);
           if (changed) this.queue(changed);
         });

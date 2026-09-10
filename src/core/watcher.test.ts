@@ -30,19 +30,28 @@ const tempdir = (name: string) => realpathSync(mkdtempSync(join(tmpdir(), `ddd-w
 // FSEvents notification for a fresh watch outright (verified separately
 // against a plain, unsandboxed `node` process, where the same watch is
 // reliable) — rare on a real machine, but reliably reproducible here.
+// Gives up loudly on timeout instead of quietly returning: a condition that
+// never comes true should fail with a clear "timed out" error at the point
+// that waited for it, not surface as a confusing mismatch (or an undefined
+// dereference) several lines later.
 const until = async (pred: () => boolean, ms = 8000) => {
   const t0 = Date.now();
-  while (!pred() && Date.now() - t0 < ms) await new Promise((r) => setTimeout(r, 25));
+  while (!pred()) {
+    if (Date.now() - t0 >= ms) throw new Error(`until: condition not met within ${ms}ms`);
+    await new Promise((r) => setTimeout(r, 25));
+  }
 };
 // `nudge` repeats the filesystem change every 300ms until it is observed;
 // since a burst of repeats of the same change is exactly what "one project
 // per burst" already has to coalesce, this does not weaken what these two
-// tests assert (they only look at `events[0]`, so a second, later burst from
-// an overlapping nudge would not fail them).
+// tests assert (they look for the first event belonging to their own
+// project, so a second, later burst from an overlapping nudge would not fail
+// them).
 const untilNudged = async (pred: () => boolean, nudge: () => void, ms = 8000) => {
   const t0 = Date.now();
   let last = 0;
-  while (!pred() && Date.now() - t0 < ms) {
+  while (!pred()) {
+    if (Date.now() - t0 >= ms) throw new Error(`untilNudged: condition not met within ${ms}ms`);
     if (Date.now() - last > 300) {
       nudge();
       last = Date.now();
@@ -68,13 +77,15 @@ describe("watching registered projects", () => {
       // An editor save is several events; a `/todo` is one file, twice.
       writeFileSync(join(dir, ".ddd", "todos.json"), '{"todos":[]}');
       writeFileSync(join(dir, ".ddd", "todos.json"), '{"todos":[{"id":"t","text":"x"}]}');
-      await until(() => emitter.events.length > 0, 3000);
       // This test asserts an exact one-element array, so it cannot use the
       // repeated `untilNudged` (a nudge whose OS delivery is delayed past the
       // debounce window would register as a second, distinct burst). If
-      // nothing arrived at all, one extra write is a single retry, not a
-      // second burst, and by now any delayed original delivery has settled.
-      if (emitter.events.length === 0) {
+      // nothing arrived within the first wait, one extra write is a single
+      // retry, not a second burst, and by then any delayed original delivery
+      // has settled.
+      try {
+        await until(() => emitter.events.length > 0, 3000);
+      } catch {
         writeFileSync(join(dir, ".ddd", "todos.json"), '{"todos":[{"id":"t","text":"x"}]}');
         await until(() => emitter.events.length > 0, 5000);
       }
@@ -131,11 +142,15 @@ describe("watching registered projects", () => {
       watcher.sync("personal", [{ id: "pb", path: b }]);
       await new Promise((r) => setTimeout(r, 250));
       writeFileSync(join(b, ".ddd", "recap.md"), "# recap");
+      // Both projects' `.ddd` folders were just created, so either watch
+      // could also be settling in; assert on the first event that belongs to
+      // *this* project rather than assuming events[0] is it.
+      const isForPb = (e: { payload: unknown }) => (e.payload as ProjectChanged).projectId === "pb";
       await untilNudged(
-        () => emitter.events.length > 0,
+        () => emitter.events.some(isForPb),
         () => writeFileSync(join(b, ".ddd", "recap.md"), "# recap"),
       );
-      expect(emitter.events[0]!.payload).toEqual({ environmentId: "personal", projectId: "pb" });
+      expect(emitter.events.find(isForPb)!.payload).toEqual({ environmentId: "personal", projectId: "pb" });
     },
     15000,
   );
