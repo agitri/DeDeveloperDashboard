@@ -1,4 +1,5 @@
 import { app, BrowserWindow, session } from "electron";
+import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { bootstrap } from "../core/bootstrap";
 import { CSP, DEV_CSP } from "./csp";
@@ -51,6 +52,13 @@ function smoke(win: BrowserWindow): void {
         environments: unknown[];
       };
       console.log(`ddd: smoke ok — ${g.environments.length} environment(s)`);
+      const shotPath = process.env.DDD_SMOKE_SHOT;
+      if (shotPath) {
+        await new Promise((r) => setTimeout(r, 1500));
+        const image = await win.webContents.capturePage();
+        writeFileSync(shotPath, image.toPNG());
+        console.log(`ddd: smoke shot → ${shotPath}`);
+      }
       app.exit(0);
     } catch (e) {
       console.error("ddd: smoke failed:", e);
