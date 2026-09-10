@@ -89,12 +89,21 @@ export function shellexpandHome(path: string): string {
 
 const execFileAsync = promisify(execFile);
 
+/** Every git we run: never prompt, never hang, never truncate. Phase 4's
+ *  repos/* and dev/* shell out from the same process and should reuse this. */
+export const GIT_EXEC_OPTIONS = {
+  encoding: "utf8" as const,
+  maxBuffer: 64 * 1024 * 1024,
+  timeout: 30_000,
+  env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
+};
+
 /** `git -C <dir> <args>`; stdout trimmed, or null when git fails or is absent.
  *  Shelled out rather than linked so the user's own git config (worktrees,
  *  includes) is honoured. */
 async function git(dir: string, args: string[]): Promise<string | null> {
   try {
-    const { stdout } = await execFileAsync("git", ["-C", dir, ...args], { encoding: "utf8" });
+    const { stdout } = await execFileAsync("git", ["-C", dir, ...args], GIT_EXEC_OPTIONS);
     return stdout.trim();
   } catch {
     return null;

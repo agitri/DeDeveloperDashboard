@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, realpathSync, symlinkSync, writeF
 import { homedir, tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { scratchEnv } from "./testing";
-import { register, registry, shellexpandHome, slug, unregister } from "./projects";
+import { GIT_EXEC_OPTIONS, register, registry, shellexpandHome, slug, unregister } from "./projects";
 
 const tempdir = (name: string) => realpathSync(mkdtempSync(join(tmpdir(), `ddd-projects-${name}-`)));
 
@@ -29,6 +29,14 @@ describe("slug", () => {
     // A surrogate pair must not become two dashes.
     expect(slug("/tmp/😀").startsWith("--")).toBe(true);
     expect(slug("/tmp/😀").startsWith("---")).toBe(false);
+  });
+});
+
+describe("GIT_EXEC_OPTIONS", () => {
+  it("never truncates, never hangs, never prompts — a pin so nobody drops it", () => {
+    expect(GIT_EXEC_OPTIONS.maxBuffer).toBeGreaterThanOrEqual(64 * 1024 * 1024);
+    expect(GIT_EXEC_OPTIONS.timeout).toBeGreaterThan(0);
+    expect(GIT_EXEC_OPTIONS.env.GIT_TERMINAL_PROMPT).toBe("0");
   });
 });
 
