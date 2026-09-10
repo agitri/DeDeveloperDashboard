@@ -5,7 +5,7 @@ import { basename, resolve, join } from "node:path";
 import { scratchEnv } from "../core/testing";
 import { HOST_COMMANDS, createCommands } from "./commands";
 import { recordingEmitter } from "../core/emitter";
-import { ProjectWatcher } from "../core/watcher";
+import { ProjectWatcher, type ProjectChanged } from "../core/watcher";
 
 const emitter = recordingEmitter();
 const watcher = new ProjectWatcher(emitter);
@@ -161,4 +161,43 @@ describe("project commands", () => {
     await expect(commands.launch_path!({ path: "/nowhere/at/all" })).rejects.toThrow("is not a directory");
     await expect(commands.open_in_editor!({ path: "/nowhere/at/all" })).rejects.toThrow("is not a directory");
   });
+});
+
+// Gives up loudly on timeout instead of quietly returning — see watcher.test.ts.
+const until = async (pred: () => boolean, ms = 8000) => {
+  const t0 = Date.now();
+  while (!pred()) {
+    if (Date.now() - t0 >= ms) throw new Error(`until: condition not met within ${ms}ms`);
+    await new Promise((r) => setTimeout(r, 25));
+  }
+};
+
+// `fs.watch({ recursive: true })` on macOS becomes live asynchronously —
+// FSEvents startup latency — and libuv only streams changes from "now", so a
+// write made before the watch is actually live is never delivered. The retry
+// re-runs the whole test with a fresh temp dir and the same strict
+// assertions, so a genuinely broken end-to-end path still fails every time.
+describe("the .ddd contract through the commands", { retry: 2 }, () => {
+  it(
+    "project_register's watch notices a real todos.json write, end to end",
+    async () => {
+      const dir = realpathSync(mkdtempSync(join(tmpdir(), "ddd-cmd-e2e-")));
+      mkdirSync(join(dir, ".ddd"));
+      const card = (await commands.project_register!({ env: "default", path: dir })) as { id: string };
+      await new Promise((r) => setTimeout(r, 500));
+      writeFileSync(join(dir, ".ddd", "todos.json"), '{"todos":[]}');
+      // Filtered to this test's own project: earlier tests in this file leave
+      // their (already-populated) .ddd folders under the same, never-closed
+      // watcher, and re-registering rebuilds every watch wholesale — a fresh
+      // recursive watch on a directory that already has content can itself
+      // replay one startup event for that content, same family of FSEvents
+      // quirk as watcher.ts's isSelfNamedReplay, just for a different project.
+      const isOurs = (e: { name: string; payload: unknown }) =>
+        e.name === "ddd://project-changed" && (e.payload as ProjectChanged).projectId === card.id;
+      await until(() => emitter.events.some(isOurs), 8000);
+      const event = emitter.events.find(isOurs)!;
+      expect(event.payload).toEqual({ environmentId: "default", projectId: card.id });
+    },
+    15000,
+  );
 });

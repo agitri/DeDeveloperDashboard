@@ -1,9 +1,23 @@
 import { describe, expect, it } from "vitest";
+import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { scratchEnv } from "./testing";
-import { GIT_EXEC_OPTIONS, register, registry, shellexpandHome, slug, unregister } from "./projects";
+import {
+  GIT_EXEC_OPTIONS,
+  configOf,
+  gitRemote,
+  gitStatus,
+  identity,
+  load,
+  loadAll,
+  register,
+  registry,
+  shellexpandHome,
+  slug,
+  unregister,
+} from "./projects";
 
 const tempdir = (name: string) => realpathSync(mkdtempSync(join(tmpdir(), `ddd-projects-${name}-`)));
 
@@ -94,13 +108,11 @@ describe("registry", () => {
   });
 });
 
-import { execFileSync } from "node:child_process";
-import { configOf, gitRemote, gitStatus, identity, load, loadAll } from "./projects";
+const GIT_AUTHOR_ENV = { ...process.env, GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@t" };
 
 function gitRepo(name: string): string {
   const dir = tempdir(name);
-  const git = (...args: string[]) =>
-    execFileSync("git", ["-C", dir, ...args], { stdio: "pipe", env: { ...process.env, GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@t" } });
+  const git = (...args: string[]) => execFileSync("git", ["-C", dir, ...args], { stdio: "pipe", env: GIT_AUTHOR_ENV });
   git("init", "-q", "-b", "main");
   writeFileSync(join(dir, "README.md"), "hi\n");
   git("add", "README.md");
@@ -127,6 +139,31 @@ describe("git status", () => {
     expect(await gitStatus(tempdir("norepo"))).toEqual({
       isRepo: false, branch: null, dirtyFiles: 0, ahead: 0, behind: 0, lastCommitSummary: null, lastCommitAt: null,
     });
+  });
+
+  it("reports ahead and behind against a real upstream, pinning the column order", async () => {
+    const upstream = gitRepo("upstream");
+    const clone = join(tempdir("clone-parent"), "clone");
+    execFileSync("git", ["clone", "-q", upstream, clone], { stdio: "pipe", env: GIT_AUTHOR_ENV });
+    const gitIn = (dir: string, ...args: string[]) => execFileSync("git", ["-C", dir, ...args], { stdio: "pipe", env: GIT_AUTHOR_ENV });
+
+    // One commit lands upstream after the clone...
+    writeFileSync(join(upstream, "upstream-only.txt"), "u\n");
+    gitIn(upstream, "add", "upstream-only.txt");
+    gitIn(upstream, "commit", "-q", "-m", "second upstream commit");
+    // ...and the clone learns about it the ordinary way, by fetching.
+    gitIn(clone, "fetch", "-q", "origin", "main");
+
+    // One commit lands locally in the clone, never pushed.
+    writeFileSync(join(clone, "local-only.txt"), "l\n");
+    gitIn(clone, "add", "local-only.txt");
+    gitIn(clone, "commit", "-q", "-m", "local commit");
+
+    const s = await gitStatus(clone);
+    // rev-list --left-right --count prints "<behind> <ahead>"; this pins
+    // that the Rust's column order survives the port.
+    expect(s.ahead).toBe(1);
+    expect(s.behind).toBe(1);
   });
 });
 
@@ -183,6 +220,14 @@ describe("a project card", () => {
     await expect(load("bad-1", dir)).rejects.toThrow(/^json: /);
     expect(identity("bad-1", dir)).toEqual({ name: basename(dir), repos: [] });
     expect(configOf(dir)).toEqual({ name: null, repos: [], deployments: [], terminal: null, products: [] });
+  });
+
+  it("a malformed todos.json is swallowed — the card just has no todos", async () => {
+    const dir = tempdir("badtodos");
+    mkdirSync(join(dir, ".ddd"));
+    writeFileSync(join(dir, ".ddd", "todos.json"), "{ not json");
+    const p = await load("bad-2", dir);
+    expect(p.todos).toEqual([]);
   });
 
   it("loads every card, in parallel, in registry order", async () => {
