@@ -31,11 +31,11 @@ function withDb<T>(env: EnvRoot, body: (db: DatabaseSync) => T): T {
   let db: DatabaseSync;
   try {
     db = new DatabaseSync(env.eventsDb());
-    db.exec(DDL);
   } catch (e) {
     throw DddError.sqlite(e);
   }
   try {
+    db.exec(DDL);
     return body(db);
   } catch (e) {
     throw e instanceof DddError ? e : DddError.sqlite(e);

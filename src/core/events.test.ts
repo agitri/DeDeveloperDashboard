@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { existsSync } from "node:fs";
+import { existsSync, writeFileSync, rmSync } from "node:fs";
 import { scratchEnv } from "./testing";
 import { defaultSettings, settingsSave } from "./settings";
 import { clear, eventLog, log, query } from "./events";
+import { DddError } from "./error";
 
 describe("events", () => {
   it("logs rows and reads them newest first, with a null for every absent field", () => {
@@ -47,5 +48,34 @@ describe("events", () => {
     settingsSave(env, s);
     eventLog(env, { kind: "tab.switch" });
     expect(query(env, { limit: 500 })).toHaveLength(1);
+  });
+
+  it("closes the handle on DDL failure and recovers after removing the corrupted file", () => {
+    const { env } = scratchEnv("events-ddl-failure");
+    const dbPath = env.eventsDb();
+
+    // Write garbage bytes to create a corrupted database file
+    writeFileSync(dbPath, "not a database");
+
+    // Attempt to log should throw a DddError with kind "sqlite"
+    expect(() => log(env, { kind: "test" })).toThrow();
+    const err = (() => {
+      try {
+        log(env, { kind: "test" });
+      } catch (e) {
+        return e;
+      }
+    })();
+    expect(err).toBeInstanceOf(DddError);
+    expect((err as DddError).kind).toBe("sqlite");
+
+    // Delete the corrupted file
+    rmSync(dbPath);
+
+    // Subsequent log should succeed with a fresh database
+    const id = log(env, { kind: "recovery" });
+    expect(typeof id).toBe("number");
+    expect(id).toBeGreaterThan(0);
+    expect(query(env, { limit: 500 }).map((r) => r.kind)).toEqual(["recovery"]);
   });
 });
