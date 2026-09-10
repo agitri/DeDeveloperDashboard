@@ -15,7 +15,8 @@ import {
   globalLoad,
 } from "../core/global";
 import { layoutFileRead, layoutFileWrite, layoutLoad, layoutSave } from "../core/layout";
-import { settingsLoad, settingsSave } from "../core/settings";
+import { layoutFromJson } from "../core/models";
+import { appearanceRequired, settingsFromJson, settingsLoad, settingsSave } from "../core/settings";
 import { keymapLoad, keymapSave } from "../core/keymap";
 import * as events from "../core/events";
 import * as secrets from "../core/secrets";
@@ -38,7 +39,7 @@ const root = (env: string) => EnvRoot.open(env);
 export const commands: Record<string, Handler> = {
   // --- environments ---
   global_load: () => globalLoad(),
-  global_appearance_save: ({ appearance }) => globalAppearanceSave(appearance),
+  global_appearance_save: ({ appearance }) => globalAppearanceSave(appearanceRequired(appearance)),
   environment_create: ({ id, name, color }) => environmentCreate(id, name, color),
   environment_update: ({ id, name, color, hidden, collapsed }) =>
     environmentUpdate(id, { name, color, hidden, collapsed }),
@@ -47,11 +48,11 @@ export const commands: Record<string, Handler> = {
 
   // --- layout, settings, keymap ---
   layout_load: ({ env }) => layoutLoad(root(env)),
-  layout_save: ({ env, layout }) => layoutSave(root(env), layout),
+  layout_save: ({ env, layout }) => layoutSave(root(env), layoutFromJson(layout)),
   layout_file_write: ({ path, contents }) => layoutFileWrite(path, contents),
   layout_file_read: ({ path }) => layoutFileRead(path),
   settings_load: ({ env }) => settingsLoad(root(env)),
-  settings_save: ({ env, settings }) => settingsSave(root(env), settings),
+  settings_save: ({ env, settings }) => settingsSave(root(env), settingsFromJson(settings)),
   keymap_load: () => keymapLoad(),
   keymap_save: ({ keymap }) => keymapSave(keymap),
 

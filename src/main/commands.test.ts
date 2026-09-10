@@ -49,4 +49,16 @@ describe("the command registry", () => {
     const info = (await commands.paths_info!({ env: "work" })) as { environmentDir: string };
     expect(info.environmentDir).toBe(`${home}/environments/work`);
   });
+
+  it("validates layout_save's input instead of writing it as-is", async () => {
+    const { home } = scratchEnv("registry-layout-validate");
+    expect(() =>
+      commands.layout_save!({ env: "default", layout: { tabs: [{ id: "t" }] } }),
+    ).toThrow(/missing field `name`/);
+
+    await commands.layout_save!({ env: "default", layout: { tabs: [{ id: "t", name: "T" }] } });
+    const onDisk = JSON.parse(readFileSync(`${home}/environments/default/layout.json`, "utf8"));
+    expect(onDisk.tabs[0].widgets).toEqual([]);
+    expect(onDisk.groups).toEqual([]);
+  });
 });
