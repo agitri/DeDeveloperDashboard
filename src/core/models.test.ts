@@ -1,6 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { DddError } from "./error";
-import { defaultGlobal, defaultLayout, globalFromJson, layoutFromJson } from "./models";
+import {
+  defaultGlobal,
+  defaultLayout,
+  defaultProjectConfig,
+  deploymentFromJson,
+  globalFromJson,
+  layoutFromJson,
+  productDeclFromJson,
+  projectConfigFromJson,
+  todoFileFromJson,
+  todoFromJson,
+} from "./models";
 
 describe("global.json", () => {
   it("defaults to one Default environment with the shipped blue", () => {
@@ -95,5 +106,61 @@ describe("layout.json", () => {
         },
       ],
     });
+  });
+});
+
+describe("project files", () => {
+  it("fills todo defaults, in Rust field order", () => {
+    const t = todoFromJson({ id: "t", text: "x" });
+    expect(t).toEqual({ id: "t", text: "x", done: false, createdAt: null, source: null });
+    expect(Object.keys(t)).toEqual(["id", "text", "done", "createdAt", "source"]);
+  });
+
+  it("requires a todo's text", () => {
+    expect(() => todoFromJson({ id: "t" })).toThrow(/missing field `text`/);
+  });
+
+  it("defaults an empty todos.json to no todos", () => {
+    expect(todoFileFromJson({})).toEqual({ todos: [] });
+  });
+
+  it("requires a deployment's url", () => {
+    expect(() => deploymentFromJson({ name: "prod" })).toThrow(/missing field `url`/);
+  });
+
+  it("fills product defaults", () => {
+    expect(productDeclFromJson({ id: "web", run: "npm start" })).toEqual({
+      id: "web",
+      name: null,
+      run: "npm start",
+      dir: null,
+      port: null,
+    });
+  });
+
+  it("requires a product's run command", () => {
+    expect(() => productDeclFromJson({ id: "web" })).toThrow(/missing field `run`/);
+  });
+
+  it("defaults an empty config.json to defaultProjectConfig, in Rust field order", () => {
+    const c = projectConfigFromJson({});
+    expect(c).toEqual(defaultProjectConfig());
+    expect(Object.keys(c)).toEqual(["name", "repos", "deployments", "terminal", "products"]);
+  });
+
+  it("rejects a repos field of the wrong type", () => {
+    expect(() => projectConfigFromJson({ repos: "x" })).toThrow(DddError);
+    try {
+      projectConfigFromJson({ repos: "x" });
+      expect.unreachable();
+    } catch (e) {
+      expect(e).toBeInstanceOf(DddError);
+      expect((e as DddError).kind).toBe("json");
+    }
+  });
+
+  it("defaults a product's port when omitted", () => {
+    const c = projectConfigFromJson({ products: [{ id: "a", run: "r" }] });
+    expect(c.products[0].port).toBeNull();
   });
 });

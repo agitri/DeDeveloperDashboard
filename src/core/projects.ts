@@ -59,7 +59,7 @@ export function unregister(env: EnvRoot, id: string): void {
 export function slug(path: string): string {
   const base = (basename(path) || "project")
     .toLowerCase()
-    .replace(/[^a-z0-9]/g, "-");
+    .replace(/[^a-z0-9]/gu, "-");
   let h = 5381n;
   for (const b of Buffer.from(path, "utf8")) {
     h = ((h * 33n) & 0xffffffffffffffffn) ^ BigInt(b);

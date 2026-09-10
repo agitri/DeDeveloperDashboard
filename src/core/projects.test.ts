@@ -24,6 +24,12 @@ describe("slug", () => {
     // Computed with the Rust: fold(5381, |h, b| h.wrapping_mul(33) ^ b) & 0xffffff, hex.
     expect(slug("/tmp/p")).toBe("p-ce09bc");
   });
+
+  it("dashes an astral-plane character as one scalar value, like Rust's chars()", () => {
+    // A surrogate pair must not become two dashes.
+    expect(slug("/tmp/😀").startsWith("--")).toBe(true);
+    expect(slug("/tmp/😀").startsWith("---")).toBe(false);
+  });
 });
 
 describe("home expansion", () => {
