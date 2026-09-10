@@ -26,10 +26,15 @@ export function shellQuote(value: string): string {
 
 /** A script that lands you in the project directory with Claude Code running,
  *  and — crucially — leaves you at a shell when it exits instead of slamming
- *  the window shut on whatever it printed. */
+ *  the window shut on whatever it printed.
+ *
+ *  The path is predictable, in a shared `/tmp` — a local-user race on Linux
+ *  (another user on the box can pre-create or replace the file before we
+ *  write it), inherited from the Rust on purpose (spec §1). `mkdtempSync`
+ *  with mode `0o700` is the fix, if this ever needs to be hardened. */
 export function writeLaunchScript(dir: string, command: string): string {
   const script = `#!/bin/sh\ncd ${shellQuote(dir)} || exit 1\n${command}\nexec "\${SHELL:-/bin/sh}" -l\n`;
-  const name = `ddd-launch-${(basename(dir) || "project").replace(/[^A-Za-z0-9]/g, "-")}.command`;
+  const name = `ddd-launch-${(basename(dir) || "project").replace(/[^A-Za-z0-9]/gu, "-")}.command`;
   const path = join(tmpdir(), name);
   try {
     writeFileSync(path, script);
@@ -277,6 +282,10 @@ export async function openInEditor(dir: string, editor: string | null | undefine
   try {
     await spawnDetached(chosen, [dir]);
   } catch (e) {
-    throw DddError.config(`could not start ${chosen}: ${e instanceof Error ? e.message : String(e)}`);
+    // spawnDetached rejects with a DddError.io(cause), whose message is
+    // "io: <cause>" — strip that prefix so the user sees the raw spawn
+    // error (e.g. "spawn code ENOENT"), not "io: spawn code ENOENT".
+    const message = e instanceof DddError && e.kind === "io" ? e.message.replace(/^io: /, "") : e instanceof Error ? e.message : String(e);
+    throw DddError.config(`could not start ${chosen}: ${message}`);
   }
 }

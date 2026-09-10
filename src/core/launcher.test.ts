@@ -104,6 +104,15 @@ describe("opening an editor", () => {
     expect(readFileSync(proof, "utf8").trim()).toBe(dir);
     rmSync(dir, { recursive: true });
   });
+
+  // macOS never reaches the raw-spawn branch for a non-template editor name
+  // (it goes through `open -a`, which must never run in a test), so this only
+  // exercises the "unwrap the DddError.io cause" branch off-macOS.
+  it.skipIf(process.platform === "darwin")("unwraps the inner spawn error instead of double-wrapping it", async () => {
+    await expect(openInEditor(tmpdir(), "ddd-definitely-not-a-real-editor")).rejects.toThrow(
+      "could not start ddd-definitely-not-a-real-editor: spawn ddd-definitely-not-a-real-editor ENOENT",
+    );
+  });
 });
 
 describe("the app catalogs", () => {

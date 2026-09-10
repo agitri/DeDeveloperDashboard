@@ -45,6 +45,9 @@ export function register(env: EnvRoot, rawPath: string): ProjectRef {
   if (!isDir(path)) throw DddError.notFound(`${path} is not a directory`);
   let canonical: string;
   try {
+    // Rust's `canonicalize` yields a `\\?\` prefix on Windows; `realpathSync`
+    // does not, so a registered project's id may differ from the Rust's
+    // there (ported blind, spec §10).
     canonical = realpathSync(path);
   } catch (e) {
     throw DddError.io(e);
