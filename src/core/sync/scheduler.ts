@@ -10,6 +10,7 @@ import * as events from "../events";
 import { globalLoad } from "../global";
 import { EnvRoot } from "../paths";
 import { settingsLoad, settingsSave, type Connection, type ConnectionStatus } from "../settings";
+import type { Item } from "../models";
 import type { FetchContext, SyncDeps } from "./adapter";
 import { forProvider } from "./providers";
 import * as cache from "./cache";
@@ -74,17 +75,13 @@ export class Scheduler {
 
     const cx: FetchContext = { environmentId: env.id, connection, token, fetch: this.deps.fetch };
     const payload = { environmentId: env.id, connectionId: connection.id };
+    // Only the fetch itself is covered by the failure handling below: once it
+    // has succeeded, a local disk/sqlite problem is not the adapter's fault
+    // and must not be relabeled expired/error from an unrelated message, nor
+    // overwrite the connection a second time.
+    let items: Item[];
     try {
-      const items = await adapter.fetch(cx);
-      cache.replaceForConnection(env, connection.id, items);
-      record(env, connection.id, "connected", null);
-      try {
-        events.log(env, { kind: "sync.fetch", source: connection.provider, meta: { items: items.length } });
-      } catch {
-        /* a dropped stat never interrupts a sync */
-      }
-      this.deps.emit.emit("ddd://items-changed", payload);
-      return items.length;
+      items = await adapter.fetch(cx);
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       // 401/403 means the credential is the problem, which is a different
@@ -94,6 +91,15 @@ export class Scheduler {
       this.deps.emit.emit("ddd://items-changed", payload);
       throw e;
     }
+    cache.replaceForConnection(env, connection.id, items);
+    record(env, connection.id, "connected", null);
+    try {
+      events.log(env, { kind: "sync.fetch", source: connection.provider, meta: { items: items.length } });
+    } catch {
+      /* a dropped stat never interrupts a sync */
+    }
+    this.deps.emit.emit("ddd://items-changed", payload);
+    return items.length;
   }
 
   /** One pass over every environment's connections. */

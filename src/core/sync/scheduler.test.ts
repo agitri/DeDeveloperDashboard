@@ -1,6 +1,8 @@
+import { mkdirSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { scratchEnv } from "../testing";
 import { recordingEmitter } from "../emitter";
+import { DddError } from "../error";
 import { globalAppearanceSave, globalLoad } from "../global";
 import { defaultSettings, settingsLoad, settingsSave, type Connection } from "../settings";
 import { memorySecrets } from "./adapter";
@@ -83,6 +85,28 @@ describe("syncing one connection", () => {
   it("skips a provider with no adapter", async () => {
     const { env } = scratchEnv("sync-noadapter");
     expect(await new Scheduler(deps().deps).syncConnection(env, conn({ id: "j", provider: "jira" }))).toBe(0);
+  });
+
+  it("does not relabel or re-emit when a local cache write fails after a successful fetch", async () => {
+    const { env } = scratchEnv("sync-cache-fail");
+    const s = defaultSettings();
+    s.connections.push(conn());
+    settingsSave(env, s);
+    // A directory where cache.sqlite should be: DatabaseSync cannot open it.
+    mkdirSync(env.cacheDb(), { recursive: true });
+    const d = deps();
+    let caught: unknown;
+    try {
+      await new Scheduler(d.deps).syncConnection(env, conn());
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(DddError);
+    expect((caught as DddError).kind).toBe("sqlite");
+    const stored = settingsLoad(env).connections[0]!;
+    expect(stored.status).toBe("disconnected");
+    expect(stored.error).toBeNull();
+    expect(d.emitter.events).toEqual([]);
   });
 });
 
