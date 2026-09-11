@@ -142,6 +142,8 @@ describe("git status", () => {
   });
 
   it("reads ahead and behind against a real upstream, in the Rust's column order", async () => {
+    // Clones, then makes three more commits and a fetch beyond the gitRepo()
+    // fixture; that's slower than vitest's 5s default under a busy `npm test`.
     const upstream = gitRepo("upstream");
     const clone = join(tempdir("clone-parent"), "clone");
     execFileSync("git", ["clone", "-q", upstream, clone], { stdio: "pipe", env: GIT_AUTHOR_ENV });
@@ -168,7 +170,7 @@ describe("git status", () => {
     // that the Rust's column order survives the port.
     expect(s.ahead).toBe(1);
     expect(s.behind).toBe(2);
-  });
+  }, 20000);
 });
 
 describe("a project card", () => {
