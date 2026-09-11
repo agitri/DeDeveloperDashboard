@@ -1,5 +1,6 @@
 import { afterAll, describe, expect, it } from "vitest";
 import { execFileSync } from "node:child_process";
+import net from "node:net";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, resolve, join } from "node:path";
@@ -44,9 +45,6 @@ function tauriHandlers(): string[] | null {
  * acknowledges it here (by porting it, or by adding it to this list).
  */
 const NOT_YET_PORTED = new Set([
-  "dev_servers_list",
-  "dev_server_probe",
-  "dev_server_stop",
   "eol_board",
   "eol_watch",
   "eol_unwatch",
@@ -773,4 +771,75 @@ describe("repo_clone", () => {
     ).rejects.toThrow(`${join(root, "b")} already exists and is not empty`);
     rmSync(root, { recursive: true, force: true });
   });
+});
+
+describe("dev server commands", () => {
+  it("lists what is really listening on this machine, and dials none of it", async () => {
+    scratchEnv("cmd-dev-list");
+    const listing = (await commands.dev_servers_list!({ env: "default", filter: { knownOnly: false, ephemeral: true } })) as {
+      rows: { key: string; port: number; address: string; health: string; checkedAt: string | null; containers: unknown[] }[];
+      hidden: number;
+      foreignCount: number;
+      scanMs: number;
+      partial: boolean;
+    };
+    expect(Array.isArray(listing.rows)).toBe(true);
+    expect(typeof listing.hidden).toBe("number");
+    expect(typeof listing.foreignCount).toBe("number");
+    expect(typeof listing.scanMs).toBe("number");
+    expect(listing.partial).toBe(false);
+    for (const row of listing.rows) {
+      expect(row.key).toBe(`tcp:${row.address}:${row.port}`);
+      // probe defaults false: the first paint shows rows before any socket work.
+      expect(row.health).toBe("unknown");
+      expect(row.checkedAt).toBeNull();
+      expect(Array.isArray(row.containers)).toBe(true);
+    }
+  }, 30_000);
+
+  it("refuses a filter it cannot read, before reading the machine", async () => {
+    scratchEnv("cmd-dev-filter");
+    await expect(commands.dev_servers_list!({ env: "default", filter: { knownOnly: "yes" } })).rejects.toThrow(/^json: /);
+  });
+
+  it("probes a socket this test owns, and calls a closed port down", async () => {
+    const server = net.createServer((socket) => {
+      socket.on("data", () => socket.end("HTTP/1.0 200 OK\r\n\r\n"));
+      socket.on("error", () => {});
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
+    const port = (server.address() as net.AddressInfo).port;
+    try {
+      const up = (await commands.dev_server_probe!({ address: "127.0.0.1", port, http: true })) as {
+        health: string;
+        latencyMs: number | null;
+        checkedAt: string;
+      };
+      expect(up.health).toBe("up");
+      expect(typeof up.latencyMs).toBe("number");
+      expect(Number.isNaN(Date.parse(up.checkedAt))).toBe(false);
+
+      const down = (await commands.dev_server_probe!({ address: "127.0.0.1", port: 1, http: false })) as {
+        health: string;
+        latencyMs: number | null;
+      };
+      expect(down).toMatchObject({ health: "down", latencyMs: null });
+    } finally {
+      server.close();
+    }
+  }, 15_000);
+
+  it("re-reads the machine before signalling, and refuses when the row is stale", async () => {
+    scratchEnv("cmd-dev-stop");
+    // Port 1 is privileged, so nothing in the suite can be on it: the guard
+    // sees an empty socket and declines rather than signalling pid 999999.
+    await expect(
+      commands.dev_server_stop!({ env: "default", key: "tcp:127.0.0.1:1", pid: 999_999, process: "node" }),
+    ).rejects.toThrow("it already exited — nothing is on that port now");
+
+    // And with nothing to compare against, the guard cannot run at all.
+    await expect(
+      commands.dev_server_stop!({ env: "default", key: "tcp:127.0.0.1:1", pid: 999_999, process: "" }),
+    ).rejects.toThrow("no process name to verify against, so the reuse guard cannot run");
+  }, 30_000);
 });

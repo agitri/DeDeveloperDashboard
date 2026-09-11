@@ -45,6 +45,10 @@ import { repoFilterFromJson } from "../core/repos/filter";
 import * as links from "../core/repos/links";
 import { normalize } from "../core/repos/remote";
 import * as scan from "../core/repos/scan";
+import { MEMO_FLOOR_MS, Memo, devServerFilterFromJson, list as devServerList, readMachine, type KnownProject } from "../core/dev/board";
+import * as listen from "../core/dev/listen";
+import * as probe from "../core/dev/probe";
+import { mayStop, refusalMessage, signal } from "../core/dev/stop";
 import { itemId as makeItemId } from "../core/sync/adapter";
 import type { Item, ItemFilter, Settings } from "../core/models";
 
@@ -75,6 +79,34 @@ export const HOST_COMMANDS: readonly string[] = [
 ] as const;
 
 const root = (env: string) => EnvRoot.open(env);
+
+/**
+ * One read of the machine for the whole process, mirroring the Rust's
+ * `static MEMO`. Two widgets on one board, or a manual refresh landing on top
+ * of a poll, must not mean two `lsof` calls and two `docker ps`.
+ */
+const machine = new Memo();
+
+/**
+ * Every project this environment knows about, from both stores.
+ *
+ * The registry and the link store answer different questions — "is this a
+ * project card" and "is this a checkout on disk" — and a dev server's cwd might
+ * be in either. Registry entries come second so that when both claim a path,
+ * the longest-match join sees the one carrying the id.
+ */
+function knownProjects(env: EnvRoot): KnownProject[] {
+  const known: KnownProject[] = links.load(env).links.map((l) => ({ path: l.path, id: null, isRepoLink: true }));
+  for (const p of projects.registry(env).projects) {
+    // A path in both stores keeps its repo-link status: the terminal and IDE
+    // actions key off the path either way, and the id is what the + Project
+    // affordance checks.
+    const existing = known.find((k) => k.path === p.path);
+    if (existing !== undefined) existing.id = p.id;
+    else known.push({ path: p.path, id: p.id, isRepoLink: false });
+  }
+  return known;
+}
 
 function findProject(env: EnvRoot, id: string) {
   const entry = projects.registry(env).projects.find((p) => p.id === id);
@@ -744,6 +776,59 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
           // rejection that takes the app down.
         });
       return target;
+    },
+
+    // --- dev servers: a live read of the machine. Writes nothing. ---
+
+    /** What is listening, joined against this environment's projects and repo
+     *  links. Reads the OS and two JSON stores; makes no network call, touches
+     *  no item cache, and writes nothing at all. */
+    dev_servers_list: async ({ env, filter }) => {
+      const wanted = devServerFilterFromJson(filter ?? {});
+      const known = knownProjects(root(env));
+      const snapshot = await machine.get(Date.now(), MEMO_FLOOR_MS, readMachine);
+      return await devServerList(snapshot, known, wanted);
+    },
+
+    /** Probe one row on demand — the Check button, and the only way to get a
+     *  latency for a process that is not in the HTTP list. */
+    dev_server_probe: async ({ address, port, http }) => {
+      const found = await probe.run(probe.target(String(address), Number(port)), Boolean(http), probe.DEADLINE_MS);
+      const out: probe.DevProbe = { health: found.health, latencyMs: found.latencyMs, checkedAt: new Date().toISOString() };
+      return out;
+    },
+
+    /** `SIGTERM`, behind the PID-reuse guard. The only destructive thing on
+     *  this board, and the reason it is defensible is that it re-reads the
+     *  machine *now* rather than trusting a row that may be ten seconds old.
+     *
+     *  There is no force option at any depth of menu, and no `sudo` path. */
+    dev_server_stop: async ({ env, key, pid, process: processName }) => {
+      const r = root(env);
+      // Deliberately not the memo: a two-second-old snapshot is exactly what
+      // the guard exists to distrust.
+      const fresh = await listen.enumerate();
+      const refusal = mayStop(String(key), Number(pid), String(processName), fresh);
+      if (refusal !== null) throw DddError.invalid(refusalMessage(refusal));
+
+      signal(Number(pid));
+
+      // Logged because it is destructive and irreversible, in the same table
+      // the rest of the board's actions are already visible in. The Rust
+      // ignores a failure here too: the signal has already been sent.
+      try {
+        events.log(r, {
+          kind: "dev.stop",
+          source: "local",
+          project: null,
+          tokensIn: null,
+          tokensOut: null,
+          costMicros: null,
+          meta: { key: String(key), pid: Number(pid), process: String(processName) },
+        });
+      } catch {
+        // Nothing to do: the process is already stopping.
+      }
     },
   };
 }
