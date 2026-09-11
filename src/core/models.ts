@@ -20,6 +20,9 @@ import type {
   Global,
   GitStatus,
   GridPos,
+  Item,
+  ItemAction,
+  ItemFilter,
   Layout,
   ProductDecl,
   Settings,
@@ -40,6 +43,9 @@ export type {
   Global,
   GitStatus,
   GridPos,
+  Item,
+  ItemAction,
+  ItemFilter,
   Layout,
   ProductDecl,
   Settings,
@@ -267,4 +273,61 @@ export function projectRegistryFromJson(raw: unknown): ProjectRegistry {
 
 export function defaultGitStatus(): GitStatus {
   return { isRepo: false, branch: null, dirtyFiles: 0, ahead: 0, behind: 0, lastCommitSummary: null, lastCommitAt: null };
+}
+
+// --- items -----------------------------------------------------------------
+
+export function itemActionFromJson(raw: unknown): ItemAction {
+  const o = record(raw, "action");
+  return {
+    id: required(o, "id", isString),
+    label: required(o, "label", isString),
+    outbound: optional(o, "outbound", isBoolean, false),
+  };
+}
+
+function isStringList(v: unknown): v is string[] {
+  return Array.isArray(v) && v.every(isString);
+}
+
+export function itemFromJson(raw: unknown): Item {
+  const o = record(raw, "item");
+  return {
+    id: required(o, "id", isString),
+    environmentId: required(o, "environmentId", isString),
+    connectionId: required(o, "connectionId", isString),
+    source: required(o, "source", isString),
+    kind: required(o, "kind", isString),
+    project: optional(o, "project", isString, null as string | null),
+    title: required(o, "title", isString),
+    body: optional(o, "body", isString, null as string | null),
+    url: optional(o, "url", isString, null as string | null),
+    refs: optional(o, "refs", isStringList, [] as string[]),
+    actions: optional(o, "actions", isArray, [] as unknown[]).map(itemActionFromJson),
+    updatedAt: required(o, "updatedAt", isString),
+    unread: optional(o, "unread", isBoolean, false),
+  };
+}
+
+/** Every field optional (`#[serde(default)]`); `null` and absent both mean
+ *  "not narrowing on this", and only present fields are kept — a stored
+ *  filter reads as what it narrows and nothing else. */
+export function itemFilterFromJson(raw: unknown): ItemFilter {
+  const o = record(raw, "filter");
+  const out: ItemFilter = {};
+  const take = <K extends keyof ItemFilter>(key: K, guard: (v: unknown) => v is NonNullable<ItemFilter[K]>) => {
+    const v = o[key];
+    if (v === undefined || v === null) return;
+    if (!guard(v)) throw DddError.json(`invalid type for field \`${key}\``);
+    out[key] = v;
+  };
+  take("connectionId", isString);
+  take("source", isString);
+  take("kind", isString);
+  take("project", isString);
+  take("query", isString);
+  take("unreadOnly", isBoolean);
+  take("limit", isNumber);
+  take("excludeKinds", isStringList);
+  return out;
 }

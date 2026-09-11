@@ -164,3 +164,24 @@ describe("project files", () => {
     expect(c.products[0].port).toBeNull();
   });
 });
+
+import { itemFilterFromJson, itemFromJson } from "./models";
+
+describe("items", () => {
+  it("normalizes an item with defaults in Rust field order", () => {
+    const i = itemFromJson({ id: "c:1", environmentId: "e", connectionId: "c", source: "mock", kind: "issue", title: "t", updatedAt: "2026-01-01T00:00:00Z" });
+    expect(Object.keys(i)).toEqual(["id", "environmentId", "connectionId", "source", "kind", "project", "title", "body", "url", "refs", "actions", "updatedAt", "unread"]);
+    expect(i.refs).toEqual([]);
+    expect(i.actions).toEqual([]);
+    expect(i.unread).toBe(false);
+    expect(() => itemFromJson({ id: "x" })).toThrow(/missing field `environmentId`/);
+  });
+
+  it("normalizes a filter, keeping only what was given", () => {
+    expect(itemFilterFromJson({})).toEqual({});
+    expect(itemFilterFromJson({ kind: "mail", limit: 5, excludeKinds: ["repo"] })).toEqual({ kind: "mail", limit: 5, excludeKinds: ["repo"] });
+    expect(itemFilterFromJson({ kind: "mail", source: null })).toEqual({ kind: "mail" });
+    expect(() => itemFilterFromJson({ limit: "5" })).toThrow(/^json: /);
+    expect(() => itemFilterFromJson({ excludeKinds: [1] })).toThrow(/^json: /);
+  });
+});
