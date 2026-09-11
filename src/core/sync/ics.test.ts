@@ -210,7 +210,7 @@ describe("the small parsers", () => {
 
 describe("IcsAdapter.fetch", () => {
   /** A fetch that answers with one canned body and records what it was asked. */
-  function fakeFetch(body: BodyInit, init?: ResponseInit) {
+  function fakeFetch(body: ConstructorParameters<typeof Response>[0], init?: ResponseInit) {
     const calls: { url: string; accept: string | null }[] = [];
     const fetch = (async (url: string | URL | Request, options?: RequestInit) => {
       calls.push({ url: String(url), accept: new Headers(options?.headers).get("accept") });
