@@ -1,4 +1,6 @@
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest";
+import * as probe from "../core/dev/probe";
+import { MEMO_FLOOR_MS } from "../core/dev/board";
 import { execFileSync } from "node:child_process";
 import net from "node:net";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
@@ -737,7 +739,11 @@ describe("repo_clone", () => {
       const target = await commands.repo_clone!({ env: "default", remote, cloneUrl: `file://${origin}`, parentDir: parent });
       expect(target).toBe(join(parent, "origin"));
 
+      // The command returns its target before any progress tick reaches the
+      // emitter — the clone body is deferred, not fired synchronously inside
+      // the command handler.
       const ours = () => emitter.events.slice(before).filter((e) => e.name === "ddd://repo-progress");
+      expect(ours()).toEqual([]);
       await until(() => ours().some((e) => (e.payload as { done: boolean }).done), 20000);
       const payloads = ours().map((e) => e.payload as { remote: string; phase: string; percent: number; done: boolean; error: string | null });
       expect(payloads[0]).toEqual({ remote, phase: "Starting", percent: 0, done: false, error: null });
@@ -824,6 +830,40 @@ describe("dev server commands", () => {
       server.close();
     }
   }, 15_000);
+
+  it("wraps a machine-read failure as a scan failure, the Rust's spawn_blocking().map_err()", async () => {
+    scratchEnv("cmd-dev-list-throws");
+    // The process-wide memo (`MEMO_FLOOR_MS`) may still be holding a snapshot
+    // from an earlier test in this file; outlast it so this call really does
+    // reach `machineRead`.
+    await new Promise((r) => setTimeout(r, MEMO_FLOOR_MS + 100));
+    const failing = createCommands({
+      emit: emitter,
+      watcher,
+      scheduler,
+      sync,
+      machineRead: () => {
+        throw new Error("lsof exploded");
+      },
+    });
+    await expect(failing.dev_servers_list!({ env: "default", filter: {} })).rejects.toThrow(
+      "dev server scan failed: lsof exploded",
+    );
+  });
+
+  it("wraps a probe failure as a probe failure", async () => {
+    scratchEnv("cmd-dev-probe-throws");
+    const spy = vi.spyOn(probe, "run").mockImplementation(() => {
+      throw new Error("socket exploded");
+    });
+    try {
+      await expect(commands.dev_server_probe!({ address: "127.0.0.1", port: 1, http: false })).rejects.toThrow(
+        "probe failed: socket exploded",
+      );
+    } finally {
+      spy.mockRestore();
+    }
+  });
 
   it("re-reads the machine before signalling, and refuses when the row is stale", async () => {
     scratchEnv("cmd-dev-stop");

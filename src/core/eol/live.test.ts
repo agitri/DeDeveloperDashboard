@@ -78,10 +78,15 @@ describe("is the thing at that URL still answering", () => {
   });
 
   it("short keeps a reason, not a stack", () => {
-    expect(short(new Error("error sending request for url (https://x): connection refused"))).toBe(
-      "error sending request for url (https://x) ",
-    );
+    // The naive `split(':')[0]` the Rust does: no reqwest-style special case,
+    // so a Node-shaped connection error is cut at its own first colon.
+    expect(short(new Error("fetch failed: ECONNREFUSED 127.0.0.1:1"))).toBe("fetch failed");
     expect(short("plain")).toBe("plain");
+    // A reqwest-shaped message is not special-cased any more: it truncates at
+    // its own first colon, same as anything else.
+    expect(short(new Error("error sending request for url (https://x): connection refused"))).toBe(
+      "error sending request for url (https",
+    );
   });
 
   it("a real socket answers and a dead port does not", async () => {

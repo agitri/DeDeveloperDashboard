@@ -83,7 +83,12 @@ export function validateUrl(raw: string): string {
  * a second row that disagrees with the first. Synchronous end to end, so the
  * read and the write cannot interleave with another command.
  */
-export function add(env: EnvRoot, rawPath: string, rawUrl: string | null, note: string | null): Watchlist {
+export function add(
+  env: EnvRoot,
+  rawPath: string,
+  rawUrl: string | null | undefined,
+  rawNote: string | null | undefined,
+): Watchlist {
   if (!isDirectory(rawPath)) throw DddError.notFound(`${rawPath} is not a directory`);
   let path: string;
   try {
@@ -91,8 +96,12 @@ export function add(env: EnvRoot, rawPath: string, rawUrl: string | null, note: 
   } catch (e) {
     throw DddError.io(e);
   }
-  const trimmed = rawUrl === null ? null : rawUrl.trim();
+  // The Rust's `Option<&str>` has exactly one absent state; an IPC caller's
+  // `undefined` and an explicit `null` must be treated the same, not made to
+  // throw on `.trim()`.
+  const trimmed = rawUrl == null ? null : rawUrl.trim();
   const url = trimmed === null || trimmed === "" ? null : validateUrl(trimmed);
+  const note = rawNote ?? null;
 
   const list = load(env);
   const existing = list.watched.find((w) => w.path === path);

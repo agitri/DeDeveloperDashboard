@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MAX_WINDOW_DAYS, expand, type EventSpec } from "./expand";
+import { MAX_OCCURRENCES, MAX_WINDOW_DAYS, expand, type EventSpec } from "./expand";
 
 const at = (s: string) => new Date(s);
 
@@ -98,6 +98,47 @@ describe("expand", () => {
     expect(new Set(out.map((o) => new Date(o.start).getUTCHours())).size).toBe(2);
   });
 
+  it("converts a UTC UNTIL inside the rule to the event's wall clock", () => {
+    // DTSTART;TZID=Europe/Amsterdam:20260828T090000 + FREQ=DAILY;UNTIL=20260901T080000Z.
+    // 08:00Z is 10:00 local in September (still CEST), so the 09:00 local
+    // occurrence on 09-01 is inside the window and 09-02 is not.
+    const e = {
+      ...event("standup", "2026-08-28T07:00:00Z", "2026-08-28T07:30:00Z"),
+      tzid: "Europe/Amsterdam",
+      rrule: "FREQ=DAILY;UNTIL=20260901T080000Z",
+    };
+    const out = expand([e], at("2026-08-28T00:00:00Z"), at("2026-09-05T00:00:00Z"));
+    expect(out.some((o) => o.start === "2026-09-01T07:00:00Z")).toBe(true);
+    expect(out.some((o) => o.start === "2026-09-02T07:00:00Z")).toBe(false);
+  });
+
+  it("a UTC UNTIL on the previous UTC day still includes the local-day occurrence, east of the date line", () => {
+    // Pacific/Kiritimati is UTC+14, so its local date is a day ahead of UTC's
+    // for almost the whole day. DTSTART local 09:00 on 09-01 (UTC 08-31T19:00Z),
+    // FREQ=DAILY. UNTIL=20260902T200000Z is 09-02 in raw UTC, but that instant
+    // is 10:00 local on 09-03 — after the 09-03 09:00 local occurrence, which
+    // must therefore still be included; 09-04 must not be.
+    const e = {
+      ...event("standup", "2026-08-31T19:00:00Z", "2026-08-31T19:30:00Z"),
+      tzid: "Pacific/Kiritimati",
+      rrule: "FREQ=DAILY;UNTIL=20260902T200000Z",
+    };
+    const out = expand([e], at("2026-08-31T00:00:00Z"), at("2026-09-10T00:00:00Z"));
+    expect(out.some((o) => o.start === "2026-09-02T19:00:00Z")).toBe(true); // 09-03 local
+    expect(out.some((o) => o.start === "2026-09-03T19:00:00Z")).toBe(false); // 09-04 local
+  });
+
+  it("leaves a floating UNTIL (no Z) untouched", () => {
+    const e = {
+      ...event("standup", "2026-08-28T07:00:00Z", "2026-08-28T07:30:00Z"),
+      tzid: "Europe/Amsterdam",
+      rrule: "FREQ=DAILY;UNTIL=20260901T090000",
+    };
+    const out = expand([e], at("2026-08-28T00:00:00Z"), at("2026-09-05T00:00:00Z"));
+    expect(out.some((o) => o.start === "2026-09-01T07:00:00Z")).toBe(true);
+    expect(out.some((o) => o.start === "2026-09-02T07:00:00Z")).toBe(false);
+  });
+
   it("does not shift an all-day event by a day", () => {
     const e = {
       ...event("holiday", "2026-08-19T00:00:00Z", "2026-08-20T00:00:00Z"),
@@ -139,6 +180,18 @@ describe("expand", () => {
     // to a year, and the per-event ceiling would catch it even if not.
     expect(out.length).toBeLessThanOrEqual(MAX_WINDOW_DAYS + 1);
     expect(out.length).toBeGreaterThan(300);
+  });
+
+  it("caps a minutely rule during iteration, not by materialising then slicing", () => {
+    const e = { ...event("tick", "2026-01-01T00:00:00Z", "2026-01-01T00:01:00Z"), rrule: "FREQ=MINUTELY" };
+    const started = performance.now();
+    const out = expand([e], at("2026-01-01T00:00:00Z"), at("2027-01-01T00:00:00Z"));
+    const elapsed = performance.now() - started;
+    expect(out).toHaveLength(MAX_OCCURRENCES);
+    // Generous, but a materialise-then-slice implementation over a
+    // year-long minutely rule (hundreds of thousands of dates) would blow
+    // well past this; an iterator that stops at the cap does not.
+    expect(elapsed).toBeLessThan(2000);
   });
 
   it("comes back in start order", () => {

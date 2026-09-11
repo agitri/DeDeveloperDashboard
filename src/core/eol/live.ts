@@ -115,18 +115,10 @@ function isTimeout(e: unknown): boolean {
 }
 
 export function short(e: unknown): string {
-  // The error's text includes the whole URL and a chain; the row has room for a
-  // reason, not a stack. A naive split on the first `:` would truncate inside
-  // the URL itself (`https:`) for reqwest's own connect-error wrapper
-  // (`error sending request for url (…): <cause>`), so that shape is
-  // recognised and cut after its closing paren instead; anything else falls
-  // back to the naive split.
+  // The Rust's `e.to_string().split(':').next()`: a naive split on the first
+  // `:`, nothing cleverer. It truncates inside a URL (`https:`) same as the
+  // Rust does — that is the behaviour being ported, not a bug to work around.
   const message = e instanceof Error ? e.message : String(e);
-  const prefix = "error sending request for url (";
-  if (message.startsWith(prefix)) {
-    const closeParen = message.indexOf(")", prefix.length);
-    if (closeParen !== -1) return `${message.slice(0, closeParen + 1)} `;
-  }
   return message.split(":")[0] ?? "could not connect";
 }
 

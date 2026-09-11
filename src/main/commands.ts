@@ -71,6 +71,11 @@ export interface CommandDeps {
   scheduler: Scheduler;
   /** The host's network, keychain and browser. */
   sync: SyncDeps;
+  /** How `dev_servers_list` reads the machine. Overridable only so a test can
+   *  make the read throw — `vi.spyOn` on a bare named import does not reach a
+   *  call site that already closed over the binding. Defaults to the real
+   *  `readMachine`. */
+  machineRead?: typeof readMachine;
 }
 
 /** Commands the host adds on top of the Tauri set (dialogs and the shell,
@@ -789,18 +794,30 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
      *  links. Reads the OS and two JSON stores; makes no network call, touches
      *  no item cache, and writes nothing at all. */
     dev_servers_list: async ({ env, filter }) => {
+      // Parsed outside the guard: a bad filter is the caller's mistake, not a
+      // scan failure, and must keep surfacing as the `json: ` error it is —
+      // same as the Rust, whose filter is deserialized before this function
+      // body (the `spawn_blocking` closure) ever runs.
       const wanted = devServerFilterFromJson(filter ?? {});
-      const known = knownProjects(root(env));
-      const snapshot = await machine.get(Date.now(), MEMO_FLOOR_MS, readMachine);
-      return await devServerList(snapshot, known, wanted);
+      try {
+        const known = knownProjects(root(env));
+        const snapshot = await machine.get(Date.now(), MEMO_FLOOR_MS, deps.machineRead ?? readMachine);
+        return await devServerList(snapshot, known, wanted);
+      } catch (e) {
+        throw DddError.invalid(`dev server scan failed: ${e instanceof Error ? e.message : String(e)}`);
+      }
     },
 
     /** Probe one row on demand — the Check button, and the only way to get a
      *  latency for a process that is not in the HTTP list. */
     dev_server_probe: async ({ address, port, http }) => {
-      const found = await probe.run(probe.target(String(address), Number(port)), Boolean(http), probe.DEADLINE_MS);
-      const out: probe.DevProbe = { health: found.health, latencyMs: found.latencyMs, checkedAt: new Date().toISOString() };
-      return out;
+      try {
+        const found = await probe.run(probe.target(String(address), Number(port)), Boolean(http), probe.DEADLINE_MS);
+        const out: probe.DevProbe = { health: found.health, latencyMs: found.latencyMs, checkedAt: new Date().toISOString() };
+        return out;
+      } catch (e) {
+        throw DddError.invalid(`probe failed: ${e instanceof Error ? e.message : String(e)}`);
+      }
     },
 
     /** `SIGTERM`, behind the PID-reuse guard. The only destructive thing on

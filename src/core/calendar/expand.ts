@@ -135,7 +135,14 @@ function startsFromRule(event: EventSpec, rule: string, from: Date, to: Date): D
   // different laptops. So the rule is built floating — no TZID, no Z — which
   // keeps rrule inside its own fake-UTC space, and the wall clock is converted
   // to and from real instants here, by `utcToZoned`/`zonedToUtc`.
-  const spec = `DTSTART:${stamp(utcToZoned(event.start, tz))}\nRRULE:${rule.trim().replace(/^(?:RRULE:)+/, "")}`;
+  //
+  // A bare `UNTIL=<...>Z` inside the rule text is the one piece that is still
+  // a real UTC instant rather than a floating wall clock, so it is rewritten
+  // into the event's zone here too — otherwise rrule compares it against the
+  // floating (fake-UTC) occurrence dates it is generating, which is comparing
+  // an instant to a wall clock and gets the cutoff wrong.
+  const cleaned = rule.trim().replace(/^(?:RRULE:)+/, "");
+  const spec = `DTSTART:${stamp(utcToZoned(event.start, tz))}\nRRULE:${rewriteUntil(cleaned, tz)}`;
 
   try {
     const set = rrulestr(spec, { forceset: true });
@@ -144,15 +151,42 @@ function startsFromRule(event: EventSpec, rule: string, from: Date, to: Date): D
     // exactly on the window's first instant is kept. The end is inclusive here
     // and exclusive in the Rust — a one-instant difference at `to`, taken
     // deliberately because an inclusive `from` is what the behaviour test pins.
-    const dates = set.between(new Date(utcToZoned(from, tz)), new Date(utcToZoned(to, tz)), true);
-    // The Rust passes the ceiling into `.all(MAX_OCCURRENCES)`; rrule's
-    // `between` has no limit argument, so it is applied after the fact. The
-    // window clamp already bounds the work.
-    return dates.slice(0, MAX_OCCURRENCES).map((d) => new Date(zonedToUtc(d.getTime(), tz)));
+    //
+    // The Rust passes the ceiling into `.all(MAX_OCCURRENCES)`, stopping the
+    // iterator rather than materialising every occurrence first; rrule's
+    // `between` takes the same shape as an optional callback, so the cap is
+    // applied the same way here instead of generating everything then slicing.
+    const dates = set.between(
+      new Date(utcToZoned(from, tz)),
+      new Date(utcToZoned(to, tz)),
+      true,
+      (_, i) => i < MAX_OCCURRENCES,
+    );
+    return dates.map((d) => new Date(zonedToUtc(d.getTime(), tz)));
   } catch {
     // rrule throws on an unknown FREQ or a malformed BYDAY.
     return null;
   }
+}
+
+/**
+ * `UNTIL=20260901T080000Z` is a real UTC instant sitting inside an otherwise
+ * floating rule; rewrite it to the event's zone's wall clock so rrule compares
+ * it against the same kind of value as everything else it is iterating. A
+ * floating `UNTIL` (no trailing `Z`) and a date-only `UNTIL=YYYYMMDD` are left
+ * exactly as they are — there is no instant to convert.
+ */
+function rewriteUntil(rule: string, tz: string): string {
+  return rule.replace(/UNTIL=(\d{8}T\d{6})Z/i, (_, raw: string) => {
+    const y = Number(raw.slice(0, 4));
+    const mo = Number(raw.slice(4, 6)) - 1;
+    const d = Number(raw.slice(6, 8));
+    const h = Number(raw.slice(9, 11));
+    const mi = Number(raw.slice(11, 13));
+    const s = Number(raw.slice(13, 15));
+    const instant = new Date(Date.UTC(y, mo, d, h, mi, s));
+    return `UNTIL=${stamp(utcToZoned(instant, tz))}`;
+  });
 }
 
 /** A fake-UTC millisecond value as `%Y%m%dT%H%M%S`. */

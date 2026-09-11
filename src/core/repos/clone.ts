@@ -126,93 +126,99 @@ export function run(
   spawnFn: SpawnLike = nodeSpawn,
 ): Promise<void> {
   return new Promise((resolve) => {
-    onProgress(step("Starting", 0));
+    // Deferred past the current tick: `repo_clone` returns its target
+    // synchronously, and no progress tick may reach a listener before that
+    // return has happened. The Rust gets this ordering for free by running
+    // the whole body on `spawn_blocking`; here it takes an explicit yield.
+    setImmediate(() => {
+      onProgress(step("Starting", 0));
 
-    let child: ChildProcess;
-    try {
-      child = spawnFn("git", ["clone", "--progress", cloneUrl, target], {
-        stdio: ["ignore", "ignore", "pipe"],
-        // The Rust inherits the environment; this port shares `projects.ts`'s
-        // GIT_TERMINAL_PROMPT=0 so a credential prompt fails instead of hanging
-        // a clone forever behind a window that cannot answer it.
-        env: GIT_EXEC_OPTIONS.env,
-      });
-    } catch (e) {
-      onProgress(failed(`could not start git: ${e instanceof Error ? e.message : String(e)}`));
-      return resolve();
-    }
-
-    // git writes progress to stderr, one carriage-return-delimited chunk at a
-    // time rather than one line at a time — reading by line would sit blocked
-    // until the whole clone finished.
-    const tail: string[] = [];
-    let buffer = "";
-    const take = (chunk: string): void => {
-      const line = chunk.trim();
-      if (line === "") return;
-      const parsed = parseProgress(line);
-      if (parsed !== null) onProgress(step(parsed.phase, parsed.percent));
-      tail.push(line);
-      if (tail.length > TAIL_LINES) tail.shift();
-    };
-
-    child.stderr?.setEncoding("utf8");
-    child.stderr?.on("data", (data: string) => {
-      buffer += data;
-      const parts = buffer.split("\r");
-      // The last piece may be half a chunk; hold it until more arrives.
-      buffer = parts.pop() ?? "";
-      for (const part of parts) take(part);
-    });
-
-    // Node reports a failure to start asynchronously, where Rust's `spawn()`
-    // returns the error directly — same message, later.
-    let spawnError: Error | null = null;
-    child.once("error", (e: Error) => {
-      spawnError = e;
-    });
-
-    child.once("close", (code: number | null) => {
-      take(buffer);
-      buffer = "";
-      if (spawnError !== null) {
-        onProgress(failed(`could not start git: ${(spawnError as Error).message}`));
+      let child: ChildProcess;
+      try {
+        child = spawnFn("git", ["clone", "--progress", cloneUrl, target], {
+          stdio: ["ignore", "ignore", "pipe"],
+          // The Rust inherits the environment; this port shares `projects.ts`'s
+          // GIT_TERMINAL_PROMPT=0 so a credential prompt fails instead of hanging
+          // a clone forever behind a window that cannot answer it.
+          env: GIT_EXEC_OPTIONS.env,
+        });
+      } catch (e) {
+        onProgress(failed(`could not start git: ${e instanceof Error ? e.message : String(e)}`));
         return resolve();
       }
-      if (code === 0) {
-        let canonical: string;
-        try {
-          // See `links.canonicalPath`: the link's path must be canonical or
-          // `repos_list`'s projectId join against the registry's canonicalized
-          // `ProjectRef.path` never fires for this repo. The target didn't
-          // exist before the clone, so this is the first point canonicalizing
-          // it is even possible.
-          canonical = canonicalPath(target);
-        } catch (e) {
-          onProgress(failed(`clone finished but ${e instanceof Error ? e.message : String(e)}`));
+
+      // git writes progress to stderr, one carriage-return-delimited chunk at a
+      // time rather than one line at a time — reading by line would sit blocked
+      // until the whole clone finished.
+      const tail: string[] = [];
+      let buffer = "";
+      const take = (chunk: string): void => {
+        const line = chunk.trim();
+        if (line === "") return;
+        const parsed = parseProgress(line);
+        if (parsed !== null) onProgress(step(parsed.phase, parsed.percent));
+        tail.push(line);
+        if (tail.length > TAIL_LINES) tail.shift();
+      };
+
+      child.stderr?.setEncoding("utf8");
+      child.stderr?.on("data", (data: string) => {
+        buffer += data;
+        const parts = buffer.split("\r");
+        // The last piece may be half a chunk; hold it until more arrives.
+        buffer = parts.pop() ?? "";
+        for (const part of parts) take(part);
+      });
+
+      // Node reports a failure to start asynchronously, where Rust's `spawn()`
+      // returns the error directly — same message, later.
+      let spawnError: Error | null = null;
+      child.once("error", (e: Error) => {
+        spawnError = e;
+      });
+
+      child.once("close", (code: number | null) => {
+        take(buffer);
+        buffer = "";
+        if (spawnError !== null) {
+          onProgress(failed(`could not start git: ${(spawnError as Error).message}`));
           return resolve();
         }
-        try {
-          upsert(env, { remote, path: canonical, source: "manual", confidence: "exact" });
-        } catch {
-          // The Rust's `let _ =`: a store that will not take the link does not
-          // un-clone the repo.
+        if (code === 0) {
+          let canonical: string;
+          try {
+            // See `links.canonicalPath`: the link's path must be canonical or
+            // `repos_list`'s projectId join against the registry's canonicalized
+            // `ProjectRef.path` never fires for this repo. The target didn't
+            // exist before the clone, so this is the first point canonicalizing
+            // it is even possible.
+            canonical = canonicalPath(target);
+          } catch (e) {
+            onProgress(failed(`clone finished but ${e instanceof Error ? e.message : String(e)}`));
+            return resolve();
+          }
+          try {
+            upsert(env, { remote, path: canonical, source: "manual", confidence: "exact" });
+          } catch {
+            // The Rust's `let _ =`: a store that will not take the link does not
+            // un-clone the repo.
+          }
+          try {
+            // `projects.register` does its own canonicalization of `path`,
+            // independently of the one above — the same split `repo_link` uses.
+            register(env, target);
+          } catch {
+            /* see above */
+          }
+          onProgress(finished());
+          return resolve();
         }
-        try {
-          // `projects.register` does its own canonicalization of `path`,
-          // independently of the one above — the same split `repo_link` uses.
-          register(env, target);
-        } catch {
-          /* see above */
-        }
-        onProgress(finished());
-        return resolve();
-      }
-      // A partial checkout is reported, never deleted — destroying a
-      // half-finished download of a large repo is worse than leaving a folder
-      // to clean up.
-      onProgress(failed(tail.join("\n")));
-      resolve();
+        // A partial checkout is reported, never deleted — destroying a
+        // half-finished download of a large repo is worse than leaving a folder
+        // to clean up.
+        onProgress(failed(tail.join("\n")));
+        resolve();
+      });
     });
   });
 }

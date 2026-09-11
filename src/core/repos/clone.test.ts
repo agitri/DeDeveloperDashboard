@@ -163,4 +163,18 @@ describe("run", () => {
     expect(existsSync(never)).toBe(false);
     expect(load(home.env).links).toEqual([]);
   });
+
+  it("returns before the first progress tick fires — the caller must be able to return its own result first", async () => {
+    const home = scratchEnv("clone-defer");
+    const never = join(tmpdir(), "ddd-clone-defer-target");
+    const ticks: Progress[] = [];
+    const promise = run(home.env, "github.com/a/b", "file:///nowhere", never, (p) => ticks.push(p), () => {
+      throw new Error("spawn git ENOENT");
+    });
+    // Nothing has fired yet, synchronously after the call — same tick as
+    // `repo_clone` returning its target to the caller.
+    expect(ticks.length).toBe(0);
+    await promise;
+    expect(ticks[0]).toEqual({ phase: "Starting", percent: 0, done: false, error: null });
+  });
 });

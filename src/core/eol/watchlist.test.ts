@@ -37,6 +37,18 @@ describe("the watchlist", () => {
     expect(again.watched[0]!.url).toBe("https://later.example");
   });
 
+  it("treats undefined the same as null — the Rust's Option<&str> has one absent state", () => {
+    const { env } = scratchEnv("eol-undefined");
+    const path = checkout("g");
+    add(env, path, "https://example.com", "a note");
+    // A caller passing `undefined` for an absent value (as the IPC layer's
+    // optional args do) must not throw, and must not clear what is stored.
+    const list = add(env, path, undefined, undefined);
+    expect(list.watched).toHaveLength(1);
+    expect(list.watched[0]!.url).toBe("https://example.com");
+    expect(list.watched[0]!.note).toBe("a note");
+  });
+
   it("only a real web address is accepted", () => {
     // This value becomes an outbound request, so what is refused here is what
     // can never be fetched.
