@@ -4,12 +4,15 @@
  *  the adapters can import the port without a cycle. */
 import type { SourceAdapter } from "./adapter";
 import { GitHubAdapter } from "./github";
+import { IcsAdapter } from "./ics";
 import { MockAdapter } from "./mock";
 
 export function forProvider(provider: string): SourceAdapter | null {
   switch (provider) {
     case "github":
       return new GitHubAdapter();
+    case "calendar.ics":
+      return new IcsAdapter();
     case "mock":
       return new MockAdapter();
     default:
