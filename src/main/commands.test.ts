@@ -11,6 +11,9 @@ import { Scheduler } from "../core/sync/scheduler";
 import { memorySecrets } from "../core/sync/adapter";
 import { defaultSettings, settingsSave, type Connection } from "../core/settings";
 import { register } from "../core/projects";
+import { replaceForConnection } from "../core/sync/cache";
+import { toItems } from "../core/sync/ics";
+import { load as calendarLoad } from "../core/calendar/store";
 
 const emitter = recordingEmitter();
 const sync = { fetch: (async () => new Response("{}", { status: 500 })) as typeof globalThis.fetch, secrets: memorySecrets(), openUrl: async () => {}, emit: emitter };
@@ -40,9 +43,6 @@ const NOT_YET_PORTED = new Set([
   "repos_list",
   "repo_add_local",
   "repo_forget",
-  "calendar_list",
-  "calendar_event_save",
-  "calendar_event_delete",
   "repo_scan",
   "repo_link",
   "repo_unlink",
@@ -366,5 +366,130 @@ describe("widget instruction commands", () => {
     const { commands: ai } = aiCommands({ ollama: { message: { content: "I would rather not." } } });
     await ai.widget_instructions_save!({ env: "default", widgetId: "w-3", text: "something" });
     await expect(ai.widget_instructions_compile!({ env: "default", widgetId: "w-3", kind: "items" })).rejects.toThrow("the model did not answer with JSON");
+  });
+});
+
+describe("calendar commands", () => {
+  /** A one-event feed run through the real adapter, so the refs the command
+   *  reads are the refs the adapter actually writes. */
+  function icsItems(connectionId: string) {
+    const feed =
+      "BEGIN:VCALENDAR\r\nX-WR-CALNAME:Work\r\nBEGIN:VEVENT\r\nUID:standup\r\nSUMMARY:Daily standup\r\n" +
+      "DTSTART:20260819T090000Z\r\nDTEND:20260819T093000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n";
+    return toItems(feed, connectionId, "default");
+  }
+
+  const mine = { id: "mine", title: "Dentist", start: "2026-08-19T14:00:00Z", end: "2026-08-19T15:00:00Z" };
+
+  it("keeps your own events when a sync wipes the subscribed ones", async () => {
+    // The regression `repo-links.json` exists to prevent, pinned for the
+    // calendar too: a sync deletes and reinserts every item for a connection,
+    // so anything the user authored must live outside the cache or it is gone
+    // on the next refresh.
+    const { env } = scratchEnv("cmd-calendar-survives-sync");
+    replaceForConnection(env, "conn-1", icsItems("conn-1"));
+    await commands.calendar_event_save!({ env: "default", event: mine });
+
+    const before = (await commands.calendar_list!({
+      env: "default",
+      from: "2026-08-01T00:00:00Z",
+      to: "2026-08-31T00:00:00Z",
+    })) as { title: string; editable: boolean }[];
+    expect(before.map((o) => o.title)).toEqual(["Daily standup", "Dentist"]);
+
+    // The feed went empty — an unshared calendar, a revoked URL, a bad day.
+    replaceForConnection(env, "conn-1", []);
+
+    const after = (await commands.calendar_list!({
+      env: "default",
+      from: "2026-08-01T00:00:00Z",
+      to: "2026-08-31T00:00:00Z",
+    })) as { title: string; editable: boolean }[];
+    expect(after).toHaveLength(1);
+    expect(after[0]!.title).toBe("Dentist");
+    expect(after[0]!.editable).toBe(true);
+  });
+
+  it("never marks a subscribed occurrence editable, and dresses it from the connection", async () => {
+    const { env } = scratchEnv("cmd-calendar-readonly");
+    const settings = defaultSettings();
+    settings.connections.push({
+      id: "conn-1",
+      provider: "calendar.ics",
+      label: "Work calendar",
+      status: "connected",
+      scopes: [],
+      config: { color: "#ff8800" },
+      lastSyncAt: null,
+      error: null,
+    } as Connection);
+    settingsSave(env, settings);
+    replaceForConnection(env, "conn-1", icsItems("conn-1"));
+    await commands.calendar_event_save!({ env: "default", event: mine });
+
+    const out = (await commands.calendar_list!({
+      env: "default",
+      from: "2026-08-01T00:00:00Z",
+      to: "2026-08-31T00:00:00Z",
+    })) as { id: string; title: string; editable: boolean; calendar: string; color: string; start: string; end: string }[];
+    expect(out.map((o) => o.editable)).toEqual([false, true]);
+    // The feed's own X-WR-CALNAME wins over the label the user typed.
+    expect(out[0]).toMatchObject({
+      id: "conn-1:standup@2026-08-19T09:00:00Z",
+      calendar: "Work",
+      color: "#ff8800",
+      start: "2026-08-19T09:00:00Z",
+      end: "2026-08-19T09:30:00Z",
+    });
+    // Your own events borrow the ICS connection's colour and say whose they are.
+    expect(out[1]).toMatchObject({ calendar: "My calendar", color: "#ff8800" });
+  });
+
+  it("falls back to the default colour and calendar name with no connection", async () => {
+    scratchEnv("cmd-calendar-defaults");
+    replaceForConnection(EnvRoot.open("default"), "conn-1", icsItems("conn-1"));
+    const out = (await commands.calendar_list!({
+      env: "default",
+      from: "2026-08-01T00:00:00Z",
+      to: "2026-08-31T00:00:00Z",
+    })) as { color: string }[];
+    expect(out[0]!.color).toBe("#00a99f");
+  });
+
+  it("makes a bad window an error, not an empty calendar", async () => {
+    scratchEnv("cmd-calendar-bad-window");
+    await expect(
+      commands.calendar_list!({ env: "default", from: "yesterday", to: "2026-08-31T00:00:00Z" }),
+    ).rejects.toThrow("from is not an RFC 3339 timestamp");
+    await expect(
+      commands.calendar_list!({ env: "default", from: "2026-08-01T00:00:00Z", to: "soon" }),
+    ).rejects.toThrow("to is not an RFC 3339 timestamp");
+  });
+
+  it("mints an id when one is saved without it, and deletes by id", async () => {
+    const { env } = scratchEnv("cmd-calendar-mints-id");
+    const saved = (await commands.calendar_event_save!({
+      env: "default",
+      event: { id: "", title: "Dentist", start: "2026-08-19T09:00:00Z", end: "2026-08-19T10:00:00Z" },
+    })) as { id: string; allDay: boolean; rrule: string | null; notes: string | null };
+    expect(saved.id.startsWith("ev-")).toBe(true);
+    // serde's defaults come back filled in, not absent.
+    expect(saved).toMatchObject({ allDay: false, rrule: null, notes: null });
+
+    await commands.calendar_event_delete!({ env: "default", id: saved.id });
+    expect(calendarLoad(env).events).toEqual([]);
+  });
+
+  it("validates the event it is handed instead of writing it as-is", async () => {
+    scratchEnv("cmd-calendar-validate");
+    await expect(commands.calendar_event_save!({ env: "default", event: { id: "x", title: "T" } })).rejects.toThrow(
+      /^json: missing field `start`$/,
+    );
+    await expect(
+      commands.calendar_event_save!({
+        env: "default",
+        event: { id: "x", title: "T", start: "2026-08-19T10:00:00Z", end: "2026-08-19T09:00:00Z" },
+      }),
+    ).rejects.toThrow("an event cannot end before it starts");
   });
 });

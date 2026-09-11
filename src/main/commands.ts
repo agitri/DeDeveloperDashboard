@@ -17,7 +17,7 @@ import {
 } from "../core/global";
 import { layoutFileRead, layoutFileWrite, layoutLoad, layoutSave } from "../core/layout";
 import { layoutFromJson } from "../core/models";
-import { appearanceRequired, settingsFromJson, settingsLoad, settingsSave } from "../core/settings";
+import { appearanceRequired, defaultSettings, settingsFromJson, settingsLoad, settingsSave } from "../core/settings";
 import { keymapLoad, keymapSave } from "../core/keymap";
 import * as events from "../core/events";
 import * as secrets from "../core/secrets";
@@ -38,6 +38,10 @@ import * as icm from "../core/ai/icm";
 import { projectDirFor } from "../core/ai/project";
 import { route } from "../core/ai/router";
 import * as instructions from "../core/instructions";
+import * as calendar from "../core/calendar/store";
+import { expand, type EventSpec, type Override } from "../core/calendar/expand";
+import { itemId as makeItemId } from "../core/sync/adapter";
+import type { Item, ItemFilter, Settings } from "../core/models";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Handler = (args: Record<string, any>) => unknown;
@@ -71,6 +75,93 @@ function findProject(env: EnvRoot, id: string) {
   const entry = projects.registry(env).projects.find((p) => p.id === id);
   if (!entry) throw DddError.notFound(`project ${JSON.stringify(id)}`);
   return entry;
+}
+
+function parseInstant(value: string, field: string): Date {
+  const at = calendar.parseRfc3339(value);
+  // Note the message has no value in it — unlike `calendar/store.ts`'s.
+  if (at === null) throw DddError.config(`${field} is not an RFC 3339 timestamp`);
+  return at;
+}
+
+/** Rebuild an expandable event from what the adapter put in `refs`. */
+function specFromItem(item: Item, settings: Settings): EventSpec | null {
+  const pick = (prefix: string): string | null => {
+    for (const r of item.refs) if (r.startsWith(prefix)) return r.slice(prefix.length);
+    return null;
+  };
+  const all = (prefix: string): string[] =>
+    item.refs.filter((r) => r.startsWith(prefix)).map((r) => r.slice(prefix.length));
+
+  const connection = settings.connections.find((c) => c.id === item.connectionId);
+
+  const startRef = pick("dtstart:");
+  const endRef = pick("dtend:");
+  if (startRef === null || endRef === null) return null;
+  const start = calendar.parseRfc3339(startRef);
+  const end = calendar.parseRfc3339(endRef);
+  if (start === null || end === null) return null;
+
+  const series = pick("series:");
+  const recurrenceRef = pick("recurrenceid:");
+  const recurrenceId = recurrenceRef === null ? null : calendar.parseRfc3339(recurrenceRef);
+  const overrides: Override | null =
+    series !== null && recurrenceId !== null
+      ? // The series id must be the *item* id the series was stored under, not
+        // the bare UID, or the override never matches anything.
+        { seriesId: makeItemId(item.connectionId, series), recurrenceId }
+      : null;
+
+  return {
+    id: item.id,
+    title: item.title,
+    start,
+    end,
+    allDay: pick("allday:") === "true",
+    tzid: pick("tzid:"),
+    rrule: pick("rrule:"),
+    exdates: all("exdate:")
+      .map((v) => calendar.parseRfc3339(v))
+      .filter((d): d is Date => d !== null),
+    overrides,
+    calendar: pick("calendar:") ?? connection?.label ?? "Calendar",
+    color: connection?.config.color ?? "#00a99f",
+    // A subscribed feed is read-only. Offering an edit that the next sync
+    // silently reverts would be worse than offering none.
+    editable: false,
+    location: pick("location:"),
+    url: item.url ?? null,
+  };
+}
+
+function specFromLocal(event: calendar.LocalEvent, color: string): EventSpec | null {
+  const start = calendar.parseRfc3339(event.start);
+  const end = calendar.parseRfc3339(event.end);
+  if (start === null || end === null) return null;
+  return {
+    id: event.id,
+    title: event.title,
+    start,
+    end,
+    allDay: event.allDay,
+    tzid: null,
+    rrule: event.rrule,
+    exdates: [],
+    overrides: null,
+    calendar: "My calendar",
+    color,
+    editable: true,
+    location: null,
+    url: null,
+  };
+}
+
+/** Enough entropy for a local id. Not a security boundary — it only has to not
+ *  collide inside one user's calendar file. The Rust formats nanoseconds since
+ *  the epoch as hex; JS has milliseconds, so the sub-millisecond digits come
+ *  from a random draw, which serves the same purpose. */
+function uuidIsh(): string {
+  return (BigInt(Date.now()) * 1_000_000n + BigInt(Math.floor(Math.random() * 1_000_000))).toString(16);
 }
 
 export function createCommands(deps: CommandDeps): Record<string, Handler> {
@@ -322,6 +413,58 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
       });
 
       return instructions.record(compiled.filter, prose.hash, unmet, chosen.model, new Date().toISOString());
+    },
+
+    // --- calendar -----------------------------------------------------------
+
+    /** Everything on the calendar in a window, from both sources at once.
+     *
+     *  Subscribed events come from the item cache like every other widget's
+     *  data; your own come from `calendar.json`, which exists because the cache
+     *  is wiped and replaced on each sync. Recurrence is expanded here, on read
+     *  — a weekly rule with no end has infinitely many occurrences and cannot
+     *  be stored. */
+    calendar_list: async ({ env, from, to }) => {
+      const r = root(env);
+      const start = parseInstant(String(from), "from");
+      const end = parseInstant(String(to), "to");
+
+      // `settings_load(...).unwrap_or_default()` in the Rust: a broken
+      // settings file must not empty the calendar.
+      let settings: Settings;
+      try {
+        settings = settingsLoad(r);
+      } catch {
+        settings = defaultSettings();
+      }
+
+      const filter: ItemFilter = { kind: "event", limit: 5000 };
+      const specs: EventSpec[] = [];
+      for (const item of cache.query(r, filter)) {
+        const spec = specFromItem(item, settings);
+        if (spec !== null) specs.push(spec);
+      }
+
+      const colour = settings.connections.find((c) => c.provider === "calendar.ics")?.config.color ?? "#00a99f";
+
+      for (const event of calendar.load(r).events) {
+        const spec = specFromLocal(event, colour);
+        if (spec !== null) specs.push(spec);
+      }
+
+      return expand(specs, start, end);
+    },
+
+    calendar_event_save: async ({ env, event }) => {
+      const r = root(env);
+      const parsed = calendar.localEventFromJson(event);
+      const withId =
+        parsed.id.trim() === "" ? { ...parsed, id: `ev-${uuidIsh()}` } : parsed;
+      return calendar.upsert(r, withId);
+    },
+
+    calendar_event_delete: async ({ env, id }) => {
+      calendar.remove(root(env), String(id));
     },
   };
 }
