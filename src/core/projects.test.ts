@@ -141,16 +141,20 @@ describe("git status", () => {
     });
   });
 
-  it("reports ahead and behind against a real upstream, pinning the column order", async () => {
+  it("reads ahead and behind against a real upstream, in the Rust's column order", async () => {
     const upstream = gitRepo("upstream");
     const clone = join(tempdir("clone-parent"), "clone");
     execFileSync("git", ["clone", "-q", upstream, clone], { stdio: "pipe", env: GIT_AUTHOR_ENV });
     const gitIn = (dir: string, ...args: string[]) => execFileSync("git", ["-C", dir, ...args], { stdio: "pipe", env: GIT_AUTHOR_ENV });
 
-    // One commit lands upstream after the clone...
-    writeFileSync(join(upstream, "upstream-only.txt"), "u\n");
-    gitIn(upstream, "add", "upstream-only.txt");
-    gitIn(upstream, "commit", "-q", "-m", "second upstream commit");
+    // Two commits upstream, one local: behind must read 2 and ahead 1 — a
+    // swapped column order in gitStatus would report the reverse.
+    writeFileSync(join(upstream, "u1.txt"), "1\n");
+    gitIn(upstream, "add", "u1.txt");
+    gitIn(upstream, "commit", "-q", "-m", "upstream one");
+    writeFileSync(join(upstream, "u2.txt"), "2\n");
+    gitIn(upstream, "add", "u2.txt");
+    gitIn(upstream, "commit", "-q", "-m", "upstream two");
     // ...and the clone learns about it the ordinary way, by fetching.
     gitIn(clone, "fetch", "-q", "origin", "main");
 
@@ -163,7 +167,7 @@ describe("git status", () => {
     // rev-list --left-right --count prints "<behind> <ahead>"; this pins
     // that the Rust's column order survives the port.
     expect(s.ahead).toBe(1);
-    expect(s.behind).toBe(1);
+    expect(s.behind).toBe(2);
   });
 });
 
