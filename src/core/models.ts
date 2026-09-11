@@ -309,6 +309,14 @@ export function itemFromJson(raw: unknown): Item {
   };
 }
 
+// `ItemFilter.limit` is `Option<u32>` in the Rust (`sync/cache.rs`), so
+// `serde_json::from_value` refuses a fraction, a negative number and anything
+// past u32::MAX. `isNumber` alone would accept all of those, and node:sqlite
+// binding them into `LIMIT ?` either throws (fraction, too large) or SQLite
+// silently treats a negative limit as unlimited — permanently, since the
+// prose hash still matches and nothing recompiles.
+const isU32 = (v: unknown): v is number => typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= 4_294_967_295;
+
 /** Every field optional (`#[serde(default)]`); `null` and absent both mean
  *  "not narrowing on this", and only present fields are kept — a stored
  *  filter reads as what it narrows and nothing else. */
@@ -327,7 +335,7 @@ export function itemFilterFromJson(raw: unknown): ItemFilter {
   take("project", isString);
   take("query", isString);
   take("unreadOnly", isBoolean);
-  take("limit", isNumber);
+  take("limit", isU32);
   take("excludeKinds", isStringList);
   return out;
 }

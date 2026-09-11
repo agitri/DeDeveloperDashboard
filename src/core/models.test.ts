@@ -184,4 +184,12 @@ describe("items", () => {
     expect(() => itemFilterFromJson({ limit: "5" })).toThrow(/^json: /);
     expect(() => itemFilterFromJson({ excludeKinds: [1] })).toThrow(/^json: /);
   });
+
+  it("limit is a u32: fractional, negative and out-of-range values are refused", () => {
+    for (const bad of [10.5, -5, 1e20]) {
+      expect(() => itemFilterFromJson({ limit: bad }), String(bad)).toThrow("json: invalid type for field `limit`");
+    }
+    expect(itemFilterFromJson({ limit: 0 })).toEqual({ limit: 0 });
+    expect(itemFilterFromJson({ limit: 10 })).toEqual({ limit: 10 });
+  });
 });

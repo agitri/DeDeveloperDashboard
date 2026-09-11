@@ -138,7 +138,10 @@ export function compileValue(kind: string, value: unknown): { filter: CompiledFi
 
   // Exhaustive on purpose. A widget kind with no schema of its own must be
   // refused rather than quietly compiled against someone else's.
-  const known = KNOWN[kind];
+  // Object.hasOwn, not bracket lookup: `kind` is untrusted (model output /
+  // renderer-supplied), and "constructor", "toString" or "__proto__" would
+  // otherwise resolve off Object.prototype and bypass this guard.
+  const known = Object.hasOwn(KNOWN, kind) ? KNOWN[kind] : undefined;
   if (known === undefined) throw DddError.invalid(`${kind} widgets cannot be given instructions`);
 
   const unmet: string[] = [];

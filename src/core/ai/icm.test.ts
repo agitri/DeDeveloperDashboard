@@ -59,11 +59,15 @@ describe("ICM assembly", () => {
 
   it("clips on a character boundary, never inside a multi-byte character", () => {
     const dir = scratch();
-    // "é" is two bytes; a run of them can only be cut between characters.
-    writeFileSync(join(dir, ".ddd/icm/accents.md"), "é".repeat(MAX_PER_FILE));
+    // "é" is two bytes; a leading "x" pushes byte MAX_PER_FILE onto a
+    // continuation byte, so the cut can only land between characters if the
+    // back-off in `clip()` actually runs.
+    writeFileSync(join(dir, ".ddd/icm/accents.md"), "x" + "é".repeat(MAX_PER_FILE));
     const text = contextFor(dir);
     expect(text).not.toContain("�");
     expect(text).toContain("[…truncated]");
+    const body = text.slice(text.indexOf("\n\n") + 2, text.indexOf("\n\n[…truncated]"));
+    expect(Buffer.byteLength(body, "utf8")).toBe(MAX_PER_FILE - 1);
     rmSync(dir, { recursive: true, force: true });
   });
 

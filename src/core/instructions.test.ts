@@ -73,6 +73,10 @@ describe("compileValue", () => {
     expect(() => compileValue("items", "limit 10")).toThrow("the model did not return a filter object");
   });
 
+  it("limit must be a whole, non-negative, in-range number", () => {
+    expect(() => compileValue("items", { limit: 10.5 })).toThrow(/^the filter did not validate: /);
+  });
+
   it("a repos widget compiles against its own schema", () => {
     const { filter, unmet } = compileValue("repos", { scope: "all", limit: 10 });
     expect(unmet).toEqual(["limit is not something this widget can filter on"]);
@@ -82,6 +86,8 @@ describe("compileValue", () => {
   it("a widget kind with no schema of its own is refused", () => {
     expect(() => compileValue("devservers", { limit: 3 })).toThrow("devservers widgets cannot be given instructions");
     expect(() => compileValue("clock", {})).toThrow("clock widgets cannot be given instructions");
+    expect(() => compileValue("constructor", {})).toThrow("constructor widgets cannot be given instructions");
+    expect(() => compileValue("__proto__", {})).toThrow("__proto__ widgets cannot be given instructions");
   });
 
   it("a stored record holds only what was narrowed", () => {
