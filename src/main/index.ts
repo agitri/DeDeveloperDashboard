@@ -3,6 +3,8 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { bootstrap } from "../core/bootstrap";
+import { defaultGlobal } from "../core/models";
+import { writeJson } from "../core/store";
 import type { Emitter } from "../core/emitter";
 import { ProjectWatcher } from "../core/watcher";
 import * as secrets from "../core/secrets";
@@ -46,13 +48,21 @@ const syncDeps: SyncDeps = {
 const scheduler = new Scheduler(syncDeps);
 
 /** The smoke never touches the real `~/.ddd` (spec §8): give it a scratch home
- *  unless the caller pinned one. Must run before `bootstrap()`. */
+ *  unless the caller pinned one, and a scratch Electron profile always, so its
+ *  localStorage never bleeds into the user's. Must run before the app is ready
+ *  and before `bootstrap()`. The scratch home starts with `look: "console"`
+ *  so the smoke can prove the preload seeds the look on a first boot. */
 function smokeHomeIfNeeded(): void {
-  if (process.env.DDD_SMOKE && !process.env.DDD_HOME) {
+  if (!process.env.DDD_SMOKE) return;
+  if (!process.env.DDD_HOME) {
     const home = mkdtempSync(join(tmpdir(), "ddd-smoke-"));
     process.env.DDD_HOME = home;
+    const g = defaultGlobal();
+    g.appearance.look = "console";
+    writeJson(join(home, "global.json"), g);
     console.log(`ddd: smoke home → ${home}`);
   }
+  app.setPath("userData", join(process.env.DDD_HOME, "electron-profile"));
 }
 
 function installCsp(): void {
@@ -119,6 +129,11 @@ function smoke(win: BrowserWindow): void {
     try {
       const invoke = (cmd: string, args: unknown = {}) =>
         win.webContents.executeJavaScript(`window.ddd.invoke(${JSON.stringify(cmd)}, ${JSON.stringify(args)})`);
+
+      // First boot of a fresh profile whose global.json says Console: the
+      // preload must have seeded the look before the page decided.
+      const bootedLook = await win.webContents.executeJavaScript('document.documentElement.getAttribute("data-look")');
+      if (bootedLook !== "console") throw new Error(`boot look: expected "console", got ${JSON.stringify(bootedLook)}`);
 
       const g = (await invoke("global_load")) as { environments: unknown[] };
       await invoke("paths_info", { env: "default" });
@@ -189,7 +204,7 @@ function smoke(win: BrowserWindow): void {
       if (!cspEnforced) throw new Error("csp not enforced");
 
       console.log(
-        `ddd: smoke ok — ${g.environments.length} environment(s), paths_info, event_log/events_query (1 row), secret_exists(false), projects (register/list), project-changed, sync (mock: sync_now/items_query/item_action/items-changed), csp enforced`,
+        `ddd: smoke ok — ${g.environments.length} environment(s), boot look seeded, paths_info, event_log/events_query (1 row), secret_exists(false), projects (register/list), project-changed, sync (mock: sync_now/items_query/item_action/items-changed), csp enforced`,
       );
       const shotPath = process.env.DDD_SMOKE_SHOT;
       if (shotPath) {
@@ -206,8 +221,9 @@ function smoke(win: BrowserWindow): void {
   });
 }
 
+smokeHomeIfNeeded();
+
 app.whenReady().then(() => {
-  smokeHomeIfNeeded();
   try {
     bootstrap();
   } catch (e) {

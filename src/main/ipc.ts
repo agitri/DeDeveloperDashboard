@@ -8,6 +8,7 @@ import { BrowserWindow, dialog, ipcMain, shell, type IpcMainInvokeEvent } from "
 import { DddError } from "../core/error";
 import type { Handler } from "./commands";
 import { dispatch, type HostHandler } from "./dispatch";
+import { bootLook } from "./look";
 
 const LAYOUT_FILTER = [{ name: "DDD layout", extensions: ["json"] }];
 
@@ -47,4 +48,9 @@ const host: Record<string, HostHandler> = {
 
 export function registerIpc(commands: Record<string, Handler>): void {
   ipcMain.handle("ddd:invoke", (event, cmd: unknown, args: unknown) => dispatch(cmd, args, event, host, commands));
+  // Synchronous on purpose: the preload needs the answer before the page's
+  // first script runs, and `global.json` is a local file read.
+  ipcMain.on("ddd:boot-look", (event) => {
+    event.returnValue = bootLook();
+  });
 }

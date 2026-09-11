@@ -19,4 +19,21 @@ const bridge: DddBridge = {
   },
 };
 
+// The renderer picks its look from `localStorage["ddd:look"]` before React
+// mounts (see src/renderer/src/lib/look.ts). The cache is per origin and per
+// profile, so a first boot rendered Classic and then asked for a reload. The
+// preload runs before any page script and shares the page's storage: seed it
+// from global.json so the first paint is already the saved look.
+// The preload compiles under the node tsconfig, without the DOM lib; this is
+// the one page global it touches.
+declare const localStorage: { getItem(key: string): string | null; setItem(key: string, value: string): void };
+const look: unknown = ipcRenderer.sendSync("ddd:boot-look");
+if (look === "console" || look === "classic") {
+  try {
+    if (localStorage.getItem("ddd:look") !== look) localStorage.setItem("ddd:look", look);
+  } catch {
+    /* storage unavailable: the renderer falls back to its own cache */
+  }
+}
+
 contextBridge.exposeInMainWorld("ddd", bridge);
