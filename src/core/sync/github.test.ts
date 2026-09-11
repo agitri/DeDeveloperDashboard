@@ -21,6 +21,12 @@ describe("self references", () => {
     expect(() => selfRef(withRefs([]))).toThrow("has no GitHub reference");
     expect(() => selfRef(withRefs(["github-thread:99"]))).toThrow("has no GitHub reference");
   });
+  it("refuses a missing issue number rather than treating it as zero", () => {
+    expect(() => selfRef(withRefs(["github:owner/repo#"]))).toThrow("has no GitHub reference");
+  });
+  it("only ever looks at the first github: ref, malformed or not", () => {
+    expect(() => selfRef(withRefs(["github:bad", "github:o/r#3"]))).toThrow("has no GitHub reference");
+  });
 });
 
 describe("pull requests and issues", () => {
@@ -125,6 +131,17 @@ describe("fetching", () => {
     await expect(new GitHubAdapter().fetch(cx(gqlErrors.fetch))).rejects.toThrow("github graphql: Field x; Field y");
     const down = cx(async () => { throw new Error("ECONNRESET"); });
     await expect(new GitHubAdapter().fetch(down)).rejects.toThrow("github request failed: ECONNRESET");
+  });
+
+  it("never rewrites a colon inside the detail, only the status prefix", async () => {
+    // A colon that happens to sit inside the detail must survive untouched —
+    // an unanchored `.replace(/\s+:/, ":")` would eat this one instead of the
+    // (absent) one before an empty statusText.
+    const unprocessable = fakeGitHub({ "https://api.github.com/graphql": () => new Response(JSON.stringify({ message: "Validation failed : name" }), { status: 422, statusText: "Unprocessable Entity" }) });
+    await expect(new GitHubAdapter().fetch(cx(unprocessable.fetch))).rejects.toThrow("github 422 Unprocessable Entity: Validation failed : name");
+    // No reason phrase from the server: no dangling space before the colon.
+    const noReason = fakeGitHub({ "https://api.github.com/graphql": () => new Response("nope", { status: 500 }) });
+    await expect(new GitHubAdapter().fetch(cx(noReason.fetch))).rejects.toThrow("github 500: nope");
   });
 });
 

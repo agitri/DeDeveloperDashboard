@@ -12,7 +12,7 @@ import type { AddressInfo } from "node:net";
 import { DddError } from "../error";
 import type { EnvRoot } from "../paths";
 import { settingsLoad, settingsSave, type Connection } from "../settings";
-import type { SecretStore, SyncDeps } from "./adapter";
+import { statusLabel, type SecretStore, type SyncDeps } from "./adapter";
 
 /** How long we wait for the person to finish in the browser. */
 export const CONSENT_TIMEOUT_MS = 180_000;
@@ -136,7 +136,7 @@ async function postForm(fetch: typeof globalThis.fetch, url: string, form: [stri
   }
   if (!response.ok) {
     const detail = (typeof parsed.error_description === "string" && parsed.error_description) || (typeof parsed.error === "string" && parsed.error) || text;
-    throw DddError.config(`oauth ${response.status}: ${detail}`);
+    throw DddError.config(`oauth ${statusLabel(response)}: ${detail}`);
   }
   // Slack answers 200 with `ok: false`, so status alone proves nothing.
   if (parsed.ok === false) {

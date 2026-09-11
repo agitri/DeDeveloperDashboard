@@ -1,5 +1,5 @@
 import { mkdirSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { scratchEnv } from "../testing";
 import { recordingEmitter } from "../emitter";
 import { DddError } from "../error";
@@ -136,9 +136,22 @@ describe("the tick", () => {
   });
 
   it("start and stop own the timer", () => {
-    const sched = new Scheduler(deps().deps);
-    sched.start();
-    sched.stop();
-    sched.stop();
+    scratchEnv("start-stop");
+    vi.useFakeTimers();
+    try {
+      const sched = new Scheduler(deps().deps);
+      sched.start();
+      expect(vi.getTimerCount()).toBe(1);
+      // Starting again must not install a second timer.
+      sched.start();
+      expect(vi.getTimerCount()).toBe(1);
+      sched.stop();
+      expect(vi.getTimerCount()).toBe(0);
+      // Stopping an already-stopped scheduler is a no-op, not an error.
+      sched.stop();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

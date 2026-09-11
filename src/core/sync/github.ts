@@ -9,7 +9,7 @@
 import { DddError } from "../error";
 import type { Item, ItemAction } from "../models";
 import { normalize } from "../repos/remote";
-import { itemId, type ActionRequest, type FetchContext, type SourceAdapter } from "./adapter";
+import { itemId, statusLabel, type ActionRequest, type FetchContext, type SourceAdapter } from "./adapter";
 
 export const API = "https://api.github.com";
 const UA = "ddd-dashboard";
@@ -101,7 +101,7 @@ async function check(response: Response): Promise<unknown> {
     } catch {
       /* not JSON */
     }
-    throw DddError.config(`github ${response.status} ${response.statusText}: ${detail}`.replace(/\s+:/, ":"));
+    throw DddError.config(`github ${statusLabel(response)}: ${detail}`);
   }
   try {
     return JSON.parse(text);
@@ -271,11 +271,13 @@ export function toRepoItem(cx: FetchContext, node: unknown): Item | null {
 
 /** Pull `owner/repo` and the number back out of the self-ref. */
 export function selfRef(item: Item): [string, number] {
-  for (const r of item.refs) {
-    if (!r.startsWith("github:")) continue;
-    const [repo, n] = r.slice("github:".length).split("#");
-    const number = Number(n);
-    if (repo && Number.isInteger(number)) return [repo, number];
+  // Only the first `github:` ref counts, exactly as Rust's `self_ref` reads
+  // `refs.iter().find(...)`: a malformed one is not a license to keep
+  // looking at the rest.
+  const first = item.refs.find((r) => r.startsWith("github:"));
+  if (first) {
+    const [repo, n] = first.slice("github:".length).split("#");
+    if (repo && n !== undefined && /^-?\d+$/.test(n)) return [repo, Number(n)];
   }
   throw DddError.config(`${item.title} has no GitHub reference`);
 }

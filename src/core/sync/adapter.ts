@@ -54,6 +54,14 @@ export function requireConfig(cx: FetchContext, key: string): string {
   return v;
 }
 
+/** `"400 Bad Request"`, or just `"400"` when the server sent no reason phrase
+ *  — Rust's `StatusCode` Display always has one, `fetch`'s `statusText` is
+ *  free to be empty. Never rewrite whatever comes after this in a message: a
+ *  regex on the whole string risks eating a colon that belongs to the detail. */
+export function statusLabel(response: { status: number; statusText: string }): string {
+  return response.statusText ? `${response.status} ${response.statusText}` : `${response.status}`;
+}
+
 /** What the user is asking the adapter to do to one item. Every outbound
  *  variant is reachable only from an explicit click or keypress. */
 export interface ActionRequest {
