@@ -7,10 +7,12 @@
  * destroyed every refresh. A mapping the user made must outlive the data it
  * annotates.
  */
+import { realpathSync } from "node:fs";
 import { DddError } from "../error";
 import { isArray, isString, optional, record, required } from "../json";
 import type { EnvRoot } from "../paths";
 import { readJson, writeJson } from "../store";
+import { fallbackKey } from "./remote";
 
 /** `scan`: discovered by walking a scan root. `manual`: the user pointed at it. */
 export type LinkSource = "scan" | "manual";
@@ -77,4 +79,74 @@ export function upsert(env: EnvRoot, link: RepoLink): void {
   stored.links = stored.links.filter((existing) => existing.path !== link.path && !(link.remote !== null && existing.remote === link.remote));
   stored.links.push(link);
   save(env, stored);
+}
+
+export function remove(env: EnvRoot, remote: string): void {
+  const stored = load(env);
+  stored.links = stored.links.filter((existing) => existing.remote !== remote);
+  save(env, stored);
+}
+
+/** Drop the record at `path`. How a local-only checkout is forgotten, since it
+ *  may have no remote to name it by. */
+export function removeByPath(env: EnvRoot, path: string): void {
+  const stored = load(env);
+  stored.links = stored.links.filter((existing) => existing.path !== path);
+  save(env, stored);
+}
+
+/** The exact-tier lookup. Skips records with no remote by construction (`null`
+ *  never equals the wanted string): a local-only checkout must never satisfy a
+ *  GitHub row's join. */
+export function find(links: RepoLinks, wanted: string): RepoLink | null {
+  return links.links.find((link) => link.remote === wanted) ?? null;
+}
+
+/**
+ * Find a link for a repo, and report **which tier matched**.
+ *
+ * Two tiers: the full normalized remote including host, then `owner/repo`
+ * alone. The fallback exists because a stored link may have been made from a
+ * remote we can no longer reproduce exactly (an SSH alias, a host that moved, a
+ * link created by hand with no `remote:` ref at all).
+ *
+ * When the two disagree the caller must report the *weaker* of them, because
+ * the guess was made here, in this join, not when the link was stored.
+ * Reporting the link's own stored confidence would show a guess as a certainty
+ * — exactly what the two-tier design exists to prevent.
+ */
+export function findWithTier(links: RepoLinks, normalized: string, https: string): { link: RepoLink; confidence: Confidence } | null {
+  const exact = find(links, normalized);
+  if (exact !== null) return { link: exact, confidence: "exact" };
+  const wanted = fallbackKey(https);
+  if (wanted === null) return null;
+  // A checkout with no remote has nothing to fall back *to*; it must never
+  // satisfy a GitHub row's join at either tier.
+  const match = links.links.find((l) => l.remote !== null && fallbackKey(l.remote) === wanted);
+  return match === undefined ? null : { link: match, confidence: "fallback" };
+}
+
+/**
+ * Canonicalize a path for storage in the link store.
+ *
+ * The canonical form `projects.register` always stores for a `ProjectRef.path`.
+ * `repos_list` resolves a row's `projectId` by comparing a stored link's `path`
+ * against that registry with plain string equality — so a path stored in any
+ * other form (the raw string the user picked, a trailing slash, through a
+ * symlink) would never compare equal, and `projectId` would silently stay null
+ * forever: the row would show as linked but never connect to its project card.
+ *
+ * Every write into the link store must go through this so that join keeps
+ * working. A path that vanished between being found and being stored (a race
+ * with the picker, or a scan racing a delete) is a real error, not something to
+ * paper over by falling back to the raw path.
+ */
+export function canonicalPath(path: string): string {
+  try {
+    // Rust's `canonicalize` yields a `\\?\` prefix on Windows; `realpathSync`
+    // does not — the same deviation `projects.register` already documents.
+    return realpathSync(path);
+  } catch (e) {
+    throw DddError.io(e);
+  }
 }
