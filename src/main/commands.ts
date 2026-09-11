@@ -4,8 +4,8 @@
  * off to core, return. No `electron` import here — the registry is testable
  * as a plain map, and `ipc.ts` is what wires it to a window.
  */
-import { existsSync } from "node:fs";
-import { basename } from "node:path";
+import { existsSync, statSync } from "node:fs";
+import { basename, join } from "node:path";
 import { EnvRoot, pathsInfo } from "../core/paths";
 import {
   environmentCreate,
@@ -40,6 +40,11 @@ import { route } from "../core/ai/router";
 import * as instructions from "../core/instructions";
 import * as calendar from "../core/calendar/store";
 import { expand, type EventSpec, type Override } from "../core/calendar/expand";
+import * as clone from "../core/repos/clone";
+import { repoFilterFromJson } from "../core/repos/filter";
+import * as links from "../core/repos/links";
+import { normalize } from "../core/repos/remote";
+import * as scan from "../core/repos/scan";
 import { itemId as makeItemId } from "../core/sync/adapter";
 import type { Item, ItemFilter, Settings } from "../core/models";
 
@@ -76,6 +81,53 @@ function findProject(env: EnvRoot, id: string) {
   if (!entry) throw DddError.notFound(`project ${JSON.stringify(id)}`);
   return entry;
 }
+
+/** One repo, joined with what we know about it locally. Port of `RepoRow`. */
+interface RepoRow {
+  nameWithOwner: string;
+  url: string;
+  /** Normalized remote — the key everything else uses. */
+  remote: string;
+  cloneUrl: string;
+  facts: string;
+  pushedAt: string;
+  localPath: string | null;
+  /** `exact` or `fallback`. A fallback match is a guess and is shown as one. */
+  matchConfidence: string | null;
+  /** Linked, but the folder is not there right now. */
+  missing: boolean;
+  projectId: string | null;
+}
+
+/** A checkout on disk that no fetched repo claims. Not a stored category: it is
+ *  whatever is left after the GitHub rows have taken their links, so a repo
+ *  changes section on its own the moment the facts change. */
+interface LocalRepoRow {
+  path: string;
+  name: string;
+  origin: string | null;
+  originHost: string | null;
+  missing: boolean;
+  projectId: string | null;
+}
+
+interface RepoListing {
+  rows: RepoRow[];
+  localOnly: LocalRepoRow[];
+  capped: boolean;
+  total: number;
+}
+
+function isDir(path: string): boolean {
+  try {
+    return statSync(path).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+/** The last path component — what the user calls this repo. */
+const leaf = (path: string): string => basename(path) || path;
 
 function parseInstant(value: string, field: string): Date {
   const at = calendar.parseRfc3339(value);
@@ -465,6 +517,233 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
 
     calendar_event_delete: async ({ env, id }) => {
       calendar.remove(root(env), String(id));
+    },
+
+    // --- repos: the bridge between what GitHub knows and what is on disk ---
+
+    /** Repos joined with local state. Reads the cache and the link store; makes
+     *  no network call of its own. */
+    repos_list: async ({ env, filter }): Promise<RepoListing> => {
+      const r = root(env);
+      const f = repoFilterFromJson(filter ?? {});
+      const items = cache.query(r, { source: "github", kind: "repo", limit: 1000 });
+      const stored = links.load(r);
+      const reg = projects.registry(r);
+
+      const scope = f.scope ?? "recent";
+      const cutoff = Date.now() - 183 * 24 * 60 * 60 * 1000;
+      const needle = f.query === undefined ? null : f.query.toLowerCase();
+
+      const total = items.length;
+      const rows: RepoRow[] = [];
+      // Which stored checkouts a GitHub row consumed. Whatever is left over is
+      // local-only — derived here, never stored as a category.
+      const claimed = new Set<string>();
+
+      for (const item of items) {
+        if (scope === "recent") {
+          // The Rust's `parse_from_rfc3339(..).map(..).unwrap_or(true)`: a
+          // timestamp that cannot be parsed counts as fresh. `Date.parse` is
+          // laxer than chrono, which only shows on strings chrono would reject.
+          const at = Date.parse(item.updatedAt);
+          const fresh = Number.isNaN(at) ? true : at > cutoff;
+          if (!fresh) continue;
+        }
+        if (needle !== null && !item.title.toLowerCase().includes(needle)) continue;
+
+        const pick = (prefix: string): string => {
+          const ref = item.refs.find((x) => x.startsWith(prefix));
+          return ref === undefined ? "" : ref.slice(prefix.length);
+        };
+        const normalized = pick("remote:");
+        const https = pick("https:");
+        const ssh = pick("ssh:");
+
+        // Which tier matched, not what the stored link's own confidence says —
+        // see `links.findWithTier`.
+        const matched = links.findWithTier(stored, normalized, https);
+        const cloneUrl = stored.preferredProtocol === "ssh" && ssh !== "" ? ssh : https;
+
+        let localPath: string | null = null;
+        let matchConfidence: string | null = null;
+        let missing = false;
+        if (matched !== null) {
+          claimed.add(matched.link.path);
+          localPath = matched.link.path;
+          matchConfidence = matched.confidence;
+          missing = !isDir(matched.link.path);
+        }
+        const projectId = localPath === null ? null : (reg.projects.find((p) => p.path === localPath)?.id ?? null);
+
+        rows.push({
+          nameWithOwner: item.title,
+          url: item.url ?? "",
+          remote: normalized,
+          cloneUrl,
+          facts: item.body ?? "",
+          pushedAt: item.updatedAt,
+          localPath,
+          matchConfidence,
+          missing,
+          projectId,
+        });
+      }
+
+      // Everything DDD knows is a checkout, minus what the rows above took. The
+      // scope switch deliberately does not apply: it filters on `pushedAt`,
+      // which a local checkout does not have.
+      const localOnly: LocalRepoRow[] = stored.links
+        .filter((link) => !claimed.has(link.path))
+        .filter((link) => {
+          if (needle === null) return true;
+          return leaf(link.path).toLowerCase().includes(needle) || (link.remote !== null && link.remote.toLowerCase().includes(needle));
+        })
+        .map((link) => ({
+          path: link.path,
+          name: leaf(link.path),
+          origin: link.remote,
+          // `normalize` produces `host/owner/repo`, so the host is the first
+          // segment — parsed here so the badge has nothing to do.
+          originHost: link.remote === null ? null : (link.remote.split("/")[0] ?? null),
+          missing: !isDir(link.path),
+          projectId: reg.projects.find((p) => p.path === link.path)?.id ?? null,
+        }));
+
+      // 300 is the fetch cap from the spec; hitting it exactly means there are
+      // probably more.
+      return { rows, localOnly, capped: total >= 300, total };
+    },
+
+    /** Walk a folder the user nominated and link every checkout it finds.
+     *  Read-only against those repos, and it does **not** register them as
+     *  projects — filling the projects list uninvited is presumptuous. */
+    repo_scan: async ({ env, rootDir }) => {
+      const r = root(env);
+      const dir = String(rootDir);
+      if (!isDir(dir)) throw DddError.notFound(`${dir} is not a directory`);
+
+      const found = await scan.scanRoot(dir);
+      const stored = links.load(r);
+
+      if (stored.preferredProtocol === null) stored.preferredProtocol = scan.inferProtocol(found);
+      if (!stored.scanRoots.includes(dir)) stored.scanRoots.push(dir);
+
+      // A set of normalized remotes, not a counter: two checkouts on disk can
+      // share one remote (a worktree, two clones for two IDE windows), and the
+      // loop below then touches that remote twice — only the later one survives
+      // in `stored.links`. Counting loop passes instead of distinct remotes
+      // reports N when only N-1 (or fewer) links actually end up persisted.
+      const touched = new Set<string>();
+      for (const { path, url } of found) {
+        // A checkout with no resolvable origin is still a checkout. It is stored
+        // with `remote: null` and shows in the local-only section rather than
+        // being dropped on the floor.
+        const normalized = url === null ? null : normalize(url);
+        // See `links.canonicalPath`: stored path must be canonical or the
+        // projectId join in `repos_list` never fires. A scan is best-effort and
+        // freely re-runnable, so a repo that cannot be canonicalized
+        // (permissions, a symlink race) is skipped rather than costing the whole
+        // scan its roots.
+        let canonical: string;
+        try {
+          canonical = links.canonicalPath(path);
+        } catch {
+          continue;
+        }
+        // A manual record is the user's decision and a scan never overrides it —
+        // by *either* identifier. Path alone is not enough: a user who manually
+        // pointed this remote at a different folder would have that decision
+        // evicted the next time the scan walked past the original checkout.
+        // Remote alone is not enough either, since a remote-less checkout has no
+        // remote to check by.
+        if (stored.links.some((l) => l.source === "manual" && (l.path === canonical || (normalized !== null && l.remote === normalized)))) continue;
+        // Hold both store invariants inline: one record per path, one per
+        // non-null remote.
+        stored.links = stored.links.filter((l) => l.path !== canonical && !(normalized !== null && l.remote === normalized));
+        stored.links.push({ remote: normalized, path: canonical, source: "scan", confidence: "exact" });
+        // Key by remote when there is one, by path otherwise.
+        touched.add(normalized ?? canonical);
+      }
+
+      links.save(r, stored);
+      return touched.size;
+    },
+
+    /** Point a repo at a folder, and register that folder as a project. A
+     *  different remote at that path is allowed with the link flagged rather
+     *  than refused — forks and worktrees are legitimate. */
+    repo_link: async ({ env, remote, path }) => {
+      const r = root(env);
+      const dir = String(path);
+      if (!isDir(dir)) throw DddError.notFound(`${dir} is not a directory`);
+
+      const url = await projects.gitRemote(dir);
+      const actual = url === null ? null : normalize(url);
+      const confidence = actual === remote ? "exact" : "fallback";
+
+      // See `links.canonicalPath`: stored path must be canonical or the
+      // projectId join in `repos_list` never fires.
+      const canonical = links.canonicalPath(dir);
+      links.upsert(r, { remote: String(remote), path: canonical, source: "manual", confidence });
+
+      // You clicked, so registering is the point. `projects.register` does its
+      // own canonicalization of `path`, independently of the one above.
+      projects.register(r, dir);
+    },
+
+    /** Add a checkout DDD has not discovered, and register it as a project. The
+     *  scan finds what is under a nominated root; this is for everything else. */
+    repo_add_local: async ({ env, path }) => {
+      const r = root(env);
+      const dir = String(path);
+      if (!isDir(dir)) throw DddError.notFound(`${dir} is not a directory`);
+      if (!existsSync(join(dir, ".git"))) {
+        // This is the Repositories widget; a folder that is not a repository
+        // does not belong in it, and the message says where it does belong.
+        throw DddError.invalid(`${dir} is not a git repository — use the Projects widget to add a plain folder`);
+      }
+
+      const canonical = links.canonicalPath(dir);
+      const url = await projects.gitRemote(dir);
+      const remote = url === null ? null : normalize(url);
+
+      // Whatever remote was recorded was read out of the checkout itself, not
+      // guessed at. (`confidence` on a stored record is informational;
+      // `repos_list` reports the tier its own join used.)
+      links.upsert(r, { remote, path: canonical, source: "manual", confidence: "exact" });
+      projects.register(r, dir);
+    },
+
+    /** Forget a checkout by path. Touches neither the folder nor the project
+     *  registry — the same rule `repo_unlink` follows, by the other identifier. */
+    repo_forget: async ({ env, path }) => {
+      links.removeByPath(root(env), String(path));
+    },
+
+    /** Drop a link. Unlinking a repo from its folder says nothing about whether
+     *  that folder still belongs in the projects list. */
+    repo_unlink: async ({ env, remote }) => {
+      links.remove(root(env), String(remote));
+    },
+
+    /** Clone a repo into a parent directory, detached. Returns as soon as the
+     *  work is spawned; the row follows along via `ddd://repo-progress`, the
+     *  same event channel the file watcher uses. */
+    repo_clone: async ({ env, remote, cloneUrl, parentDir }) => {
+      const r = root(env);
+      // Prepared before detaching: a refusal must reach the user as a failed
+      // command, not as a progress event nobody is listening for yet.
+      const target = clone.prepare(String(parentDir), String(remote));
+      void clone
+        .run(r, String(remote), String(cloneUrl), target, (p: clone.Progress) => {
+          deps.emit.emit("ddd://repo-progress", { remote: String(remote), phase: p.phase, percent: p.percent, done: p.done, error: p.error });
+        })
+        .catch(() => {
+          // `run` reports its own failures as a final tick; this only catches a
+          // bug in the runner itself, which must not become an unhandled
+          // rejection that takes the app down.
+        });
+      return target;
     },
   };
 }

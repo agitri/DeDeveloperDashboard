@@ -1,5 +1,6 @@
 import { afterAll, describe, expect, it } from "vitest";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, resolve, join } from "node:path";
 import { scratchEnv } from "../core/testing";
@@ -10,10 +11,13 @@ import { EnvRoot } from "../core/paths";
 import { Scheduler } from "../core/sync/scheduler";
 import { memorySecrets } from "../core/sync/adapter";
 import { defaultSettings, settingsSave, type Connection } from "../core/settings";
-import { register } from "../core/projects";
+import { register, registry } from "../core/projects";
+import type { Item } from "../core/models";
 import { replaceForConnection } from "../core/sync/cache";
 import { toItems } from "../core/sync/ics";
 import { load as calendarLoad } from "../core/calendar/store";
+import * as links from "../core/repos/links";
+import { normalize } from "../core/repos/remote";
 
 const emitter = recordingEmitter();
 const sync = { fetch: (async () => new Response("{}", { status: 500 })) as typeof globalThis.fetch, secrets: memorySecrets(), openUrl: async () => {}, emit: emitter };
@@ -40,13 +44,6 @@ function tauriHandlers(): string[] | null {
  * acknowledges it here (by porting it, or by adding it to this list).
  */
 const NOT_YET_PORTED = new Set([
-  "repos_list",
-  "repo_add_local",
-  "repo_forget",
-  "repo_scan",
-  "repo_link",
-  "repo_unlink",
-  "repo_clone",
   "dev_servers_list",
   "dev_server_probe",
   "dev_server_stop",
@@ -491,5 +488,289 @@ describe("calendar commands", () => {
         event: { id: "x", title: "T", start: "2026-08-19T10:00:00Z", end: "2026-08-19T09:00:00Z" },
       }),
     ).rejects.toThrow("an event cannot end before it starts");
+  });
+});
+
+const repoTemp = (name: string) => mkdtempSync(join(tmpdir(), `ddd-cmd-repo-${name}-`));
+
+function git(dir: string, args: string[]): void {
+  execFileSync("git", ["-C", dir, ...args], { stdio: "ignore" });
+}
+
+function makeRepo(root: string, name: string, remote: string | null): string {
+  const dir = join(root, name);
+  mkdirSync(dir, { recursive: true });
+  git(dir, ["init", "-q"]);
+  if (remote !== null) git(dir, ["remote", "add", "origin", remote]);
+  return dir;
+}
+
+/** A GitHub repo item exactly as `sync/github.ts`'s `toRepoItem` writes one. */
+function repoItem(name: string, url: string, sshUrl: string, pushedAt: string): Item {
+  const normalized = normalize(url);
+  const refs = [`repo:${name}`];
+  if (normalized !== null) refs.push(`remote:${normalized}`);
+  refs.push(`https:${url}`);
+  if (sshUrl !== "") refs.push(`ssh:${sshUrl}`);
+  return {
+    id: `gh-1:repo-${name}`,
+    environmentId: "default",
+    connectionId: "gh-1",
+    source: "github",
+    kind: "repo",
+    project: name,
+    title: name,
+    body: "private · typescript",
+    url,
+    refs,
+    actions: [{ id: "open", label: "Open on GitHub", outbound: false }],
+    updatedAt: pushedAt,
+    unread: false,
+  };
+}
+
+const daysAgo = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+
+interface RepoListing {
+  rows: { nameWithOwner: string; url: string; remote: string; cloneUrl: string; facts: string; pushedAt: string; localPath: string | null; matchConfidence: string | null; missing: boolean; projectId: string | null }[];
+  localOnly: { path: string; name: string; origin: string | null; originHost: string | null; missing: boolean; projectId: string | null }[];
+  capped: boolean;
+  total: number;
+}
+
+describe("repos_list", () => {
+  it("joins the cache with the link store, reports the tier its own join used, and derives local-only", async () => {
+    const { env } = scratchEnv("cmd-repos-list");
+    const root = repoTemp("list");
+    const here = realpathSync(makeRepo(root, "ddd", "git@github.com:agitri/ddd.git"));
+    const loose = realpathSync(makeRepo(root, "loose", null));
+
+    replaceForConnection(env, "gh-1", [
+      repoItem("agitri/ddd", "https://github.com/agitri/ddd", "git@github.com:agitri/ddd.git", daysAgo(2)),
+      repoItem("agitri/forked", "https://github.com/agitri/forked", "git@github.com:agitri/forked.git", daysAgo(3)),
+      repoItem("agitri/ancient", "https://github.com/agitri/ancient", "", daysAgo(400)),
+      // An `updatedAt` nothing can parse counts as fresh rather than vanishing.
+      repoItem("agitri/undated", "https://github.com/agitri/undated", "", ""),
+    ]);
+
+    links.save(env, {
+      links: [
+        { remote: "github.com/agitri/ddd", path: here, source: "scan", confidence: "exact" },
+        // Same owner/repo, different host: the weak tier is the only one that
+        // can match this, so the row must say "fallback".
+        { remote: "gitlab.com/agitri/forked", path: "/nowhere/forked", source: "manual", confidence: "exact" },
+        { remote: null, path: loose, source: "manual", confidence: "exact" },
+      ],
+      scanRoots: [],
+      preferredProtocol: "ssh",
+    });
+    const project = register(env, here);
+
+    const recent = (await commands.repos_list!({ env: "default", filter: {} })) as RepoListing;
+    expect(recent.total).toBe(4);
+    expect(recent.capped).toBe(false);
+    expect(recent.rows.map((r) => r.nameWithOwner)).toEqual(["agitri/ddd", "agitri/forked", "agitri/undated"]);
+
+    const ddd = recent.rows[0]!;
+    expect(ddd).toMatchObject({
+      url: "https://github.com/agitri/ddd",
+      remote: "github.com/agitri/ddd",
+      // preferredProtocol "ssh" and an ssh ref present.
+      cloneUrl: "git@github.com:agitri/ddd.git",
+      facts: "private · typescript",
+      localPath: here,
+      matchConfidence: "exact",
+      missing: false,
+      projectId: project.id,
+    });
+
+    const forked = recent.rows[1]!;
+    expect(forked.matchConfidence).toBe("fallback");
+    expect(forked.localPath).toBe("/nowhere/forked");
+    // Linked, but the folder is not there right now.
+    expect(forked.missing).toBe(true);
+    expect(forked.projectId).toBeNull();
+
+    // No ssh ref: the https URL, whatever the preferred protocol says.
+    expect(recent.rows[2]!.cloneUrl).toBe("https://github.com/agitri/undated");
+
+    // Everything DDD knows is a checkout, minus what the rows took.
+    expect(recent.localOnly).toEqual([
+      { path: loose, name: "loose", origin: null, originHost: null, missing: false, projectId: null },
+    ]);
+
+    const all = (await commands.repos_list!({ env: "default", filter: { scope: "all" } })) as RepoListing;
+    expect(all.rows.map((r) => r.nameWithOwner)).toEqual(["agitri/ddd", "agitri/forked", "agitri/ancient", "agitri/undated"]);
+
+    // The query narrows rows by title and local-only rows by name or remote.
+    const narrowed = (await commands.repos_list!({ env: "default", filter: { scope: "all", query: "LOOSE" } })) as RepoListing;
+    expect(narrowed.rows).toEqual([]);
+    expect(narrowed.localOnly.map((l) => l.name)).toEqual(["loose"]);
+    expect(narrowed.total).toBe(4);
+
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it("reports the origin host of a local-only checkout for the badge", async () => {
+    const { env } = scratchEnv("cmd-repos-local-host");
+    links.save(env, {
+      links: [{ remote: "gitlab.com/agitri/thing", path: "/p/thing", source: "manual", confidence: "exact" }],
+      scanRoots: [],
+      preferredProtocol: null,
+    });
+    const listing = (await commands.repos_list!({ env: "default", filter: {} })) as RepoListing;
+    expect(listing.rows).toEqual([]);
+    expect(listing.localOnly[0]).toEqual({ path: "/p/thing", name: "thing", origin: "gitlab.com/agitri/thing", originHost: "gitlab.com", missing: true, projectId: null });
+  });
+});
+
+describe("repo_scan, repo_link, repo_unlink, repo_add_local, repo_forget", () => {
+  it("scans a root, counting distinct persisted links and storing canonical paths", async () => {
+    const { env } = scratchEnv("cmd-scan");
+    const root = repoTemp("scan");
+    const withRemote = realpathSync(makeRepo(root, "ddd", "git@github.com:agitri/ddd.git"));
+    const without = realpathSync(makeRepo(root, "scratch", null));
+    mkdirSync(join(root, "just-a-folder"));
+
+    expect(await commands.repo_scan!({ env: "default", rootDir: root })).toBe(2);
+    const stored = links.load(env);
+    expect(stored.scanRoots).toEqual([root]);
+    // Inferred from the evidence: one ssh remote, no https ones.
+    expect(stored.preferredProtocol).toBe("ssh");
+    expect(stored.links.map((l) => [l.remote, l.path, l.source, l.confidence]).sort()).toEqual(
+      [
+        ["github.com/agitri/ddd", withRemote, "scan", "exact"],
+        [null, without, "scan", "exact"],
+      ].sort(),
+    );
+
+    await expect(commands.repo_scan!({ env: "default", rootDir: join(root, "nope") })).rejects.toThrow(`${join(root, "nope")} is not a directory`);
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it("counts unique remotes, not loop iterations, when two checkouts share one", async () => {
+    // A worktree, or two clones for two IDE windows, both legitimate. The live
+    // run this regression came from reported 27 while only 26 links existed.
+    const { env } = scratchEnv("cmd-scan-shared");
+    const root = repoTemp("shared");
+    makeRepo(root, "ddd-a", "git@github.com:agitri/ddd.git");
+    makeRepo(root, "ddd-b", "git@github.com:agitri/ddd.git");
+
+    expect(await commands.repo_scan!({ env: "default", rootDir: root })).toBe(1);
+    expect(links.load(env).links).toHaveLength(1);
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it("links manually with a tier, registers the project, and never lets a rescan clobber that", async () => {
+    const { env } = scratchEnv("cmd-link");
+    const root = repoTemp("link");
+    const matching = realpathSync(makeRepo(root, "matching", "git@github.com:agitri/ddd.git"));
+    const forked = realpathSync(makeRepo(root, "forked", "git@github.com:someone-else/ddd.git"));
+
+    await commands.repo_link!({ env: "default", remote: "github.com/agitri/ddd", path: matching });
+    expect(links.find(links.load(env), "github.com/agitri/ddd")).toMatchObject({ path: matching, source: "manual", confidence: "exact" });
+    expect(registry(env).projects.some((p) => p.path === matching)).toBe(true);
+
+    // A fork's remote legitimately differs from the repo being linked — allowed,
+    // just flagged as a guess rather than refused. A trailing slash must still
+    // store the canonical path, or the projectId join never fires.
+    await commands.repo_link!({ env: "default", remote: "github.com/agitri/ddd", path: `${forked}/` });
+    expect(links.find(links.load(env), "github.com/agitri/ddd")).toMatchObject({ path: forked, confidence: "fallback" });
+
+    // A scan of the folder holding both must not override that manual decision.
+    expect(await commands.repo_scan!({ env: "default", rootDir: root })).toBe(0);
+    expect(links.find(links.load(env), "github.com/agitri/ddd")!.source).toBe("manual");
+
+    await expect(commands.repo_link!({ env: "default", remote: "github.com/a/b", path: join(root, "nope") })).rejects.toThrow(`${join(root, "nope")} is not a directory`);
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it("adds a local checkout, refuses a plain folder, and forgets by path", async () => {
+    const { env } = scratchEnv("cmd-add-local");
+    const root = repoTemp("add");
+    const repo = realpathSync(makeRepo(root, "thing", "git@github.com:agitri/thing.git"));
+    const plain = join(root, "plain");
+    mkdirSync(plain);
+
+    await commands.repo_add_local!({ env: "default", path: repo });
+    expect(links.load(env).links).toEqual([{ remote: "github.com/agitri/thing", path: repo, source: "manual", confidence: "exact" }]);
+    expect(registry(env).projects.some((p) => p.path === repo)).toBe(true);
+
+    await expect(commands.repo_add_local!({ env: "default", path: plain })).rejects.toThrow(
+      `${plain} is not a git repository — use the Projects widget to add a plain folder`,
+    );
+    await expect(commands.repo_add_local!({ env: "default", path: join(root, "nope") })).rejects.toThrow("is not a directory");
+
+    // Forgetting touches neither the folder nor the project registry.
+    await commands.repo_forget!({ env: "default", path: repo });
+    expect(links.load(env).links).toEqual([]);
+    expect(registry(env).projects.some((p) => p.path === repo)).toBe(true);
+    expect(existsSync(repo)).toBe(true);
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it("unlinks by remote", async () => {
+    const { env } = scratchEnv("cmd-unlink");
+    links.upsert(env, { remote: "github.com/agitri/ddd", path: "/tmp/ddd", source: "manual", confidence: "exact" });
+    await commands.repo_unlink!({ env: "default", remote: "github.com/agitri/ddd" });
+    expect(links.load(env).links).toEqual([]);
+  });
+});
+
+describe("repo_clone", () => {
+  it(
+    "returns the target at once and pushes progress to ddd://repo-progress until done",
+    async () => {
+      const { env } = scratchEnv("cmd-clone");
+      const root = repoTemp("clone");
+      const seed = join(root, "seed");
+      mkdirSync(seed);
+      git(seed, ["init", "-q"]);
+      git(seed, ["config", "user.email", "test@example.dev"]);
+      git(seed, ["config", "user.name", "Test"]);
+      writeFileSync(join(seed, "README.md"), "hello\n");
+      git(seed, ["add", "."]);
+      git(seed, ["commit", "-q", "-m", "first"]);
+      const origin = join(root, "origin.git");
+      // A `file://` URL forces a real clone over git's transport layer, which
+      // is what makes it emit the progress stream at all — no network.
+      execFileSync("git", ["clone", "--bare", "-q", seed, origin], { stdio: "ignore" });
+      const parent = join(root, "into");
+      mkdirSync(parent);
+
+      const before = emitter.events.length;
+      const remote = "github.com/agitri/origin";
+      const target = await commands.repo_clone!({ env: "default", remote, cloneUrl: `file://${origin}`, parentDir: parent });
+      expect(target).toBe(join(parent, "origin"));
+
+      const ours = () => emitter.events.slice(before).filter((e) => e.name === "ddd://repo-progress");
+      await until(() => ours().some((e) => (e.payload as { done: boolean }).done), 20000);
+      const payloads = ours().map((e) => e.payload as { remote: string; phase: string; percent: number; done: boolean; error: string | null });
+      expect(payloads[0]).toEqual({ remote, phase: "Starting", percent: 0, done: false, error: null });
+      expect(payloads[payloads.length - 1]).toEqual({ remote, phase: "Done", percent: 100, done: true, error: null });
+      expect(payloads.every((p) => p.remote === remote)).toBe(true);
+
+      expect(existsSync(join(target as string, "README.md"))).toBe(true);
+      expect(links.find(links.load(env), remote)!.path).toBe(realpathSync(target as string));
+      expect(registry(env).projects.some((p) => p.path === realpathSync(target as string))).toBe(true);
+
+      rmSync(root, { recursive: true, force: true });
+    },
+    30000,
+  );
+
+  it("refuses before detaching when the parent is missing or the target is occupied", async () => {
+    scratchEnv("cmd-clone-refuse");
+    const root = repoTemp("clone-refuse");
+    await expect(
+      commands.repo_clone!({ env: "default", remote: "github.com/a/b", cloneUrl: "file:///nowhere", parentDir: join(root, "nope") }),
+    ).rejects.toThrow(`${join(root, "nope")} is not a directory`);
+
+    mkdirSync(join(root, "b"));
+    writeFileSync(join(root, "b", "something"), "x");
+    await expect(
+      commands.repo_clone!({ env: "default", remote: "github.com/a/b", cloneUrl: "file:///nowhere", parentDir: root }),
+    ).rejects.toThrow(`${join(root, "b")} already exists and is not empty`);
+    rmSync(root, { recursive: true, force: true });
   });
 });
