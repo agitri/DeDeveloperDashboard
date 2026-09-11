@@ -196,6 +196,24 @@ function smoke(win: BrowserWindow): void {
       if (acted.length !== 1) throw new Error(`events_query item.*: expected 1, got ${acted.length}`);
       const itemsChanged = (await win.webContents.executeJavaScript("window.__dddItems")) as { connectionId?: string } | undefined;
       if (itemsChanged?.connectionId !== "mock-1") throw new Error(`items-changed did not reach the renderer: ${JSON.stringify(itemsChanged)}`);
+
+      // AI and instructions, with no model in the loop: the catalogue, the
+      // provenance plan, and the prose file round trip through the bridge.
+      // Run before cache_clear, below, so the mock item is still cached.
+      const template = (await invoke("widget_instructions_template", { kind: "items" })) as string;
+      if (!template.includes("unread")) throw new Error("widget_instructions_template: unexpected text");
+      const saved = (await invoke("widget_instructions_save", { env: "default", widgetId: "w-smoke", text: "Only mail from people." })) as { hash: string; exists: boolean };
+      const loaded = (await invoke("widget_instructions_load", { env: "default", widgetId: "w-smoke" })) as { hash: string; exists: boolean };
+      if (!saved.exists || loaded.hash !== saved.hash) throw new Error("widget_instructions_save/load: hash mismatch");
+      await invoke("widget_instructions_clear", { env: "default", widgetId: "w-smoke" });
+      const cleared = (await invoke("widget_instructions_load", { env: "default", widgetId: "w-smoke" })) as { exists: boolean };
+      if (cleared.exists) throw new Error("widget_instructions_clear: file still there");
+      const aiActions = (await invoke("ai_actions_for", { env: "default", itemId: items[0]!.id })) as { id: string }[];
+      if (!aiActions.some((a) => a.id === "issue.tasks")) throw new Error(`ai_actions_for: ${JSON.stringify(aiActions)}`);
+      const aiContext = (await invoke("ai_context_for", { env: "default", itemId: items[0]!.id })) as { plan: unknown };
+      if (aiContext.plan !== null) throw new Error("ai_context_for: expected no project behind the mock item");
+      console.log("ddd: smoke ai ok");
+
       await invoke("cache_clear", { env: "default" });
       console.log("ddd: smoke sync ok");
 
@@ -204,7 +222,7 @@ function smoke(win: BrowserWindow): void {
       if (!cspEnforced) throw new Error("csp not enforced");
 
       console.log(
-        `ddd: smoke ok — ${g.environments.length} environment(s), boot look seeded, paths_info, event_log/events_query (1 row), secret_exists(false), projects (register/list), project-changed, sync (mock: sync_now/items_query/item_action/items-changed), csp enforced`,
+        `ddd: smoke ok — ${g.environments.length} environment(s), boot look seeded, paths_info, event_log/events_query (1 row), secret_exists(false), projects (register/list), project-changed, sync (mock: sync_now/items_query/item_action/items-changed), ai (actions/context/instructions round trip), csp enforced`,
       );
       const shotPath = process.env.DDD_SMOKE_SHOT;
       if (shotPath) {

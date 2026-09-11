@@ -5,6 +5,7 @@
  * as a plain map, and `ipc.ts` is what wires it to a window.
  */
 import { existsSync } from "node:fs";
+import { basename } from "node:path";
 import { EnvRoot, pathsInfo } from "../core/paths";
 import {
   environmentCreate,
@@ -32,6 +33,11 @@ import { DddError } from "../core/error";
 import type { Emitter } from "../core/emitter";
 import type { ProjectWatcher } from "../core/watcher";
 import type { EventInput } from "../core/models";
+import * as actions from "../core/ai/actions";
+import * as icm from "../core/ai/icm";
+import { projectDirFor } from "../core/ai/project";
+import { route } from "../core/ai/router";
+import * as instructions from "../core/instructions";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Handler = (args: Record<string, any>) => unknown;
@@ -209,5 +215,113 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
       deps.scheduler.invalidate(connectionId);
     },
     connection_uses_oauth: ({ provider }) => oauth.providerFor(provider) !== null,
+
+    // --- AI: proposals only. Nothing here can send; item_action is the gate. ---
+
+    /** Which AI actions apply to this item. The UI asks rather than guessing. */
+    ai_actions_for: ({ env, itemId }) => {
+      const item = cache.find(root(env), String(itemId));
+      if (item === null) return [];
+      return actions.availableFor(item).map((a) => ({ id: a.id, label: a.label, target: a.target }));
+    },
+
+    /** What an AI action on this item would be given, before it is given.
+     *  Read-only and free: no model is contacted, nothing is logged. */
+    ai_context_for: async ({ env, itemId }) => {
+      const r = root(env);
+      const item = cache.find(r, String(itemId));
+      if (item === null) throw DddError.notFound(`item ${JSON.stringify(itemId)}`);
+      const dir = projectDirFor(r, item);
+      // No project behind this item at all — distinct from a project with no
+      // ICM, and the panel says so rather than showing an empty list.
+      if (dir === null) return { project: item.project ?? null, plan: null };
+      return { project: basename(dir), plan: icm.planFor(dir) };
+    },
+
+    /** Run an AI action over an item and return a **proposal**. Its output
+     *  lands in the composer, and a human presses Send. */
+    ai_draft: async ({ env, itemId, action }) => {
+      const r = root(env);
+      const item = cache.find(r, String(itemId));
+      if (item === null) throw DddError.notFound(`item ${JSON.stringify(itemId)}`);
+      const definition = actions.action(String(action));
+      if (definition === null) throw DddError.notFound(`AI action ${JSON.stringify(action)}`);
+
+      // ICM is a mandatory input, not an optional extra.
+      const dir = projectDirFor(r, item);
+      const context = dir === null ? "" : icm.contextFor(dir);
+      const usedProjectContext = context.trim() !== "";
+
+      const settings = settingsLoad(r);
+      const chosen = route(r, settings, String(action), deps.sync);
+      const draft = await chosen.provider.complete({
+        system: actions.systemPrompt(definition, context),
+        prompt: actions.userPrompt(definition, item),
+        // Room for the answer plus thinking, which shares this budget.
+        maxTokens: 4096,
+        model: chosen.model,
+      });
+
+      // Tokens and cost land in the events table, the substance of the stats
+      // board. Nothing leaves the machine.
+      events.log(r, {
+        kind: `ai.${action}`,
+        source: chosen.provider.id,
+        project: item.project ?? null,
+        tokensIn: draft.usage.inputTokens,
+        tokensOut: draft.usage.outputTokens,
+        costMicros: draft.usage.costMicros,
+        meta: { model: draft.model, usedProjectContext, refused: draft.refusal !== null },
+      });
+
+      return {
+        text: draft.text,
+        model: draft.model,
+        target: definition.target,
+        inputTokens: draft.usage.inputTokens,
+        outputTokens: draft.usage.outputTokens,
+        costMicros: draft.usage.costMicros,
+        refusal: draft.refusal,
+        usedProjectContext,
+      };
+    },
+
+    // --- widget instructions ---
+
+    widget_instructions_load: async ({ env, widgetId }) => instructions.load(root(env), String(widgetId)),
+    widget_instructions_save: ({ env, widgetId, text }) => instructions.save(root(env), String(widgetId), String(text)),
+    widget_instructions_clear: ({ env, widgetId }) => {
+      instructions.clear(root(env), String(widgetId));
+    },
+    widget_instructions_template: ({ kind }) => instructions.template(String(kind)),
+
+    /** Compile prose into a filter, once, with a local model by default. Every
+     *  failure surfaces as an error and the caller keeps its last good filter. */
+    widget_instructions_compile: async ({ env, widgetId, kind }) => {
+      const r = root(env);
+      const prose = instructions.load(r, String(widgetId));
+      if (prose.text.trim() === "") throw DddError.invalid("there is nothing written to compile");
+
+      const settings = settingsLoad(r);
+      const chosen = route(r, settings, instructions.ACTION, deps.sync);
+      const draft = await chosen.provider.complete(instructions.completionFor(String(kind), prose.text, chosen.model));
+      if (draft.refusal !== null) throw DddError.invalid(draft.refusal);
+
+      const parsed = instructions.parseResponse(draft.text);
+      const compiled = instructions.compileValue(String(kind), parsed.filter);
+      const unmet = [...parsed.unmet, ...compiled.unmet];
+
+      events.log(r, {
+        kind: "ai.widget.instructions",
+        source: chosen.provider.id,
+        project: null,
+        tokensIn: draft.usage.inputTokens,
+        tokensOut: draft.usage.outputTokens,
+        costMicros: draft.usage.costMicros,
+        meta: { widgetKind: kind, unmet: unmet.length },
+      });
+
+      return instructions.record(compiled.filter, prose.hash, unmet, chosen.model, new Date().toISOString());
+    },
   };
 }

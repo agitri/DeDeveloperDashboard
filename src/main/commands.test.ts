@@ -10,6 +10,7 @@ import { EnvRoot } from "../core/paths";
 import { Scheduler } from "../core/sync/scheduler";
 import { memorySecrets } from "../core/sync/adapter";
 import { defaultSettings, settingsSave, type Connection } from "../core/settings";
+import { register } from "../core/projects";
 
 const emitter = recordingEmitter();
 const sync = { fetch: (async () => new Response("{}", { status: 500 })) as typeof globalThis.fetch, secrets: memorySecrets(), openUrl: async () => {}, emit: emitter };
@@ -49,11 +50,6 @@ const NOT_YET_PORTED = new Set([
   "dev_servers_list",
   "dev_server_probe",
   "dev_server_stop",
-  "widget_instructions_load",
-  "widget_instructions_save",
-  "widget_instructions_clear",
-  "widget_instructions_template",
-  "widget_instructions_compile",
   "eol_board",
   "eol_watch",
   "eol_unwatch",
@@ -66,9 +62,6 @@ const NOT_YET_PORTED = new Set([
   "product_log",
   "mcp_consent",
   "mcp_probe",
-  "ai_actions_for",
-  "ai_draft",
-  "ai_context_for",
 ]);
 
 describe("the command registry", () => {
@@ -242,5 +235,136 @@ describe("sync commands", () => {
     await expect(commands.connection_connect!({ env: "default", connectionId: "nope" })).rejects.toThrow('connection "nope"');
     expect(await commands.connection_uses_oauth!({ provider: "mail.gmail" })).toBe(true);
     expect(await commands.connection_uses_oauth!({ provider: "github" })).toBe(false);
+  });
+});
+
+/** A fetch that answers Anthropic and Ollama with canned bodies, by URL. */
+function aiFetch(answers: { anthropic?: unknown; ollama?: unknown; status?: number }) {
+  const calls: string[] = [];
+  const fetch = (async (url: string | URL | Request) => {
+    const u = String(url);
+    calls.push(u);
+    const body = u.startsWith("https://api.anthropic.com") ? answers.anthropic : u.includes("/api/chat") ? answers.ollama : undefined;
+    if (body === undefined) return new Response("{}", { status: 500, statusText: "Internal Server Error" });
+    return new Response(JSON.stringify(body), { status: answers.status ?? 200, headers: { "content-type": "application/json" } });
+  }) as typeof globalThis.fetch;
+  return { fetch, calls };
+}
+
+function aiCommands(answers: Parameters<typeof aiFetch>[0]) {
+  const { fetch, calls } = aiFetch(answers);
+  const aiSync = { ...sync, fetch, secrets: memorySecrets() };
+  return { commands: createCommands({ emit: emitter, watcher, scheduler: new Scheduler(aiSync), sync: aiSync }), calls, secrets: aiSync.secrets };
+}
+
+async function seedMock(name: string): Promise<{ id: string; kind: string; title: string; project: string | null }[]> {
+  scratchEnv(name);
+  const s = defaultSettings();
+  s.connections.push({ id: "mock-1", provider: "mock", label: "Mock", status: "disconnected", scopes: [], config: {}, lastSyncAt: null, error: null });
+  settingsSave(EnvRoot.open("default"), s);
+  await commands.sync_now!({ env: "default" });
+  return (await commands.items_query!({ env: "default", filter: {} })) as { id: string; kind: string; title: string; project: string | null }[];
+}
+
+describe("AI commands", () => {
+  it("ai_actions_for offers by kind, and answers [] for an unknown item", async () => {
+    const items = await seedMock("cmd-ai-actions");
+    const pr = items.find((i) => i.kind === "pull_request")!;
+    const mail = items.find((i) => i.kind === "mail")!;
+    expect(((await commands.ai_actions_for!({ env: "default", itemId: pr.id })) as { id: string }[]).map((a) => a.id)).toEqual(["thread.summarize", "issue.tasks"]);
+    expect((await commands.ai_actions_for!({ env: "default", itemId: mail.id })) as unknown[]).toEqual([
+      { id: "mail.draft", label: "Draft a reply", target: "composer" },
+      { id: "thread.summarize", label: "Summarize", target: "panel" },
+    ]);
+    expect(await commands.ai_actions_for!({ env: "default", itemId: "nope" })).toEqual([]);
+  });
+
+  it("ai_context_for reports the resolved project and its plan, or null without one", async () => {
+    const items = await seedMock("cmd-ai-context");
+    const pr = items.find((i) => i.kind === "pull_request")!;
+    // The mock's items say project "ddd"; nothing is registered under that name yet.
+    expect(await commands.ai_context_for!({ env: "default", itemId: pr.id })).toEqual({ project: pr.project, plan: null });
+
+    const parent = mkdtempSync(join(tmpdir(), "ddd-cmd-icm-"));
+    const dir = realpathSync((mkdirSync(join(parent, "ddd"), { recursive: true }), join(parent, "ddd")));
+    mkdirSync(join(dir, ".ddd", "icm"), { recursive: true });
+    writeFileSync(join(dir, ".ddd", "icm", "conventions.md"), "tabs");
+    register(EnvRoot.open("default"), dir);
+    const ctx = (await commands.ai_context_for!({ env: "default", itemId: pr.id })) as { project: string; plan: { files: { name: string }[]; missing: boolean } };
+    expect(ctx.project).toBe("ddd");
+    expect(ctx.plan.missing).toBe(false);
+    expect(ctx.plan.files.map((f) => f.name)).toEqual(["conventions.md"]);
+    await expect(commands.ai_context_for!({ env: "default", itemId: "nope" })).rejects.toThrow('item "nope"');
+  });
+
+  it("ai_draft routes local by default, returns the proposal, and logs tokens and cost", async () => {
+    const items = await seedMock("cmd-ai-draft");
+    const pr = items.find((i) => i.kind === "pull_request")!;
+    const { commands: ai, calls } = aiCommands({ ollama: { message: { content: "TLDR: merge it." }, prompt_eval_count: 30, eval_count: 5 } });
+    const draft = await ai.ai_draft!({ env: "default", itemId: pr.id, action: "thread.summarize" });
+    expect(draft).toEqual({ text: "TLDR: merge it.", model: "llama3.1:8b", target: "panel", inputTokens: 30, outputTokens: 5, costMicros: 0, refusal: null, usedProjectContext: false });
+    expect(calls).toEqual(["http://localhost:11434/api/chat"]);
+    const rows = (await ai.events_query!({ env: "default", kindPrefix: "ai." })) as { kind: string; source: string; project: string; tokensIn: number; tokensOut: number; costMicros: number; meta: unknown }[];
+    expect(rows[0]).toMatchObject({ kind: "ai.thread.summarize", source: "local", project: pr.project, tokensIn: 30, tokensOut: 5, costMicros: 0 });
+    expect(rows[0]!.meta).toEqual({ model: "llama3.1:8b", usedProjectContext: false, refused: false });
+  });
+
+  it("ai_draft to Anthropic needs a key, prices the reply, and passes a refusal through", async () => {
+    const items = await seedMock("cmd-ai-anthropic");
+    const mail = items.find((i) => i.kind === "mail")!;
+    const { commands: ai, secrets } = aiCommands({
+      anthropic: { model: "claude-opus-5", stop_reason: "refusal", stop_details: { explanation: "Not this." }, usage: { input_tokens: 1000, output_tokens: 0 }, content: [] },
+    });
+    await expect(ai.ai_draft!({ env: "default", itemId: mail.id, action: "mail.draft" })).rejects.toThrow("No Anthropic API key. Add one in Settings → AI.");
+    secrets.set(EnvRoot.open("default"), "ai:anthropic", "sk-test");
+    const draft = (await ai.ai_draft!({ env: "default", itemId: mail.id, action: "mail.draft" })) as { refusal: string; costMicros: number; target: string; text: string };
+    expect(draft).toMatchObject({ refusal: "Not this.", costMicros: 5000, target: "composer", text: "" });
+    const rows = (await ai.events_query!({ env: "default", kindPrefix: "ai.mail" })) as { source: string; meta: { refused: boolean } }[];
+    expect(rows[0]!.source).toBe("anthropic");
+    expect(rows[0]!.meta.refused).toBe(true);
+    await expect(ai.ai_draft!({ env: "default", itemId: mail.id, action: "nope" })).rejects.toThrow('AI action "nope"');
+    await expect(ai.ai_draft!({ env: "default", itemId: "nope", action: "mail.draft" })).rejects.toThrow('item "nope"');
+  });
+});
+
+describe("widget instruction commands", () => {
+  it("template, save, load, clear — with the Tauri argument keys", async () => {
+    scratchEnv("cmd-instr");
+    expect(await commands.widget_instructions_template!({ kind: "repos" })).toContain("recent repositories");
+    const before = (await commands.widget_instructions_load!({ env: "default", widgetId: "w-1" })) as { exists: boolean };
+    expect(before.exists).toBe(false);
+    const saved = (await commands.widget_instructions_save!({ env: "default", widgetId: "w-1", text: "Only mail from people." })) as { hash: string; exists: boolean };
+    expect(saved.exists).toBe(true);
+    expect((await commands.widget_instructions_load!({ env: "default", widgetId: "w-1" })) as object).toMatchObject({ text: "Only mail from people.", hash: saved.hash });
+    await commands.widget_instructions_clear!({ env: "default", widgetId: "w-1" });
+    expect(((await commands.widget_instructions_load!({ env: "default", widgetId: "w-1" })) as { exists: boolean }).exists).toBe(false);
+    await expect(commands.widget_instructions_load!({ env: "default", widgetId: "../x" })).rejects.toThrow('not a widget id: "../x"');
+  });
+
+  it("compile: nothing written is an error; a fenced local answer becomes a narrowed record and an event", async () => {
+    scratchEnv("cmd-compile");
+    settingsSave(EnvRoot.open("default"), defaultSettings());
+    const { commands: ai } = aiCommands({ ollama: { message: { content: 'Sure:\n```json\n{"filter": {"kind": "mail", "limit": 10, "mood": "calm"}, "unmet": ["only nice ones"]}\n```' }, prompt_eval_count: 200, eval_count: 40 } });
+    await expect(ai.widget_instructions_compile!({ env: "default", widgetId: "w-2", kind: "items" })).rejects.toThrow("there is nothing written to compile");
+    await ai.widget_instructions_save!({ env: "default", widgetId: "w-2", text: "Only nice mail, latest 10." });
+    const compiled = (await ai.widget_instructions_compile!({ env: "default", widgetId: "w-2", kind: "items" })) as { sourceHash: string; filter: unknown; unmet: string[]; model: string; compiledAt: string };
+    const loaded = (await ai.widget_instructions_load!({ env: "default", widgetId: "w-2" })) as { hash: string };
+    expect(compiled.sourceHash).toBe(loaded.hash);
+    expect(compiled.filter).toEqual({ kind: "mail", limit: 10 });
+    expect(compiled.unmet).toEqual(["only nice ones", "mood is not something this widget can filter on"]);
+    expect(compiled.model).toBe("llama3.1:8b");
+    expect(Number.isNaN(Date.parse(compiled.compiledAt))).toBe(false);
+    const rows = (await ai.events_query!({ env: "default", kindPrefix: "ai.widget" })) as { kind: string; source: string; tokensIn: number; meta: unknown }[];
+    expect(rows[0]).toMatchObject({ kind: "ai.widget.instructions", source: "local", tokensIn: 200 });
+    expect(rows[0]!.meta).toEqual({ widgetKind: "items", unmet: 2 });
+    await expect(ai.widget_instructions_compile!({ env: "default", widgetId: "w-2", kind: "clock" })).rejects.toThrow("clock widgets cannot be given instructions");
+  });
+
+  it("compile passes a refusal and a non-JSON answer through as errors, keeping the last good filter the caller's business", async () => {
+    scratchEnv("cmd-compile-bad");
+    settingsSave(EnvRoot.open("default"), defaultSettings());
+    const { commands: ai } = aiCommands({ ollama: { message: { content: "I would rather not." } } });
+    await ai.widget_instructions_save!({ env: "default", widgetId: "w-3", text: "something" });
+    await expect(ai.widget_instructions_compile!({ env: "default", widgetId: "w-3", kind: "items" })).rejects.toThrow("the model did not answer with JSON");
   });
 });
