@@ -22,6 +22,12 @@ import * as events from "../core/events";
 import * as secrets from "../core/secrets";
 import * as projects from "../core/projects";
 import * as launcher from "../core/launcher";
+import * as cache from "../core/sync/cache";
+import * as oauth from "../core/sync/oauth";
+import { forProvider } from "../core/sync/providers";
+import type { FetchContext, SyncDeps } from "../core/sync/adapter";
+import type { Scheduler } from "../core/sync/scheduler";
+import { itemFilterFromJson } from "../core/models";
 import { DddError } from "../core/error";
 import type { Emitter } from "../core/emitter";
 import type { ProjectWatcher } from "../core/watcher";
@@ -37,6 +43,10 @@ export interface CommandDeps {
   /** One watcher for the whole app: the set of watched paths is the union
    *  across environments, even though the registries themselves are not. */
   watcher: ProjectWatcher;
+  /** One scheduler for the whole app: the only writer of every item cache. */
+  scheduler: Scheduler;
+  /** The host's network, keychain and browser. */
+  sync: SyncDeps;
 }
 
 /** Commands the host adds on top of the Tauri set (dialogs and the shell,
@@ -154,5 +164,50 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
       const explicit = typeof editor === "string" ? editor.trim() : "";
       return launcher.openInEditor(path, explicit !== "" ? explicit : configured);
     },
+
+    // --- items: reads the cache and nothing else ---
+    items_query: async ({ env, filter }) => cache.query(root(env), itemFilterFromJson(filter ?? {})),
+    cache_clear: ({ env }) => cache.clear(root(env)),
+
+    /** Manual refresh. The scheduler owns the cadence; this is the nudge. */
+    sync_now: async ({ env, connectionId }) => {
+      const r = root(env);
+      let total = 0;
+      for (const connection of settingsLoad(r).connections) {
+        if (typeof connectionId === "string" && connectionId !== connection.id) continue;
+        deps.scheduler.invalidate(connection.id);
+        total += await deps.scheduler.syncConnection(r, connection);
+      }
+      return total;
+    },
+
+    /** The approval gate. Every outbound action funnels through here, and it is
+     *  reachable only from an explicit click or keypress in the UI. */
+    item_action: async ({ env, itemId, action, input }) => {
+      const r = root(env);
+      const item = cache.find(r, itemId);
+      if (!item) throw DddError.notFound(`item ${JSON.stringify(itemId)}`);
+      const connection = settingsLoad(r).connections.find((c) => c.id === item.connectionId);
+      if (!connection) throw DddError.notFound(`connection ${JSON.stringify(item.connectionId)}`);
+      const adapter = forProvider(connection.provider);
+      if (!adapter) throw DddError.config(`no adapter for ${connection.provider}`);
+      const token = await oauth.accessToken(r, connection, deps.sync);
+      const cx: FetchContext = { environmentId: r.id, connection, token, fetch: deps.sync.fetch };
+      const outcome = await adapter.perform(cx, { action, item, input: typeof input === "string" ? input : null });
+      events.log(r, { kind: `item.${action}`, source: item.source, project: item.project });
+      // The item just changed on the other end; make the board catch up.
+      deps.scheduler.invalidate(connection.id);
+      return outcome;
+    },
+
+    /** OAuth consent: opens the system browser and waits on a loopback listener. */
+    connection_connect: async ({ env, connectionId }) => {
+      const r = root(env);
+      const connection = settingsLoad(r).connections.find((c) => c.id === connectionId);
+      if (!connection) throw DddError.notFound(`connection ${JSON.stringify(connectionId)}`);
+      await oauth.connect(r, connection, deps.sync);
+      deps.scheduler.invalidate(connectionId);
+    },
+    connection_uses_oauth: ({ provider }) => oauth.providerFor(provider) !== null,
   };
 }

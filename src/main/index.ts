@@ -1,10 +1,13 @@
-import { app, BrowserWindow, session } from "electron";
+import { app, BrowserWindow, session, shell } from "electron";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { bootstrap } from "../core/bootstrap";
 import type { Emitter } from "../core/emitter";
 import { ProjectWatcher } from "../core/watcher";
+import * as secrets from "../core/secrets";
+import type { SyncDeps } from "../core/sync/adapter";
+import { Scheduler } from "../core/sync/scheduler";
 import { CSP, DEV_CSP } from "./csp";
 import { createCommands } from "./commands";
 import { registerIpc } from "./ipc";
@@ -28,6 +31,19 @@ const emitter: Emitter = {
 };
 
 const watcher = new ProjectWatcher(emitter);
+
+/** Every request the sync engine makes gets a timeout; nothing in core can
+ *  hang the scheduler on a silent socket. */
+const timedFetch: typeof globalThis.fetch = (input, init) =>
+  globalThis.fetch(input, { ...init, signal: init?.signal ?? AbortSignal.timeout(30_000) });
+
+const syncDeps: SyncDeps = {
+  fetch: timedFetch,
+  secrets,
+  openUrl: (url) => shell.openExternal(url),
+  emit: emitter,
+};
+const scheduler = new Scheduler(syncDeps);
 
 /** The smoke never touches the real `~/.ddd` (spec §8): give it a scratch home
  *  unless the caller pinned one. Must run before `bootstrap()`. */
@@ -150,12 +166,30 @@ function smoke(win: BrowserWindow): void {
       }
       console.log("ddd: smoke project-changed ok");
 
+      // The sync engine: a mock connection, one sync, reads, the gate, the event.
+      await win.webContents.executeJavaScript(`window.ddd.on("ddd://items-changed", (p) => { window.__dddItems = p; }); undefined;`);
+      const settings = (await invoke("settings_load", { env: "default" })) as { connections: unknown[] };
+      settings.connections.push({ id: "mock-1", provider: "mock", label: "Mock", status: "disconnected", scopes: [], config: {}, lastSyncAt: null, error: null });
+      await invoke("settings_save", { env: "default", settings });
+      const synced = await invoke("sync_now", { env: "default" });
+      if (synced !== 10) throw new Error(`sync_now: expected 10, got ${synced}`);
+      const items = (await invoke("items_query", { env: "default", filter: { kind: "pull_request" } })) as { id: string }[];
+      if (items.length !== 2) throw new Error(`items_query: expected 2 pull requests, got ${items.length}`);
+      const outcome = (await invoke("item_action", { env: "default", itemId: items[0]!.id, action: "comment", input: "smoke" })) as string;
+      if (!outcome.startsWith("mock: comment")) throw new Error(`item_action: ${outcome}`);
+      const acted = (await invoke("events_query", { env: "default", kindPrefix: "item." })) as unknown[];
+      if (acted.length !== 1) throw new Error(`events_query item.*: expected 1, got ${acted.length}`);
+      const itemsChanged = (await win.webContents.executeJavaScript("window.__dddItems")) as { connectionId?: string } | undefined;
+      if (itemsChanged?.connectionId !== "mock-1") throw new Error(`items-changed did not reach the renderer: ${JSON.stringify(itemsChanged)}`);
+      await invoke("cache_clear", { env: "default" });
+      console.log("ddd: smoke sync ok");
+
       const cspEnforced = (await win.webContents.executeJavaScript(CSP_PROBE)) as boolean;
       console.log(cspEnforced ? "ddd: smoke csp enforced" : "ddd: smoke csp NOT enforced");
       if (!cspEnforced) throw new Error("csp not enforced");
 
       console.log(
-        `ddd: smoke ok — ${g.environments.length} environment(s), paths_info, event_log/events_query (1 row), secret_exists(false), projects (register/list), project-changed, csp enforced`,
+        `ddd: smoke ok — ${g.environments.length} environment(s), paths_info, event_log/events_query (1 row), secret_exists(false), projects (register/list), project-changed, sync (mock: sync_now/items_query/item_action/items-changed), csp enforced`,
       );
       const shotPath = process.env.DDD_SMOKE_SHOT;
       if (shotPath) {
@@ -180,7 +214,8 @@ app.whenReady().then(() => {
     console.error(`ddd: bootstrap failed: ${e instanceof Error ? e.message : e}`);
   }
   installCsp();
-  registerIpc(createCommands({ emit: emitter, watcher }));
+  registerIpc(createCommands({ emit: emitter, watcher, scheduler, sync: syncDeps }));
+  if (!process.env.DDD_SMOKE) scheduler.start();
   const win = createWindow();
   if (process.env.DDD_SMOKE) smoke(win);
 
@@ -192,3 +227,5 @@ app.whenReady().then(() => {
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
 });
+
+app.on("before-quit", () => scheduler.stop());

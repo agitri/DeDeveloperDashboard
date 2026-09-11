@@ -22,6 +22,7 @@ Set `DDD_HOME` to keep a dev instance away from your real board.
 `npm run smoke` uses a scratch `DDD_HOME` (a fresh temp directory, logged on
 start) unless one is already set, so it never touches your real `~/.ddd`.
 `DDD_SMOKE_SHOT=<path>` on `npm run smoke` also writes a PNG of the booted window to `<path>`.
+A connection's token is stored in the OS keychain under service `ddd:<env>`, exactly as the Rust app stores it.
 
 ## Where things are
 
@@ -36,7 +37,7 @@ start) unless one is already set, so it never touches your real `~/.ddd`.
 |---|---|---|
 | 0 | global.json, environments, layout, settings, keymap, events, secrets, paths; the app boots to the starter board | **done** |
 | 1 | projects, launcher, `.ddd/` watching: register a folder, launch Claude Code in it, `/todo` reaches the card | **done** |
-| 2 | sync engine, GitHub, the approval gate | |
+| 2 | sync engine, item cache, GitHub, OAuth, the approval gate; paste a GitHub token in Settings → Connections to see your PRs | **done** |
 | 3 | AI providers, ICM, widget instructions | |
 | 4 | calendar, repos, dev servers, EOL | |
 | 5 | Jira, Slack, Gmail, IMAP, MCP | |

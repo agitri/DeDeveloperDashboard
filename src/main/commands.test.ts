@@ -6,10 +6,16 @@ import { scratchEnv } from "../core/testing";
 import { HOST_COMMANDS, createCommands } from "./commands";
 import { recordingEmitter } from "../core/emitter";
 import { ProjectWatcher, type ProjectChanged } from "../core/watcher";
+import { EnvRoot } from "../core/paths";
+import { Scheduler } from "../core/sync/scheduler";
+import { memorySecrets } from "../core/sync/adapter";
+import { defaultSettings, settingsSave, type Connection } from "../core/settings";
 
 const emitter = recordingEmitter();
+const sync = { fetch: (async () => new Response("{}", { status: 500 })) as typeof globalThis.fetch, secrets: memorySecrets(), openUrl: async () => {}, emit: emitter };
+const scheduler = new Scheduler(sync);
 const watcher = new ProjectWatcher(emitter);
-const commands = createCommands({ emit: emitter, watcher });
+const commands = createCommands({ emit: emitter, watcher, scheduler, sync });
 afterAll(() => watcher.close());
 
 const TAURI_LIB = resolve(__dirname, "../../../DDD/src-tauri/src/lib.rs");
@@ -30,7 +36,6 @@ function tauriHandlers(): string[] | null {
  * acknowledges it here (by porting it, or by adding it to this list).
  */
 const NOT_YET_PORTED = new Set([
-  "items_query",
   "repos_list",
   "repo_add_local",
   "repo_forget",
@@ -61,14 +66,9 @@ const NOT_YET_PORTED = new Set([
   "product_log",
   "mcp_consent",
   "mcp_probe",
-  "sync_now",
-  "item_action",
-  "cache_clear",
   "ai_actions_for",
   "ai_draft",
   "ai_context_for",
-  "connection_connect",
-  "connection_uses_oauth",
 ]);
 
 describe("the command registry", () => {
@@ -200,4 +200,47 @@ describe("the .ddd contract through the commands", { retry: 2 }, () => {
     },
     15000,
   );
+});
+
+describe("sync commands", () => {
+  const mock = (): Connection => ({ id: "mock-1", provider: "mock", label: "Mock", status: "disconnected", scopes: [], config: {}, lastSyncAt: null, error: null });
+
+  it("sync_now fills the cache, items_query reads it, cache_clear empties it", async () => {
+    scratchEnv("cmd-sync");
+    const s = defaultSettings();
+    s.connections.push(mock());
+    settingsSave(EnvRoot.open("default"), s);
+    expect(await commands.sync_now!({ env: "default", connectionId: null })).toBe(10);
+    const all = (await commands.items_query!({ env: "default", filter: {} })) as { kind: string }[];
+    expect(all).toHaveLength(10);
+    const mail = (await commands.items_query!({ env: "default", filter: { kind: "mail" } })) as unknown[];
+    expect(mail).toHaveLength(2);
+    await expect(commands.items_query!({ env: "default", filter: { limit: "x" } })).rejects.toThrow(/^json: /);
+    expect(await commands.sync_now!({ env: "default", connectionId: "other" })).toBe(0);
+    await commands.cache_clear!({ env: "default" });
+    expect(await commands.items_query!({ env: "default", filter: {} })).toEqual([]);
+  });
+
+  it("item_action is the gate: performs through the adapter, logs item.<action>, invalidates the connection", async () => {
+    scratchEnv("cmd-action");
+    const s = defaultSettings();
+    s.connections.push(mock());
+    settingsSave(EnvRoot.open("default"), s);
+    await commands.sync_now!({ env: "default" });
+    const [first] = (await commands.items_query!({ env: "default", filter: { kind: "pull_request" } })) as { id: string; title: string }[];
+    const out = await commands.item_action!({ env: "default", itemId: first!.id, action: "comment", input: "hi" });
+    expect(out).toBe(`mock: comment on ${first!.title} (hi)`);
+    const rows = (await commands.events_query!({ env: "default", kindPrefix: "item." })) as { kind: string; source: string; project: string }[];
+    expect(rows[0]).toMatchObject({ kind: "item.comment", source: "mock", project: "ddd" });
+    expect(scheduler.due("mock-1", 1_000_000)).toBe(true);
+    await expect(commands.item_action!({ env: "default", itemId: "nope", action: "comment" })).rejects.toThrow('item "nope"');
+  });
+
+  it("connection_connect needs a known connection; connection_uses_oauth knows the providers", async () => {
+    scratchEnv("cmd-connect");
+    settingsSave(EnvRoot.open("default"), defaultSettings());
+    await expect(commands.connection_connect!({ env: "default", connectionId: "nope" })).rejects.toThrow('connection "nope"');
+    expect(await commands.connection_uses_oauth!({ provider: "mail.gmail" })).toBe(true);
+    expect(await commands.connection_uses_oauth!({ provider: "github" })).toBe(false);
+  });
 });
