@@ -45,10 +45,6 @@ function tauriHandlers(): string[] | null {
  * acknowledges it here (by porting it, or by adding it to this list).
  */
 const NOT_YET_PORTED = new Set([
-  "eol_board",
-  "eol_watch",
-  "eol_unwatch",
-  "eol_watchlist",
   "products_list",
   "product_approve",
   "product_revoke",
@@ -842,4 +838,150 @@ describe("dev server commands", () => {
       commands.dev_server_stop!({ env: "default", key: "tcp:127.0.0.1:1", pid: 999_999, process: "" }),
     ).rejects.toThrow("no process name to verify against, so the reuse guard cannot run");
   }, 30_000);
+});
+
+/**
+ * A fetch that answers endoflife.date with a canned schedule and refuses every
+ * HEAD with a timeout — the honest shape of "someone else's slow server".
+ */
+function eolCommands() {
+  const calls: { url: string; method: string }[] = [];
+  const fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+    const u = String(url);
+    const method = init?.method ?? "GET";
+    calls.push({ url: u, method });
+    if (method === "HEAD") {
+      throw new DOMException("The operation was aborted due to timeout", "TimeoutError");
+    }
+    if (u === "https://endoflife.date/api/nodejs.json") {
+      return new Response(
+        JSON.stringify([
+          // A numeric cycle, as the real API sends for Node.
+          { cycle: 24, support: "2026-10-20", eol: "2028-04-30", latest: "24.20.0" },
+          { cycle: "20", support: "2025-10-22", eol: "2026-04-30", latest: "20.19.5" },
+        ]),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    }
+    return new Response("", { status: 404, statusText: "Not Found" });
+  }) as typeof globalThis.fetch;
+  const eolSync = { ...sync, fetch };
+  return {
+    commands: createCommands({ emit: emitter, watcher, scheduler: new Scheduler(eolSync), sync: eolSync }),
+    calls,
+  };
+}
+
+interface BoardShape {
+  rows: {
+    path: string;
+    name: string;
+    url: string | null;
+    missing: boolean;
+    unreadable: boolean;
+    live: { state: string; detail: unknown } | null;
+    findings: Record<string, unknown>[];
+    worst: { state: string };
+  }[];
+  stale: string[];
+}
+
+describe("EOL commands", () => {
+  it("watch, board, unwatch — one request per product, and a timeout is never `unreachable`", async () => {
+    const { home } = scratchEnv("cmd-eol");
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), "ddd-cmd-eol-")));
+    writeFileSync(join(dir, "package.json"), JSON.stringify({ engines: { node: ">=20 <23" } }));
+
+    const { commands: eol, calls } = eolCommands();
+    const list = (await eol.eol_watch!({
+      env: "default",
+      path: dir,
+      url: "https://watched.example",
+      note: "a client site",
+    })) as { watched: { path: string; url: string | null; note: string | null }[] };
+    expect(list.watched).toHaveLength(1);
+    expect(list.watched[0]!.path).toBe(dir);
+    expect(list.watched[0]!.url).toBe("https://watched.example");
+    expect(list.watched[0]!.note).toBe("a client site");
+
+    const board = (await eol.eol_board!({ env: "default" })) as BoardShape;
+    expect(board.stale).toEqual([]);
+    expect(board.rows).toHaveLength(1);
+    const row = board.rows[0]!;
+    expect(row.name).toBe(basename(dir));
+    expect(row.path).toBe(dir);
+    expect(row.missing).toBe(false);
+    expect(row.unreadable).toBe(false);
+    // A slow server is not a gone server.
+    expect(row.live).toEqual({ state: "noAnswer", detail: "no reply within the deadline" });
+    expect(row.findings).toEqual([
+      {
+        product: "nodejs",
+        cycle: "20",
+        source: "package.json",
+        confidence: "floor",
+        raw: "engines.node: >=20 <23",
+        support: { state: "ended" },
+        eolDate: "2026-04-30",
+        supportDate: "2025-10-22",
+        latest: "20.19.5",
+        scheduleAgeDays: 0,
+      },
+    ]);
+    expect(row.worst).toEqual({ state: "ended" });
+
+    // One request for the schedule, one HEAD for the live URL.
+    expect(calls).toEqual([
+      { url: "https://endoflife.date/api/nodejs.json", method: "GET" },
+      { url: "https://watched.example", method: "HEAD" },
+    ]);
+
+    // Written back, with its milestones in the tagged on-disk shape.
+    const onDisk = JSON.parse(readFileSync(`${home}/environments/default/eol-cache.json`, "utf8")) as {
+      products: Record<string, { fetchedAt: string; cycles: { cycle: string; eol: unknown }[] }>;
+      live: Record<string, { liveness: { state: string } }>;
+    };
+    expect(Object.keys(onDisk.products)).toEqual(["nodejs"]);
+    expect(onDisk.products["nodejs"]!.cycles.map((c) => c.cycle)).toEqual(["24", "20"]);
+    expect(onDisk.products["nodejs"]!.cycles[1]!.eol).toEqual({ kind: "date", date: "2026-04-30" });
+    expect(onDisk.live["https://watched.example"]!.liveness.state).toBe("noAnswer");
+
+    // The second call asks nothing: the schedule is good for a week and the
+    // liveness answer for an hour — and the verdict survives the round trip.
+    const again = (await eol.eol_board!({ env: "default" })) as BoardShape;
+    expect(calls).toHaveLength(2);
+    expect(again.rows[0]!.findings[0]).toMatchObject({ support: { state: "ended" }, eolDate: "2026-04-30" });
+
+    expect(await eol.eol_watchlist!({ env: "default" })).toEqual(list);
+    expect(await eol.eol_unwatch!({ env: "default", path: dir })).toEqual({ watched: [] });
+    expect(await eol.eol_watchlist!({ env: "default" })).toEqual({ watched: [] });
+  });
+
+  it("refuses a path that is not a checkout and a url that could never be fetched", async () => {
+    scratchEnv("cmd-eol-bad");
+    const { commands: eol } = eolCommands();
+    await expect(eol.eol_watch!({ env: "default", path: "/nonexistent-checkout-xyz" })).rejects.toThrow(
+      "/nonexistent-checkout-xyz is not a directory",
+    );
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), "ddd-cmd-eol-bad-")));
+    await expect(eol.eol_watch!({ env: "default", path: dir, url: "file:///etc/passwd" })).rejects.toThrow(
+      "file:///etc/passwd is not an http or https address",
+    );
+    expect(await eol.eol_watchlist!({ env: "default" })).toEqual({ watched: [] });
+  });
+
+  it("a watched checkout that vanished is kept, marked, and asks the network for nothing", async () => {
+    scratchEnv("cmd-eol-gone");
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), "ddd-cmd-eol-gone-")));
+    const { commands: eol, calls } = eolCommands();
+    await eol.eol_watch!({ env: "default", path: dir });
+    rmSync(dir, { recursive: true, force: true });
+
+    const board = (await eol.eol_board!({ env: "default" })) as BoardShape;
+    expect(board.rows[0]!.missing).toBe(true);
+    expect(board.rows[0]!.unreadable).toBe(false);
+    expect(board.rows[0]!.findings).toEqual([]);
+    expect(board.rows[0]!.worst).toEqual({ state: "unknown" });
+    expect(calls).toEqual([]);
+  });
 });

@@ -49,6 +49,11 @@ import { MEMO_FLOOR_MS, Memo, devServerFilterFromJson, list as devServerList, re
 import * as listen from "../core/dev/listen";
 import * as probe from "../core/dev/probe";
 import { mayStop, refusalMessage, signal } from "../core/dev/stop";
+import * as eolBoard from "../core/eol/board";
+import * as eolDetect from "../core/eol/detect";
+import * as eolLive from "../core/eol/live";
+import * as eolSchedule from "../core/eol/schedule";
+import * as eolWatchlist from "../core/eol/watchlist";
 import { itemId as makeItemId } from "../core/sync/adapter";
 import type { Item, ItemFilter, Settings } from "../core/models";
 
@@ -830,5 +835,56 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
         // Nothing to do: the process is already stopping.
       }
     },
+
+    // --- the EOL watcher ---
+
+    /**
+     * The board: what you assigned, what each checkout declares, and whether it
+     * is still supported.
+     *
+     * Reads the watchlist and the checkouts on every call; goes to the network
+     * only for a product whose schedule is missing or over a week old. Six
+     * Symfony projects are one request, and a week later it is still one.
+     */
+    eol_board: async ({ env }) => {
+      const r = root(env);
+      const watched = eolWatchlist.load(r).watched;
+
+      // Reading manifests is blocking file work; the fetch after it is not.
+      const declarations: eolBoard.Declarations = watched.map((w) => [w.path, eolDetect.forDir(w.path)]);
+
+      const now = new Date().toISOString();
+      // The one store read-modify-written across `await`s, as the Rust does:
+      // `eol-cache.json` is derived and safe to lose, and the alternative is
+      // holding the whole app still for a network round trip.
+      const cache = eolSchedule.load(r);
+      const wanted = eolBoard.productsNeeded(declarations);
+      const stale = await eolSchedule.refresh(deps.sync.fetch, cache, wanted, now);
+
+      // The live URLs, at most once an hour each. Someone else's server, so
+      // this is deliberately the slowest thing on the board.
+      await eolLive.refresh(deps.sync.fetch, cache.live, eolBoard.urlsToCheck(watched), now);
+
+      // Written back even when some products failed: whatever did refresh is
+      // worth keeping, and the ones that did not kept their old entries.
+      eolSchedule.save(r, cache);
+
+      // `now.format("%Y-%m-%d")` on a UTC instant is the first ten characters.
+      return eolBoard.build(watched, declarations, cache, cache.live, now.slice(0, 10), now, stale);
+    },
+
+    /** Assign a checkout to the watcher, with the live URL you typed for it. */
+    eol_watch: async ({ env, path, url, note }) =>
+      eolWatchlist.add(
+        root(env),
+        String(path),
+        url === undefined || url === null ? null : String(url),
+        note === undefined || note === null ? null : String(note),
+      ),
+
+    /** Stop watching. Forgets the record; the checkout on disk is untouched. */
+    eol_unwatch: async ({ env, path }) => eolWatchlist.remove(root(env), String(path)),
+
+    eol_watchlist: async ({ env }) => eolWatchlist.load(root(env)),
   };
 }
