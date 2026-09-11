@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
+import { createServer } from "node:http";
 import { scratchEnv } from "../testing";
 import { settingsLoad, settingsSave, defaultSettings, type Connection } from "../settings";
 import { memorySecrets } from "./adapter";
-import { accessToken, connect, parseQuery, pkceChallenge, providerFor } from "./oauth";
+import { accessToken, awaitRedirect, connect, parseQuery, pkceChallenge, providerFor } from "./oauth";
 
 const conn = (extra: Partial<Connection> = {}): Connection => ({
   id: "gmail-1", provider: "mail.gmail", label: "me@gmail.com", status: "disconnected", scopes: [],
@@ -31,6 +32,13 @@ describe("the redirect", () => {
   });
   it("challenge is the S256 of the verifier", () => {
     expect(pkceChallenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")).toBe("E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM");
+  });
+  it("settles immediately, not after the timeout, when the server is closed from outside", async () => {
+    const server = createServer();
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const redirect = awaitRedirect(server, "s", 5000);
+    server.close();
+    await expect(redirect).rejects.toThrow("consent listener closed");
   });
 });
 
@@ -96,6 +104,34 @@ describe("consent", () => {
     const { env } = scratchEnv("oauth-config");
     await expect(connect(env, conn({ config: {} }), fakeConsent().deps)).rejects.toThrow(/needs a client ID/);
     await expect(connect(env, conn({ provider: "github" }), fakeConsent().deps)).rejects.toThrow("github does not use OAuth");
+  });
+
+  it("does not leave the redirect wait unhandled when the browser fails to open", async () => {
+    const { env } = scratchEnv("oauth-open-fails");
+    let unhandled: unknown = null;
+    const onUnhandled = (reason: unknown) => {
+      unhandled = reason;
+    };
+    process.once("unhandledRejection", onUnhandled);
+    try {
+      const f = fakeConsent();
+      await expect(
+        connect(env, conn(), {
+          ...f.deps,
+          openUrl: async () => {
+            throw new Error("no browser");
+          },
+        }),
+      ).rejects.toThrow("could not open a browser: no browser");
+      // Nothing should be wedged: a fresh loopback listener still binds and closes cleanly.
+      const probe = createServer();
+      await new Promise<void>((resolve) => probe.listen(0, "127.0.0.1", resolve));
+      await new Promise<void>((resolve) => probe.close(() => resolve()));
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      expect(unhandled).toBeNull();
+    } finally {
+      process.removeListener("unhandledRejection", onUnhandled);
+    }
   });
 
   it("explains a rejected token exchange, including Slack's ok:false", async () => {

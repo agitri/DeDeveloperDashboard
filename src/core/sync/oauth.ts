@@ -82,12 +82,18 @@ export function parseQuery(target: string): Map<string, string> {
  *  request without a query (a favicon) is answered 404 and ignored. */
 export function awaitRedirect(server: Server, expectedState: string, timeoutMs = CONSENT_TIMEOUT_MS): Promise<string> {
   return new Promise((resolve, reject) => {
+    let settled = false;
     const finish = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
       clearTimeout(timer);
       server.close();
       fn();
     };
     const timer = setTimeout(() => finish(() => reject(DddError.config("timed out waiting for consent"))), timeoutMs);
+    // Closing the server from outside (e.g. the caller bailing after `openUrl`
+    // failed) must settle this promise immediately, not leave the timer running.
+    server.once("close", () => finish(() => reject(DddError.config("consent listener closed"))));
     server.on("request", (req, res) => {
       const params = parseQuery(req.url ?? "/");
       if (params.size === 0) {
@@ -189,6 +195,10 @@ export async function connect(env: EnvRoot, connection: Connection, deps: SyncDe
   try {
     await deps.openUrl(auth);
   } catch (e) {
+    // Settle the pending redirect before closing, so its rejection (now
+    // immediate via the server's "close" listener) is observed, not left to
+    // fire the 180s timeout unhandled after we've already returned.
+    redirect.catch(() => {});
     server.close();
     throw DddError.config(`could not open a browser: ${e instanceof Error ? e.message : String(e)}`);
   }
