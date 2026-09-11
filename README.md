@@ -39,9 +39,11 @@ A connection's token is stored in the OS keychain under service `ddd:<env>`, exa
 | 1 | projects, launcher, `.ddd/` watching: register a folder, launch Claude Code in it, `/todo` reaches the card | **done** |
 | 2 | sync engine, item cache, GitHub, OAuth, the approval gate; paste a GitHub token in Settings → Connections to see your PRs | **done** |
 | 3 | AI actions (draft / summarize / tasks) over Anthropic, Ollama or an OpenAI-compatible endpoint, ICM project context, widget instructions compiled locally | **done** |
-| 4 | calendar, repos, dev servers, EOL | |
+| 4 | Calendar (ICS feeds + local events, recurrence expansion), repos (scan/link/clone with progress), dev servers (list/probe/stop), end-of-life board (endoflife.date, cached) | **done** |
 | 5 | Jira, Slack, Gmail, IMAP, MCP | |
 | 6 | products, packaging, claude-code scripts | |
+
+Platform notes: dev-server cwd resolution needs `lsof` on macOS and `/proc` on Linux; stopping a process is not offered on Windows; docker containers appear when the `docker` CLI is on `PATH`.
 
 The first keychain access on macOS prompts to allow the Electron binary; in a
 packaged build that will be DDD itself.

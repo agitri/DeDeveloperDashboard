@@ -214,6 +214,32 @@ function smoke(win: BrowserWindow): void {
       if (aiContext.plan !== null) throw new Error("ai_context_for: expected no project behind the mock item");
       console.log("ddd: smoke ai ok");
 
+      // Phase 4: calendar, repos, dev servers, EOL — no network, no model.
+      const saved4 = (await invoke("calendar_event_save", {
+        env: "default",
+        event: { id: "", title: "Smoke", start: "2026-09-11T09:00:00Z", end: "2026-09-11T10:00:00Z", allDay: false, rrule: "FREQ=DAILY;COUNT=3", notes: null },
+      })) as { id: string };
+      if (!saved4.id.startsWith("ev-")) throw new Error(`calendar_event_save: unexpected id ${saved4.id}`);
+      const occurrences = (await invoke("calendar_list", { env: "default", from: "2026-09-11T00:00:00Z", to: "2026-09-14T00:00:00Z" })) as { id: string; title: string }[];
+      if (occurrences.length !== 3) throw new Error(`calendar_list: expected 3 occurrences, got ${occurrences.length}`);
+      await invoke("calendar_event_delete", { env: "default", id: saved4.id });
+      const after = (await invoke("calendar_list", { env: "default", from: "2026-09-11T00:00:00Z", to: "2026-09-14T00:00:00Z" })) as unknown[];
+      if (after.length !== 0) throw new Error(`calendar_event_delete: ${after.length} left`);
+
+      const listing = (await invoke("repos_list", { env: "default", filter: {} })) as { rows: unknown[]; localOnly: unknown[]; total: number };
+      if (!Array.isArray(listing.rows) || !Array.isArray(listing.localOnly)) throw new Error("repos_list: bad shape");
+      const scanned = (await invoke("repo_scan", { env: "default", rootDir: home })) as number;
+      if (typeof scanned !== "number") throw new Error("repo_scan: expected a count");
+
+      const servers = (await invoke("dev_servers_list", { env: "default", filter: { probe: false } })) as { rows: unknown[]; scanMs: number };
+      if (!Array.isArray(servers.rows)) throw new Error("dev_servers_list: bad shape");
+
+      const watchlist = (await invoke("eol_watch", { env: "default", path: home, note: "smoke" })) as { watched: { path: string }[] };
+      if (watchlist.watched.length !== 1) throw new Error(`eol_watch: ${watchlist.watched.length} watched`);
+      const unwatched = (await invoke("eol_unwatch", { env: "default", path: watchlist.watched[0]!.path })) as { watched: unknown[] };
+      if (unwatched.watched.length !== 0) throw new Error("eol_unwatch: still watched");
+      console.log("ddd: smoke phase4 ok");
+
       await invoke("cache_clear", { env: "default" });
       console.log("ddd: smoke sync ok");
 
@@ -222,7 +248,7 @@ function smoke(win: BrowserWindow): void {
       if (!cspEnforced) throw new Error("csp not enforced");
 
       console.log(
-        `ddd: smoke ok — ${g.environments.length} environment(s), boot look seeded, paths_info, event_log/events_query (1 row), secret_exists(false), projects (register/list), project-changed, sync (mock: sync_now/items_query/item_action/items-changed), ai (actions/context/instructions round trip), csp enforced`,
+        `ddd: smoke ok — ${g.environments.length} environment(s), boot look seeded, paths_info, event_log/events_query (1 row), secret_exists(false), projects (register/list), project-changed, sync (mock: sync_now/items_query/item_action/items-changed), ai (actions/context/instructions round trip), calendar/repos/dev/eol (local round trips), csp enforced`,
       );
       const shotPath = process.env.DDD_SMOKE_SHOT;
       if (shotPath) {
