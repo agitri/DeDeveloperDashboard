@@ -12,8 +12,8 @@
  * server: `toItem` (pure mapping over raw RFC 5322 bytes), `ImapSession` (the
  * socket seam), and `ImapAdapter` (config, then mapping, then escalation).
  */
-import { ImapFlow } from "imapflow";
-import PostalMime, { type Email } from "postal-mime";
+import { ImapFlow, type FetchMessageObject, type FetchQueryObject } from "imapflow";
+import PostalMime, { type Address, type Email } from "postal-mime";
 import { route } from "../ai/router";
 import { DddError } from "../error";
 import type { Item } from "../models";
@@ -167,11 +167,24 @@ export function stableKey(parsed: Email, raw: RawMessage): string {
 }
 
 /** Every address on the header, joined — "am I in the To line" is a question
- *  about all of them. Empty when the header is absent. */
+ *  about all of them. Empty when the header is absent.
+ *
+ * `to`/`cc` are already `Address[]`; postal-mime types `from` as a single
+ * `Address`, so it is wrapped to the same shape here. Either way an `Address`
+ * can itself be an RFC 5322 *group* (`Team: a@x, b@y;`), which carries no
+ * `address` of its own — the Rust joins every member of the group with ", ",
+ * so that member list is flattened in before the join.
+ *
+ * A plain multi-mailbox header with no group syntax (`From: a <a@x>, b
+ * <b@x>`) is valid RFC 5322 too, but postal-mime's `from` keeps only the
+ * first mailbox it finds — verified against the library, not assumed; see
+ * the "keeps only the first address" test. */
 function addressOf(parsed: Email, header: "from" | "to" | "cc"): string {
-  const list = header === "from" ? (parsed.from === undefined ? [] : [parsed.from]) : (parsed[header] ?? []);
+  const v = header === "from" ? parsed.from : parsed[header];
+  const list: Address[] = v === undefined ? [] : Array.isArray(v) ? v : [v];
   return list
-    .map((a) => (a as { address?: string }).address)
+    .flatMap((a) => a.group ?? [a])
+    .map((a) => a.address)
     .filter((a): a is string => a !== undefined && a !== "")
     .join(", ");
 }
@@ -232,7 +245,7 @@ export function stripTags(html: string): string {
  *  covers U+00A0 too, which the Rust splits on explicitly. */
 export function collapse(text: string): string {
   return text
-    .split(/[\s ]+/)
+    .split(/[\s\u00A0]+/)
     .filter((s) => s !== "")
     .join(" ");
 }
@@ -278,53 +291,51 @@ export function isValidHostname(host: string): boolean {
   return /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*\.?$/.test(host);
 }
 
-/**
- * Connect, authenticate, and hand back a session.
- *
- * Implicit TLS on connect. STARTTLS on 143 is not supported: it is a downgrade
- * path, every provider worth using offers 993, and supporting both doubles the
- * failure modes for no benefit.
- *
- * NOT covered by tests — there is no IMAP server in the suite, exactly as the
- * Rust says of `fetch_messages`. Everything above and below this function is.
- */
-export async function connectImap(opts: ImapConnectOptions): Promise<ImapSession> {
-  if (!isValidHostname(opts.host)) {
-    throw DddError.config(`${opts.host} is not a valid hostname`);
-  }
+/** The slice of `ImapFlow`'s own shape `buildSession` needs — small enough to
+ *  stub in a test, without a socket anywhere near it. */
+export interface ImapClientLike {
+  on(event: "error", listener: (error: Error) => void): unknown;
+  mailboxOpen(path: string): Promise<{ exists: number; uidValidity: unknown }>;
+  fetch(range: string, query: FetchQueryObject): AsyncIterable<FetchMessageObject>;
+  logout(): Promise<void>;
+}
 
-  const client = new ImapFlow({
-    host: opts.host,
-    port: opts.port,
-    secure: true,
-    tls: { servername: opts.host },
-    auth: { user: opts.username, pass: opts.password },
-    logger: false,
-    disableAutoIdle: true,
+/**
+ * Wrap a live (or stubbed) IMAP client into the `ImapSession` seam.
+ *
+ * `ImapFlow` is an `EventEmitter`: once `connect()` has resolved, a socket
+ * failure arrives as an `'error'` event, not a rejected promise, and with no
+ * listener that is an uncaught exception in the Electron main process. The
+ * listener below is attached the moment the session is built — before the
+ * caller's `connect()` even runs — so nothing can emit `'error'` unheard.
+ *
+ * A fetch or logout that ends early because of a socket error surfaces it
+ * through the same `fetch failed:` wording a caught exception gets, rather
+ * than returning short and silent.
+ */
+export function buildSession(client: ImapClientLike): ImapSession {
+  let lastError: Error | null = null;
+  client.on("error", (e) => {
+    lastError = e;
   });
 
-  try {
-    // imapflow does TCP, TLS and LOGIN in one call; the Rust's three separate
-    // failures are told apart by the flags imapflow stamps on the error.
-    await client.connect();
-  } catch (e) {
-    const err = e as { authenticationFailed?: boolean; tlsFailed?: boolean };
-    const message = errorText(e);
-    client.close();
-    if (err.authenticationFailed === true) {
-      throw DddError.config(
-        `${opts.host} rejected the login (${message}). Gmail and most providers need an app password with 2-step verification on, not your account password.`,
-      );
+  /** Consumed once, so an error already reported through the fetch that saw
+   *  it does not also surface a second time through `logout`. */
+  function surfaceLastError(): void {
+    if (lastError !== null) {
+      const error = lastError;
+      lastError = null;
+      throw DddError.config(`fetch failed: ${errorText(error)}`);
     }
-    if (err.tlsFailed === true) throw DddError.config(`TLS to ${opts.host} failed: ${message}`);
-    throw DddError.config(`could not reach ${opts.host}:${opts.port}: ${message}`);
   }
 
   return {
     async select(folder: string) {
       try {
         const mailbox = await client.mailboxOpen(folder);
-        return { exists: mailbox.exists, uidValidity: Number(mailbox.uidValidity) };
+        // The type says UIDVALIDITY is always present; a server that omits it
+        // anyway must not turn this into NaN.
+        return { exists: mailbox.exists, uidValidity: Number(mailbox.uidValidity ?? 0) };
       } catch (e) {
         throw DddError.config(`could not open ${JSON.stringify(folder)}: ${errorText(e)}`);
       }
@@ -357,21 +368,79 @@ export async function connectImap(opts: ImapConnectOptions): Promise<ImapSession
           // FETCH command itself; imapflow surfaces both as one throw.
           throw DddError.config(`fetch failed: ${errorText(e)}`);
         }
+        // The loop above can also end early with no throw at all: imapflow
+        // closes the iterator quietly when the socket dies mid-fetch, and the
+        // 'error' event is the only place that failure showed up.
+        surfaceLastError();
       }
       return iterate();
     },
 
     async logout() {
       await client.logout();
+      surfaceLastError();
     },
   };
 }
 
+/**
+ * Connect, authenticate, and hand back a session.
+ *
+ * Implicit TLS on connect. STARTTLS on 143 is not supported: it is a downgrade
+ * path, every provider worth using offers 993, and supporting both doubles the
+ * failure modes for no benefit.
+ *
+ * NOT covered by tests — there is no IMAP server in the suite, exactly as the
+ * Rust says of `fetch_messages`. Everything above and below this function is
+ * (`buildSession`, which this hands the real client to, included).
+ */
+export async function connectImap(opts: ImapConnectOptions): Promise<ImapSession> {
+  if (!isValidHostname(opts.host)) {
+    throw DddError.config(`${opts.host} is not a valid hostname`);
+  }
+
+  const client = new ImapFlow({
+    host: opts.host,
+    port: opts.port,
+    secure: true,
+    tls: { servername: opts.host },
+    auth: { user: opts.username, pass: opts.password },
+    logger: false,
+    disableAutoIdle: true,
+  });
+
+  // Built — and its 'error' listener attached — before `connect()` is even
+  // awaited, so a failure on the wire can never find nobody listening.
+  const session = buildSession(client);
+
+  try {
+    // imapflow does TCP, TLS and LOGIN in one call; the Rust's three separate
+    // failures are told apart by the flags imapflow stamps on the error.
+    await client.connect();
+  } catch (e) {
+    const err = e as { authenticationFailed?: boolean; tlsFailed?: boolean };
+    const message = errorText(e);
+    client.close();
+    if (err.authenticationFailed === true) {
+      throw DddError.config(
+        `${opts.host} rejected the login (${message}). Gmail and most providers need an app password with 2-step verification on, not your account password.`,
+      );
+    }
+    if (err.tlsFailed === true) throw DddError.config(`TLS to ${opts.host} failed: ${message}`);
+    throw DddError.config(`could not reach ${opts.host}:${opts.port}: ${message}`);
+  }
+
+  return session;
+}
+
 /** Pull the newest `limit` messages from `folder`. */
 export async function fetchMessages(session: ImapSession, folder: string, limit: number): Promise<RawMessage[]> {
-  const { exists: total, uidValidity } = await session.select(folder);
   const out: RawMessage[] = [];
   try {
+    // Inside the `try`: a bad folder must still reach `logout` in the
+    // `finally` below, or the connection leaks — every tick, until the
+    // provider's cap on concurrent sessions is hit.
+    const { exists: total, uidValidity } = await session.select(folder);
     if (total > 0) {
       // Newest N by sequence number. `1:*` on a large mailbox would drag the
       // whole thing across the wire.

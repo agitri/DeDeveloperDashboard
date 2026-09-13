@@ -1,3 +1,5 @@
+import { EventEmitter } from "node:events";
+import type { FetchMessageObject, FetchQueryObject } from "imapflow";
 import { describe, expect, it } from "vitest";
 import { defaultSettings, settingsSave } from "../settings";
 import type { Item } from "../models";
@@ -7,12 +9,14 @@ import {
   BODY_PREVIEW_BYTES,
   ImapAdapter,
   WANTED_HEADERS,
+  buildSession,
   fetchMessages,
   isValidHostname,
   refineWithModel,
   toItem,
   type FetchSpec,
   type FetchedMessage,
+  type ImapClientLike,
   type ImapSession,
   type RawMessage,
 } from "./imap";
@@ -128,6 +132,23 @@ describe("toItem", () => {
     expect((await map(raw("From: a@example.com", "x"))).title).toBe("(no subject)");
   });
 
+  it("keeps only the first address in a non-group multi-mailbox From, because postal-mime does", async () => {
+    // `From: a <a@x>, b <b@x>` is valid RFC 5322 (a mailbox-list, not a group),
+    // and the Rust would join both. postal-mime's `from` is typed as a single
+    // `Address`, and in practice it keeps only the first mailbox it parses —
+    // asserted here rather than assumed, per the mapping's own comment.
+    const m = raw("From: a <a@x>, b <b@x>\r\nSubject: Hi", "x");
+    expect(refsOf(await map(m), "from:")).toEqual(["a@x"]);
+  });
+
+  it("joins every member of an RFC 5322 group From with the Rust's ', '", async () => {
+    // `Team: a <a@x>, b <b@x>;` — the group syntax, distinct from a plain
+    // mailbox-list. postal-mime hands this back as `{ name, group: [...] }`
+    // with no `address` of its own; every member must still reach the ref.
+    const m = raw("From: Team: a <a@x>, b <b@x>;\r\nSubject: Hi", "x");
+    expect(refsOf(await map(m), "from:")).toEqual(["a@x, b@x"]);
+  });
+
   it("unparseable bytes are skipped rather than fatal", async () => {
     const junk: RawMessage = { raw: Buffer.from([0xff, 0xfe, 0x00]), seen: false, uid: 1, uidValidity: 1 };
     // One bad message in two hundred must cost that message, not the sync.
@@ -202,6 +223,119 @@ describe("fetchMessages", () => {
     expect(messages[0]!.uid).toBe(2);
     expect(messages[0]!.seen).toBe(true);
     expect(session.loggedOut).toBe(true);
+  });
+
+  it("still logs out when select rejects, so a bad folder cannot leak the connection", async () => {
+    let loggedOut = 0;
+    const session: ImapSession = {
+      select: async () => {
+        throw new Error(`could not open "Bogus": no such mailbox`);
+      },
+      fetchRange: () => {
+        throw new Error("must not be called: select already failed");
+      },
+      logout: async () => {
+        loggedOut += 1;
+      },
+    };
+    await expect(fetchMessages(session, "Bogus", 10)).rejects.toThrow(`could not open "Bogus": no such mailbox`);
+    expect(loggedOut).toBe(1);
+  });
+});
+
+// --- the session wrapper, against a stub ImapFlow-shaped client ----------------
+
+/** `ImapFlow`-shaped enough for `buildSession`: a real `EventEmitter` (so
+ *  emitting 'error' with no listener would throw, same as the live client),
+ *  `mailboxOpen`, `fetch` and `logout`. */
+class FakeImapClient extends EventEmitter implements ImapClientLike {
+  loggedOut = false;
+  constructor(
+    private readonly mailbox: { exists: number; uidValidity?: unknown },
+    private readonly messages: FetchMessageObject[] = [],
+  ) {
+    super();
+  }
+
+  async mailboxOpen(_path: string): Promise<{ exists: number; uidValidity: unknown }> {
+    return { exists: this.mailbox.exists, uidValidity: this.mailbox.uidValidity };
+  }
+
+  fetch(_range: string, _query: FetchQueryObject): AsyncIterable<FetchMessageObject> {
+    const messages = this.messages;
+    return (async function* () {
+      for (const m of messages) yield m;
+    })();
+  }
+
+  async logout(): Promise<void> {
+    this.loggedOut = true;
+  }
+}
+
+const clientFetched = (uid: number, header: string, text: string): FetchMessageObject => ({
+  seq: uid,
+  uid,
+  flags: new Set<string>(),
+  headers: Buffer.from(header, "utf8"),
+  bodyParts: new Map([["text", Buffer.from(text, "utf8")]]),
+});
+
+describe("buildSession", () => {
+  it("attaches its own 'error' listener, so a socket failure cannot go uncaught", () => {
+    const client = new FakeImapClient({ exists: 0 });
+    buildSession(client);
+    // A Node EventEmitter with zero 'error' listeners throws synchronously on
+    // emit; buildSession's own listener is what stands between a dead socket
+    // and an uncaught exception in the Electron main process.
+    expect(() => client.emit("error", new Error("socket reset"))).not.toThrow();
+  });
+
+  it("reports a socket error through fetchRange when the iterator ends early because of it", async () => {
+    const client = new FakeImapClient({ exists: 0 });
+    const session = buildSession(client);
+    client.emit("error", new Error("socket reset"));
+
+    const drain = async () => {
+      for await (const _ of session.fetchRange("1:1", { headers: [], textBytes: 0 })) {
+        // never reached — the fetch itself yields nothing.
+      }
+    };
+    await expect(drain()).rejects.toThrow("fetch failed: socket reset");
+  });
+
+  it("reports a socket error through logout too, when nothing else already consumed it", async () => {
+    const client = new FakeImapClient({ exists: 0 });
+    const session = buildSession(client);
+    client.emit("error", new Error("socket reset"));
+
+    await expect(session.logout()).rejects.toThrow("fetch failed: socket reset");
+    expect(client.loggedOut).toBe(true); // still logs out before reporting
+  });
+
+  it("does not repeat the same error a second time, once it has been reported once", async () => {
+    const client = new FakeImapClient({ exists: 0 });
+    const session = buildSession(client);
+    client.emit("error", new Error("socket reset"));
+
+    const drain = async () => {
+      for await (const _ of session.fetchRange("1:1", { headers: [], textBytes: 0 })) {
+        // never reached
+      }
+    };
+    await expect(drain()).rejects.toThrow("fetch failed: socket reset");
+    await expect(session.logout()).resolves.toBeUndefined(); // already consumed
+  });
+
+  it("treats a missing UIDVALIDITY as 0 rather than NaN", async () => {
+    const client = new FakeImapClient({ exists: 1, uidValidity: undefined }, [
+      clientFetched(42, "From: a@example.com\r\nSubject: Hi", "x"),
+    ]);
+    const session = buildSession(client);
+    const messages = await fetchMessages(session, "INBOX", 10);
+    expect(messages[0]!.uidValidity).toBe(0);
+    const item = await map(messages[0]!);
+    expect(item.refs).toContain("uid:0:42");
   });
 });
 

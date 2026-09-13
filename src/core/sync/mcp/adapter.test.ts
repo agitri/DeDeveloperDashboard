@@ -1,7 +1,7 @@
 import { existsSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { Item } from "../../models";
 import { fetchContext } from "../adapter";
 import { forProvider } from "../providers";
@@ -140,6 +140,20 @@ describe("a real stdio server", () => {
     expect(forProvider("mcp")).toBeInstanceOf(McpAdapter);
     expect(forProvider("mcp")!.source).toBe("mcp");
   });
+
+  it("writes Mapping.now through rfc3339, the same whole-second form every other adapter uses", async () => {
+    // Only Date is faked: the child process's own I/O still runs on real timers.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-01-02T03:04:05.000Z"));
+    try {
+      const items = await new McpAdapter().fetch(context(spawnable(scratchFile("pid")), "s3cret"));
+      // "Env" has no lastModified, so its updatedAt falls back to Mapping.now.
+      // A bare `toISOString()` would have kept the ".000"; rfc3339 strips it.
+      expect(items[2]!.updatedAt).toBe("2026-01-02T03:04:05Z");
+    } finally {
+      vi.useRealTimers();
+    }
+  }, 20000);
 });
 
 /** Whether the process is gone, giving the kill up to two seconds to land. */

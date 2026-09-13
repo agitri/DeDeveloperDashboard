@@ -15,6 +15,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { DddError } from "../../error";
 import type { Item } from "../../models";
 import { configOf, refuse, requireConfig, type ActionRequest, type FetchContext, type SourceAdapter } from "../adapter";
+import { rfc3339 } from "../ics";
 import { run, type SyncReport } from "./client";
 import { DEFAULT_KIND, type Mapping } from "./map";
 import { checkConsent, openTransport, parseArgv, validateEndpoint } from "./transport";
@@ -72,7 +73,8 @@ export class McpAdapter implements SourceAdapter {
  * unknown transport as stdio). One helper, with `fetch`'s stricter behaviour.
  */
 async function session(cx: FetchContext): Promise<{ items: Item[]; report: SyncReport }> {
-  const now = new Date().toISOString();
+  // Whole-second `Z`, the form every other adapter writes.
+  const now = rfc3339(new Date());
   const kind = configOf(cx, config.KIND);
   const mapping: Mapping = {
     environmentId: cx.environmentId,

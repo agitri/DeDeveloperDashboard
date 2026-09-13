@@ -160,4 +160,49 @@ describe("opening a transport", () => {
     const t = openTransport({ kind: "http", endpoint: "https://x.test/mcp", token: "" });
     expect(t).toBeInstanceOf(StreamableHTTPClientTransport);
   });
+
+  it("reads the negotiated version off the transport's own getter, with no hook installed", async () => {
+    // The installed SDK's StreamableHTTPClientTransport has a `protocolVersion`
+    // getter of its own; `negotiatedVersion` must read that directly rather than
+    // depending on `rememberProtocolVersion` having patched the transport first.
+    const server = createServer((request, response) => {
+      let body = "";
+      request.on("data", (chunk) => (body += chunk));
+      request.on("end", () => {
+        const message = JSON.parse(body) as { id?: number; method?: string };
+        response.setHeader("content-type", "application/json");
+        if (message.id === undefined) return void response.end("{}");
+        const result =
+          message.method === "initialize"
+            ? { protocolVersion: "2025-06-18", serverInfo: { name: "files", version: "1.0.0" }, capabilities: {} }
+            : { tools: [] };
+        response.end(JSON.stringify({ jsonrpc: "2.0", id: message.id, result }));
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const endpoint = `http://127.0.0.1:${(server.address() as AddressInfo).port}/mcp`;
+
+    // Built directly, not through openTransport: no rememberProtocolVersion hook.
+    const transport = new StreamableHTTPClientTransport(new URL(endpoint));
+    const client = new Client({ name: "DDD", version: "0.1.0" }, { capabilities: {} });
+    await client.connect(transport);
+    expect(negotiatedVersion(client.transport)).toBe("2025-06-18");
+    await client.close();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  });
+
+  it("keeps the HTTP status in the thrown error, for the scheduler to read", async () => {
+    const server = createServer((_request, response) => {
+      response.statusCode = 401;
+      response.setHeader("content-type", "text/plain");
+      response.end("nope");
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const endpoint = `http://127.0.0.1:${(server.address() as AddressInfo).port}/mcp`;
+
+    const transport = openTransport({ kind: "http", endpoint, token: null });
+    const client = new Client({ name: "DDD", version: "0.1.0" }, { capabilities: {} });
+    await expect(client.connect(transport)).rejects.toThrow(/^the server answered 401/);
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  });
 });

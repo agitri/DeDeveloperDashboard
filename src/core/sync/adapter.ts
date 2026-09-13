@@ -93,8 +93,8 @@ export function itemId(connectionId: string, sourceKey: string): string {
   return `${connectionId}:${sourceKey}`;
 }
 
-// --- test helpers (no fs, no network) ------------------------------------------
-
+/** No fs, no network — safe wherever a `SecretStore` is needed and there is
+ *  nothing real to back it, tests included. */
 export function memorySecrets(): SecretStore & { map: Map<string, string> } {
   const map = new Map<string, string>();
   return {
@@ -105,6 +105,8 @@ export function memorySecrets(): SecretStore & { map: Map<string, string> } {
     },
   };
 }
+
+// --- the context builder (used by commands and tests) --------------------------
 
 export function fetchContext(partial: {
   environmentId?: string;

@@ -26,7 +26,7 @@
  */
 import { createHash } from "node:crypto";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { StreamableHTTPClientTransport, StreamableHTTPError } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { Transport as SdkTransport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { DddError } from "../../error";
 
@@ -141,8 +141,30 @@ export function openTransport(t: Transport): SdkTransport {
   // server answered, on every request after the handshake.
   if (t.token !== null && t.token !== "") headers.Authorization = `Bearer ${t.token}`;
   return rememberProtocolVersion(
-    new StreamableHTTPClientTransport(new URL(validateEndpoint(t.endpoint)), { requestInit: { headers } }),
+    reportHttpStatus(new StreamableHTTPClientTransport(new URL(validateEndpoint(t.endpoint)), { requestInit: { headers } })),
   );
+}
+
+/**
+ * Keep the HTTP status in the error the scheduler sees.
+ *
+ * The SDK's `StreamableHTTPError` carries `.code`, but its `.message` alone —
+ * the only thing a caught error's `.message` shows — omits it. The scheduler
+ * decides `expired` by finding "401"/"403" in that text (`scheduler.ts`), so
+ * the code has to be in the message itself. The Rust's wording was "the server
+ * answered {status}".
+ */
+function reportHttpStatus(transport: StreamableHTTPClientTransport): StreamableHTTPClientTransport {
+  const inner = transport.send.bind(transport);
+  transport.send = (async (...args: Parameters<StreamableHTTPClientTransport["send"]>) => {
+    try {
+      return await inner(...args);
+    } catch (e) {
+      if (e instanceof StreamableHTTPError) throw DddError.config(`the server answered ${e.code}: ${e.message}`);
+      throw e;
+    }
+  }) as StreamableHTTPClientTransport["send"];
+  return transport;
 }
 
 /** The environment this process runs in, minus the unset entries. */
@@ -160,9 +182,11 @@ interface Versioned {
 /**
  * Keep the version the server answered with.
  *
- * The SDK client hands the negotiated version to the transport and then forgets
- * it — only the HTTP transport has a use for it, and there is no getter. DDD
- * reports it in Settings, so the hook is installed on the way in.
+ * The SDK client hands the negotiated version to every transport, but only
+ * `StreamableHTTPClientTransport` exposes it again afterwards (its
+ * `protocolVersion` getter); stdio has no equivalent. The hook is installed on
+ * every transport so stdio has somewhere to keep it too — `negotiatedVersion`
+ * below prefers the transport's own getter and falls back to this for stdio.
  */
 export function rememberProtocolVersion<T extends SdkTransport>(transport: T): T {
   const seen = transport as T & Versioned;
@@ -174,7 +198,12 @@ export function rememberProtocolVersion<T extends SdkTransport>(transport: T): T
   return seen;
 }
 
-/** What `rememberProtocolVersion` caught, or `""` for a transport it never saw. */
+/** What the transport negotiated: its own `protocolVersion` getter when it has
+ *  one (HTTP), or what `rememberProtocolVersion` caught for a transport
+ *  without one (stdio). `""` for a transport that never saw either. */
 export function negotiatedVersion(transport: SdkTransport | undefined): string {
-  return (transport as (SdkTransport & Versioned) | undefined)?.dddProtocolVersion ?? "";
+  if (transport === undefined) return "";
+  const seen = transport as SdkTransport & Versioned & { protocolVersion?: string };
+  if ("protocolVersion" in seen) return seen.protocolVersion ?? "";
+  return seen.dddProtocolVersion ?? "";
 }
