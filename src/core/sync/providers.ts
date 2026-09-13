@@ -8,6 +8,7 @@ import { GoogleAdapter } from "./google";
 import { IcsAdapter } from "./ics";
 import { ImapAdapter } from "./imap";
 import { JiraAdapter } from "./jira";
+import { McpAdapter } from "./mcp/adapter";
 import { MockAdapter } from "./mock";
 import { SlackAdapter } from "./slack";
 
@@ -25,6 +26,8 @@ export function forProvider(provider: string): SourceAdapter | null {
       return new GoogleAdapter();
     case "mail.imap":
       return new ImapAdapter();
+    case "mcp":
+      return new McpAdapter();
     case "mock":
       return new MockAdapter();
     default:

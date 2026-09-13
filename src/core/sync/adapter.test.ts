@@ -14,6 +14,7 @@ describe("the adapter port", () => {
     expect(forProvider("slack")?.source).toBe("slack");
     expect(forProvider("mail.gmail")?.source).toBe("google");
     expect(forProvider("mail.imap")?.source).toBe("mail.imap");
+    expect(forProvider("mcp")?.source).toBe("mcp");
     expect(forProvider("nope")).toBeNull();
   });
 
