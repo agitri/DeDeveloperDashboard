@@ -106,6 +106,14 @@ const unixSpawn: Spawn = async (run, dir, logPath) => {
       // us, and the record on disk is the only registry.
       detached: true,
     });
+    // The launch can fail asynchronously after this call returns (a `$SHELL`
+    // that does not exist, `dir` deleted between the `isDir` guard and here,
+    // EMFILE): the child emits `'error'` on a later tick, and an EventEmitter
+    // with no `'error'` listener throws — an uncaught exception in the
+    // Electron main process. A no-op listener is enough to turn that
+    // emission into a handled, ignored path; the `pid === undefined` check
+    // below already gives the caller a clean rejection.
+    child.on("error", () => {});
     child.unref();
     pid = child.pid;
   } finally {

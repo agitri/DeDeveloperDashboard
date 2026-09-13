@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "description": "DDD \u2014 De Developer Dashboard, on Node.",
+  "author": "Ren\u00e9 Gerrits",
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "vite --config vite.config.mts",

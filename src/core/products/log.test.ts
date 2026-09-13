@@ -39,6 +39,25 @@ describe("log", () => {
     expect(after.startsWith("a service")).toBe(true);
   });
 
+  it("a file just over the cap still lands on a line boundary", () => {
+    const path = join(temp(), "edge.log");
+    // Short, uneven lines so the cut point rarely lands exactly on a line
+    // boundary by luck, and the fill loop has to assemble the full
+    // CAP_BYTES window rather than stop after a single short read.
+    const line = "x".repeat(37) + "\n";
+    const count = Math.ceil((CAP_BYTES + 10_000) / line.length);
+    writeFileSync(path, line.repeat(count));
+
+    trim(path);
+
+    const after = readFileSync(path, "utf8");
+    expect(Buffer.byteLength(after)).toBeLessThanOrEqual(CAP_BYTES);
+    expect(after.endsWith(line)).toBe(true);
+    // Either empty (dropped everything before the first full line) or
+    // starting cleanly on the line's own text — never mid-word.
+    expect(after === "" || after.startsWith("x")).toBe(true);
+  });
+
   it("tail reads the end and survives a missing file", () => {
     const path = join(temp(), "tail.log");
     writeFileSync(path, "one\ntwo\nthree\nfour\n");

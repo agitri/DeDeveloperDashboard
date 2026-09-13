@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { scratchEnv } from "../testing";
 import { configOf } from "../projects";
+import { DddError } from "../error";
 import * as log from "./log";
 import * as proc from "./proc";
 import { stateOf, type Record } from "./record";
@@ -124,6 +125,25 @@ describe("supervise", () => {
 
   it("the shell is a login shell", () => {
     expect(shell()).not.toBe("");
+  });
+
+  it("a shell that cannot launch rejects start rather than crashing", async () => {
+    const { env } = scratchEnv("products-badshell");
+    const dir = tmpdir();
+    const run = "echo unreachable";
+    approve(env, "proj/badshell", run, dir);
+
+    // A `SHELL` that does not exist: `spawn` returns a child that emits an
+    // async `error` (ENOENT) with no `pid`. Without a listener on that event,
+    // the emission is an uncaught exception that would crash this very test
+    // process — the point of this test is that it does not.
+    const prevShell = process.env.SHELL;
+    process.env.SHELL = join(dir, `ddd-no-such-shell-${process.pid}-${Date.now()}`);
+    try {
+      await expect(start(env, "proj/badshell", run, dir)).rejects.toBeInstanceOf(DddError);
+    } finally {
+      process.env.SHELL = prevShell;
+    }
   });
 });
 

@@ -12,9 +12,6 @@ files:
 # imapflow, postal-mime and @modelcontextprotocol/sdk are runtime requires
 # (externalized by electron-vite), so their node_modules must be bundled.
 # electron-builder includes production dependencies from package.json by default.
-asarUnpack:
-  # The MCP fixture and the claude-code scripts are read from disk at runtime.
-  - out/**/fixtures/**
 mac:
   category: public.app-category.developer-tools
   target:
