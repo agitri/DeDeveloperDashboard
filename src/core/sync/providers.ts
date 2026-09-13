@@ -5,6 +5,7 @@
 import type { SourceAdapter } from "./adapter";
 import { GitHubAdapter } from "./github";
 import { IcsAdapter } from "./ics";
+import { JiraAdapter } from "./jira";
 import { MockAdapter } from "./mock";
 
 export function forProvider(provider: string): SourceAdapter | null {
@@ -13,6 +14,8 @@ export function forProvider(provider: string): SourceAdapter | null {
       return new GitHubAdapter();
     case "calendar.ics":
       return new IcsAdapter();
+    case "jira":
+      return new JiraAdapter();
     case "mock":
       return new MockAdapter();
     default:
