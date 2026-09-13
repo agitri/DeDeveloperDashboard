@@ -12,6 +12,7 @@ describe("the adapter port", () => {
     expect(forProvider("mock")?.source).toBe("mock");
     expect(forProvider("jira")?.source).toBe("jira");
     expect(forProvider("slack")?.source).toBe("slack");
+    expect(forProvider("mail.gmail")?.source).toBe("google");
     expect(forProvider("nope")).toBeNull();
   });
 

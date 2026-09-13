@@ -4,6 +4,7 @@
  *  the adapters can import the port without a cycle. */
 import type { SourceAdapter } from "./adapter";
 import { GitHubAdapter } from "./github";
+import { GoogleAdapter } from "./google";
 import { IcsAdapter } from "./ics";
 import { JiraAdapter } from "./jira";
 import { MockAdapter } from "./mock";
@@ -19,6 +20,8 @@ export function forProvider(provider: string): SourceAdapter | null {
       return new JiraAdapter();
     case "slack":
       return new SlackAdapter();
+    case "mail.gmail":
+      return new GoogleAdapter();
     case "mock":
       return new MockAdapter();
     default:
