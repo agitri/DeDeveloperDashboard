@@ -261,6 +261,31 @@ function smoke(win: BrowserWindow): void {
       if (!report.server.hasResources || report.skippedForModels !== 1 || report.tools.length !== 1) throw new Error(`mcp_probe: ${JSON.stringify(report)}`);
       console.log("ddd: smoke mcp ok");
 
+      // Phase 6: a product declared in a scratch project, approved, started,
+      // logged and stopped — the whole supervision loop, end to end.
+      const proj = join(home, "svc-project");
+      mkdirSync(join(proj, ".ddd"), { recursive: true });
+      writeFileSync(join(proj, ".ddd", "config.json"), JSON.stringify({ products: [{ id: "svc", run: "echo hello-product && sleep 30" }] }));
+      await invoke("project_register", { env: "default", path: proj });
+      const before = (await invoke("products_list", { env: "default" })) as { key: string; needsApproval: string | null; run: string; dir: string }[];
+      const svc = before.find((p) => p.key.endsWith("/svc"));
+      if (!svc || !svc.needsApproval) throw new Error(`products_list: expected an unapproved svc, got ${JSON.stringify(before)}`);
+      await invoke("product_approve", { env: "default", key: svc.key, run: svc.run, dir: svc.dir });
+      await invoke("product_start", { env: "default", key: svc.key, run: svc.run, dir: svc.dir });
+      const running = (await invoke("products_list", { env: "default" })) as { key: string; state: { state: string } }[];
+      const now = running.find((p) => p.key === svc.key)!;
+      if (now.state.state !== "running") throw new Error(`product_start: expected running, got ${JSON.stringify(now.state)}`);
+      // Wait for the echoed line to reach the log, then stop it.
+      let logged = "";
+      for (let i = 0; i < 100 && !logged.includes("hello-product"); i++) {
+        logged = (await invoke("product_log", { env: "default", key: svc.key })) as string;
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      if (!logged.includes("hello-product")) throw new Error("product_log: nothing captured");
+      const stopped = (await invoke("product_stop", { env: "default", key: svc.key })) as { state: string };
+      if (stopped.state !== "stopped") throw new Error(`product_stop: ${JSON.stringify(stopped)}`);
+      console.log("ddd: smoke products ok");
+
       await invoke("cache_clear", { env: "default" });
       console.log("ddd: smoke sync ok");
 
@@ -269,7 +294,7 @@ function smoke(win: BrowserWindow): void {
       if (!cspEnforced) throw new Error("csp not enforced");
 
       console.log(
-        `ddd: smoke ok — ${g.environments.length} environment(s), boot look seeded, paths_info, event_log/events_query (1 row), secret_exists(false), projects (register/list), project-changed, sync (mock: sync_now/items_query/item_action/items-changed), ai (actions/context/instructions round trip), calendar/repos/dev/eol (local round trips), mcp (consent + probe against a local server), csp enforced`,
+        `ddd: smoke ok — ${g.environments.length} environment(s), boot look seeded, paths_info, event_log/events_query (1 row), secret_exists(false), projects (register/list), project-changed, sync (mock: sync_now/items_query/item_action/items-changed), ai (actions/context/instructions round trip), calendar/repos/dev/eol (local round trips), mcp (consent + probe against a local server), products (declare/approve/start/log/stop), csp enforced`,
       );
       const shotPath = process.env.DDD_SMOKE_SHOT;
       if (shotPath) {
