@@ -240,6 +240,27 @@ function smoke(win: BrowserWindow): void {
       if (unwatched.watched.length !== 0) throw new Error("eol_unwatch: still watched");
       console.log("ddd: smoke phase4 ok");
 
+      // Phase 5: an MCP server behind the consent gate, spawned and closed by
+      // the probe. Jira/Slack/Google/IMAP need real accounts and stay out.
+      const fixture = join(process.cwd(), "src/core/sync/mcp/fixtures/echo-server.mjs");
+      const command = JSON.stringify([process.execPath, fixture]);
+      const consent = (await invoke("mcp_consent", { command })) as string;
+      if (!/^[0-9a-f]{24}$/.test(consent)) throw new Error(`mcp_consent: unexpected token ${consent}`);
+      const current = (await invoke("settings_load", { env: "default" })) as { connections: unknown[] };
+      await invoke("settings_save", {
+        env: "default",
+        settings: {
+          ...current,
+          connections: [
+            ...current.connections,
+            { id: "mcp-smoke", provider: "mcp", label: "Echo", status: "disconnected", scopes: [], config: { transport: "stdio", command, consent }, lastSyncAt: null, error: null },
+          ],
+        },
+      });
+      const report = (await invoke("mcp_probe", { env: "default", connectionId: "mcp-smoke" })) as { server: { name: string; hasResources: boolean }; tools: { name: string }[]; skippedForModels: number };
+      if (!report.server.hasResources || report.skippedForModels !== 1 || report.tools.length !== 1) throw new Error(`mcp_probe: ${JSON.stringify(report)}`);
+      console.log("ddd: smoke mcp ok");
+
       await invoke("cache_clear", { env: "default" });
       console.log("ddd: smoke sync ok");
 
@@ -248,7 +269,7 @@ function smoke(win: BrowserWindow): void {
       if (!cspEnforced) throw new Error("csp not enforced");
 
       console.log(
-        `ddd: smoke ok — ${g.environments.length} environment(s), boot look seeded, paths_info, event_log/events_query (1 row), secret_exists(false), projects (register/list), project-changed, sync (mock: sync_now/items_query/item_action/items-changed), ai (actions/context/instructions round trip), calendar/repos/dev/eol (local round trips), csp enforced`,
+        `ddd: smoke ok — ${g.environments.length} environment(s), boot look seeded, paths_info, event_log/events_query (1 row), secret_exists(false), projects (register/list), project-changed, sync (mock: sync_now/items_query/item_action/items-changed), ai (actions/context/instructions round trip), calendar/repos/dev/eol (local round trips), mcp (consent + probe against a local server), csp enforced`,
       );
       const shotPath = process.env.DDD_SMOKE_SHOT;
       if (shotPath) {
