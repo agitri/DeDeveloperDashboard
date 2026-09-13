@@ -1,0 +1,84 @@
+#!/usr/bin/env python3
+"""ddd-todo — capture a todo into <project>/.ddd/todos.json.
+
+Called by the /todo slash command inside Claude Code. The whole point is
+capture mid-flow: you are three files deep in a refactor, you notice something,
+you type `/todo fix the retry backoff`, and it is still there tomorrow when you
+have switched projects twice.
+
+DDD only ever *reads* this file. Everything that writes it lives on this side.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import subprocess
+import sys
+import uuid
+from datetime import datetime, timezone
+from pathlib import Path
+
+
+def project_root(start: Path) -> Path:
+    """The git root if there is one, else the current directory.
+
+    Using the git root means `/todo` from a subdirectory still lands in the
+    project's single todo list instead of scattering .ddd folders around.
+    """
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(start), "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if out.returncode == 0 and out.stdout.strip():
+            return Path(out.stdout.strip())
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return start
+
+
+def main() -> int:
+    text = " ".join(sys.argv[1:]).strip()
+    if not text:
+        print("usage: ddd-todo <what needs doing>", file=sys.stderr)
+        return 2
+
+    root = project_root(Path(os.getcwd()).resolve())
+    ddd = root / ".ddd"
+    ddd.mkdir(parents=True, exist_ok=True)
+    path = ddd / "todos.json"
+
+    data = {"todos": []}
+    if path.exists():
+        try:
+            loaded = json.loads(path.read_text() or "{}")
+            if isinstance(loaded.get("todos"), list):
+                data = loaded
+        except json.JSONDecodeError:
+            # Never lose a capture to a malformed file: keep the old one aside.
+            path.rename(path.with_suffix(".json.corrupt"))
+
+    data["todos"].append(
+        {
+            "id": uuid.uuid4().hex[:12],
+            "text": text,
+            "done": False,
+            "createdAt": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "source": "claude-code",
+        }
+    )
+
+    tmp = path.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(data, indent=2) + "\n")
+    tmp.replace(path)
+
+    open_count = sum(1 for t in data["todos"] if not t.get("done"))
+    print(f"captured in {path} ({open_count} open)")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

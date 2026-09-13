@@ -1,0 +1,192 @@
+#!/usr/bin/env python3
+"""ddd-recap — write <project>/.ddd/recap.md at the end of a Claude Code session.
+
+Wired to the SessionEnd hook rather than to a command, because the failure mode
+this exists to prevent is *forgetting*. A manual `/wrapup` is only ever run by
+the sessions that did not need it.
+
+Reads the hook's JSON payload on stdin (session_id, transcript_path, cwd) and
+writes a deterministic recap: what was asked, what was touched, where git ended
+up. No model call, so it is instant and free.
+
+Set DDD_RECAP_AI=1 to additionally ask `claude -p` for a prose summary. Better
+prose, costs tokens, adds a few seconds to every session exit — off by default.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import subprocess
+import sys
+from datetime import datetime
+from pathlib import Path
+
+MAX_PROMPTS = 8
+MAX_FILES = 20
+
+
+def git(root: Path, *args: str) -> str:
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(root), *args], capture_output=True, text=True, timeout=8
+        )
+        return out.stdout.strip() if out.returncode == 0 else ""
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
+def project_root(start: Path) -> Path:
+    top = git(start, "rev-parse", "--show-toplevel")
+    return Path(top) if top else start
+
+
+def text_of(content) -> str:
+    """Claude Code message content is either a string or a list of blocks."""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = [b.get("text", "") for b in content if isinstance(b, dict) and b.get("type") == "text"]
+        return "\n".join(p for p in parts if p)
+    return ""
+
+
+def read_transcript(path: Path) -> tuple[list[str], list[str]]:
+    """Returns (user prompts, files written or edited)."""
+    prompts: list[str] = []
+    files: list[str] = []
+    if not path or not path.exists():
+        return prompts, files
+
+    for line in path.read_text(errors="replace").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            entry = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+
+        message = entry.get("message") or {}
+        role = message.get("role") or entry.get("type")
+        content = message.get("content")
+
+        if role == "user":
+            body = text_of(content).strip()
+            # Tool results and system reminders come back as "user" turns too;
+            # they are noise in a recap of what a person asked for.
+            if body and not body.startswith("<") and "tool_result" not in body:
+                prompts.append(body.splitlines()[0][:200])
+        elif role == "assistant" and isinstance(content, list):
+            for block in content:
+                if not isinstance(block, dict) or block.get("type") != "tool_use":
+                    continue
+                if block.get("name") in {"Write", "Edit", "NotebookEdit"}:
+                    target = (block.get("input") or {}).get("file_path")
+                    if target and target not in files:
+                        files.append(target)
+
+    return prompts, files
+
+
+def ai_summary(transcript: Path, root: Path) -> str:
+    """Opt-in prose summary. Any failure is silent — the recap must still land."""
+    prompt = (
+        "Read the session transcript at "
+        f"{transcript} and write a recap of at most 12 lines in three markdown "
+        "sections: '## What was done', '## Unfinished', '## Next steps'. "
+        "Be concrete and specific. Output only the markdown."
+    )
+    try:
+        out = subprocess.run(
+            ["claude", "-p", prompt],
+            capture_output=True,
+            text=True,
+            timeout=120,
+            cwd=str(root),
+        )
+        return out.stdout.strip() if out.returncode == 0 else ""
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
+def main() -> int:
+    try:
+        payload = json.load(sys.stdin)
+    except (json.JSONDecodeError, ValueError):
+        payload = {}
+
+    cwd = Path(payload.get("cwd") or os.getcwd()).resolve()
+    root = project_root(cwd)
+    ddd = root / ".ddd"
+
+    # Only projects that opted in get a recap: the `.ddd/` folder is the opt-in.
+    # Writing one into every directory anyone ever ran Claude Code in would be
+    # rude, and DDD would have nothing to show for it anyway.
+    if not ddd.is_dir():
+        return 0
+
+    transcript = Path(payload["transcript_path"]) if payload.get("transcript_path") else None
+    prompts, files = read_transcript(transcript) if transcript else ([], [])
+
+    branch = git(root, "rev-parse", "--abbrev-ref", "HEAD") or "—"
+    # `git()` strips, so the porcelain status prefix is no longer fixed-width —
+    # split on whitespace instead of slicing, and drop `.ddd/` itself, which
+    # this very script is about to dirty.
+    dirty = [
+        path
+        for path in (
+            line.split(maxsplit=1)[-1]
+            for line in git(root, "status", "--porcelain").splitlines()
+            if line.strip()
+        )
+        if not path.startswith(".ddd/")
+    ]
+    commits = git(root, "log", "-5", "--pretty=%h %s")
+    when = datetime.now().astimezone().strftime("%Y-%m-%d %H:%M")
+
+    lines = [
+        f"# Recap — {root.name}",
+        "",
+        f"_Session ended {when} · branch `{branch}` · {len(dirty)} uncommitted file(s)_",
+        "",
+    ]
+
+    summary = ai_summary(transcript, root) if os.environ.get("DDD_RECAP_AI") == "1" and transcript else ""
+    if summary:
+        lines += [summary, ""]
+
+    if prompts:
+        lines += ["## What was asked", ""]
+        lines += [f"- {p}" for p in prompts[-MAX_PROMPTS:]]
+        lines += [""]
+
+    if files:
+        lines += ["## Files touched", ""]
+        lines += [f"- `{os.path.relpath(f, root)}`" for f in files[:MAX_FILES]]
+        if len(files) > MAX_FILES:
+            lines += [f"- …and {len(files) - MAX_FILES} more"]
+        lines += [""]
+
+    if dirty:
+        lines += ["## Unfinished (uncommitted)", ""]
+        lines += [f"- `{path}`" for path in dirty[:MAX_FILES]]
+        lines += [""]
+
+    if commits:
+        lines += ["## Recent commits", "", "```", commits, "```", ""]
+
+    lines += [
+        "---",
+        "",
+        "_Written by the DDD SessionEnd hook. Run `/wrapup` mid-session to replace this",
+        "with a fuller, model-written checkpoint._",
+        "",
+    ]
+
+    (ddd / "recap.md").write_text("\n".join(lines))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
