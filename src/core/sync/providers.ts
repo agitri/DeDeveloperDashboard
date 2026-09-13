@@ -7,6 +7,7 @@ import { GitHubAdapter } from "./github";
 import { IcsAdapter } from "./ics";
 import { JiraAdapter } from "./jira";
 import { MockAdapter } from "./mock";
+import { SlackAdapter } from "./slack";
 
 export function forProvider(provider: string): SourceAdapter | null {
   switch (provider) {
@@ -16,6 +17,8 @@ export function forProvider(provider: string): SourceAdapter | null {
       return new IcsAdapter();
     case "jira":
       return new JiraAdapter();
+    case "slack":
+      return new SlackAdapter();
     case "mock":
       return new MockAdapter();
     default:
