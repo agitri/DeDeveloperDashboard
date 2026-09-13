@@ -10,7 +10,8 @@ describe("the adapter port", () => {
   it("resolves the providers this phase has, and nothing else", () => {
     expect(forProvider("github")?.source).toBe("github");
     expect(forProvider("mock")?.source).toBe("mock");
-    expect(forProvider("jira")).toBeNull();
+    expect(forProvider("jira")?.source).toBe("jira");
+    expect(forProvider("slack")?.source).toBe("slack");
     expect(forProvider("nope")).toBeNull();
   });
 
