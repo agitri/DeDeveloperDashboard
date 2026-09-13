@@ -6,6 +6,7 @@ import type { SourceAdapter } from "./adapter";
 import { GitHubAdapter } from "./github";
 import { GoogleAdapter } from "./google";
 import { IcsAdapter } from "./ics";
+import { ImapAdapter } from "./imap";
 import { JiraAdapter } from "./jira";
 import { MockAdapter } from "./mock";
 import { SlackAdapter } from "./slack";
@@ -22,6 +23,8 @@ export function forProvider(provider: string): SourceAdapter | null {
       return new SlackAdapter();
     case "mail.gmail":
       return new GoogleAdapter();
+    case "mail.imap":
+      return new ImapAdapter();
     case "mock":
       return new MockAdapter();
     default:

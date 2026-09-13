@@ -39,6 +39,9 @@ export interface FetchContext {
   /** Read from the keychain at fetch time and never handed to anything else. */
   token: string;
   fetch: typeof globalThis.fetch;
+  /** Only the adapters that route an AI action need it (IMAP classification);
+   *  optional so every existing test context stays valid. */
+  secrets?: SecretStore;
 }
 
 /** Connection-specific settings the user typed in, kept as loose strings so a

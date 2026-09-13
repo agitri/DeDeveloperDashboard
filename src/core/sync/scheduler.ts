@@ -73,7 +73,7 @@ export class Scheduler {
       return 0;
     }
 
-    const cx: FetchContext = { environmentId: env.id, connection, token, fetch: this.deps.fetch };
+    const cx: FetchContext = { environmentId: env.id, connection, token, fetch: this.deps.fetch, secrets: this.deps.secrets };
     const payload = { environmentId: env.id, connectionId: connection.id };
     // Only the fetch itself is covered by the failure handling below: once it
     // has succeeded, a local disk/sqlite problem is not the adapter's fault

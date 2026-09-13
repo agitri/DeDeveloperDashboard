@@ -13,6 +13,7 @@ describe("the adapter port", () => {
     expect(forProvider("jira")?.source).toBe("jira");
     expect(forProvider("slack")?.source).toBe("slack");
     expect(forProvider("mail.gmail")?.source).toBe("google");
+    expect(forProvider("mail.imap")?.source).toBe("mail.imap");
     expect(forProvider("nope")).toBeNull();
   });
 
