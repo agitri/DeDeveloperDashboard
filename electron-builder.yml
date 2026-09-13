@@ -1,0 +1,36 @@
+appId: com.renegerrits.nodeddd
+productName: nodeDDD
+# A distinct appId from the Rust app (com.renegerrits.ddd) so both can be
+# installed side by side; they still share ~/.ddd through the path layer.
+directories:
+  output: dist
+  buildResources: build
+# electron-vite emits the app into out/; ship that plus the runtime deps.
+files:
+  - out/**/*
+  - package.json
+# imapflow, postal-mime and @modelcontextprotocol/sdk are runtime requires
+# (externalized by electron-vite), so their node_modules must be bundled.
+# electron-builder includes production dependencies from package.json by default.
+asarUnpack:
+  # The MCP fixture and the claude-code scripts are read from disk at runtime.
+  - out/**/fixtures/**
+mac:
+  category: public.app-category.developer-tools
+  target:
+    - dmg
+    - zip
+  hardenedRuntime: true
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  # Signing/notarization are intentionally NOT configured here: they need an
+  # Apple Developer identity and credentials. An unsigned build is produced
+  # for local use; CI supplies CSC_LINK / APPLE_ID env vars when releasing.
+win:
+  target:
+    - nsis
+linux:
+  target:
+    - AppImage
+    - deb
+  category: Development
