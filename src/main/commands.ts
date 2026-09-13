@@ -27,6 +27,9 @@ import * as cache from "../core/sync/cache";
 import * as oauth from "../core/sync/oauth";
 import { forProvider } from "../core/sync/providers";
 import type { FetchContext, SyncDeps } from "../core/sync/adapter";
+import { fetchContext } from "../core/sync/adapter";
+import { McpAdapter } from "../core/sync/mcp/adapter";
+import { consentToken, parseArgv } from "../core/sync/mcp/transport";
 import type { Scheduler } from "../core/sync/scheduler";
 import { itemFilterFromJson } from "../core/models";
 import { DddError } from "../core/error";
@@ -903,5 +906,32 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
     eol_unwatch: async ({ env, path }) => eolWatchlist.remove(root(env), String(path)),
 
     eol_watchlist: async ({ env }) => eolWatchlist.load(root(env)),
+
+    // --- MCP: one gate, and one probe that goes through it ---
+
+    /**
+     * The token a user's approval of a command is recorded against.
+     *
+     * Bound to the exact argv, so editing the command in Settings voids the
+     * approval: what you agreed to run is no longer what would run.
+     */
+    mcp_consent: async ({ command }) => consentToken(parseArgv(String(command))),
+
+    /**
+     * Handshake with a server and report what it offers, without writing
+     * anything.
+     *
+     * Deliberately the same code path a real sync takes: a "test connection"
+     * that tests something else is worse than none — including the consent
+     * check, so a server the user has not approved is refused here too.
+     */
+    mcp_probe: async ({ env, connectionId }) => {
+      const r = root(env);
+      const connection = settingsLoad(r).connections.find((c) => c.id === connectionId);
+      if (!connection) throw DddError.notFound(`connection ${JSON.stringify(connectionId)}`);
+      const token = await oauth.accessToken(r, connection, deps.sync);
+      const cx = fetchContext({ environmentId: r.id, connection, token, fetch: deps.sync.fetch });
+      return new McpAdapter().probe(cx);
+    },
   };
 }

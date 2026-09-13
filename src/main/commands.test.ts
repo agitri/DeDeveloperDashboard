@@ -21,6 +21,7 @@ import { toItems } from "../core/sync/ics";
 import { load as calendarLoad } from "../core/calendar/store";
 import * as links from "../core/repos/links";
 import { normalize } from "../core/repos/remote";
+import { consentToken, parseArgv } from "../core/sync/mcp/transport";
 
 const emitter = recordingEmitter();
 const sync = { fetch: (async () => new Response("{}", { status: 500 })) as typeof globalThis.fetch, secrets: memorySecrets(), openUrl: async () => {}, emit: emitter };
@@ -53,8 +54,6 @@ const NOT_YET_PORTED = new Set([
   "product_start",
   "product_stop",
   "product_log",
-  "mcp_consent",
-  "mcp_probe",
 ]);
 
 describe("the command registry", () => {
@@ -1023,5 +1022,87 @@ describe("EOL commands", () => {
     expect(board.rows[0]!.findings).toEqual([]);
     expect(board.rows[0]!.worst).toEqual({ state: "unknown" });
     expect(calls).toEqual([]);
+  });
+});
+
+describe("mcp commands", () => {
+  const FIXTURE = resolve(__dirname, "../core/sync/mcp/fixtures/echo-server.mjs");
+
+  it("records consent against the exact argv", async () => {
+    // The token the Settings card stores. Twelve bytes of SHA-256 over the argv
+    // joined on NUL, so editing the command voids the approval.
+    expect(await commands.mcp_consent!({ command: `["npx", "-y", "server"]` })).toBe("fcc4c8cdd12fb9c6b3149580");
+    expect(await commands.mcp_consent!({ command: `  ["npx","-y","server"]  ` })).toBe("fcc4c8cdd12fb9c6b3149580");
+    expect(await commands.mcp_consent!({ command: `["npx", "-y", "other"]` })).not.toBe("fcc4c8cdd12fb9c6b3149580");
+  });
+
+  it("surfaces the four argv refusals verbatim", async () => {
+    await expect(commands.mcp_consent!({ command: "not json" })).rejects.toThrow(
+      `the command must be a JSON array, e.g. ["npx", "-y", "server"]`,
+    );
+    await expect(commands.mcp_consent!({ command: `"npx -y server"` })).rejects.toThrow(
+      "the command must be a JSON array, not a single string",
+    );
+    await expect(commands.mcp_consent!({ command: "[]" })).rejects.toThrow("the command is empty");
+    await expect(commands.mcp_consent!({ command: `["npx", 42]` })).rejects.toThrow(
+      "every part of the command must be a string",
+    );
+    await expect(commands.mcp_consent!({ command: `["npx", ""]` })).rejects.toThrow(
+      "a command cannot contain an empty argument",
+    );
+  });
+
+  it("probes a consented server and reports what it offers", async () => {
+    scratchEnv("cmd-mcp");
+    const argv = [process.execPath, FIXTURE];
+    const s = defaultSettings();
+    s.connections.push({
+      id: "mcp-1",
+      provider: "mcp",
+      label: "files",
+      status: "connected",
+      scopes: [],
+      config: { command: JSON.stringify(argv), consent: consentToken(parseArgv(JSON.stringify(argv))) },
+      lastSyncAt: null,
+      error: null,
+    });
+    settingsSave(EnvRoot.open("default"), s);
+
+    const report = (await commands.mcp_probe!({ env: "default", connectionId: "mcp-1" })) as {
+      server: { name: string; version: string; hasResources: boolean; hasTools: boolean; protocolVersion: string };
+      tools: { name: string; description: string | null }[];
+      skippedForModels: number;
+      capped: boolean;
+      unreadBodies: number;
+      failedReads: number;
+    };
+    expect(report.server.name).toBe("echo");
+    expect(report.server.version).toBe("9.9.9");
+    expect(report.server.hasResources && report.server.hasTools).toBe(true);
+    expect(report.server.protocolVersion).not.toBe("");
+    expect(report.tools).toEqual([{ name: "echo", description: "echoes its argument" }]);
+    expect(report.skippedForModels).toBe(1); // the model-only resource, counted not hidden
+    expect(report).toMatchObject({ capped: false, unreadBodies: 0, failedReads: 0 });
+  }, 20000);
+
+  it("refuses to probe a connection that does not exist, and one that was never approved", async () => {
+    scratchEnv("cmd-mcp-missing");
+    await expect(commands.mcp_probe!({ env: "default", connectionId: "nope" })).rejects.toThrow(`connection "nope"`);
+
+    const s = defaultSettings();
+    s.connections.push({
+      id: "mcp-2",
+      provider: "mcp",
+      label: "files",
+      status: "connected",
+      scopes: [],
+      config: { command: JSON.stringify([process.execPath, FIXTURE]) },
+      lastSyncAt: null,
+      error: null,
+    });
+    settingsSave(EnvRoot.open("default"), s);
+    await expect(commands.mcp_probe!({ env: "default", connectionId: "mcp-2" })).rejects.toThrow(
+      "this server has not been approved to run — approve it in Settings first",
+    );
   });
 });
