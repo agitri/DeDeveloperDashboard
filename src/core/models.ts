@@ -24,6 +24,7 @@ import type {
   ItemAction,
   ItemFilter,
   Layout,
+  Product,
   ProductDecl,
   Settings,
   Tab,
@@ -47,6 +48,7 @@ export type {
   ItemAction,
   ItemFilter,
   Layout,
+  Product,
   ProductDecl,
   Settings,
   Tab,
@@ -229,6 +231,11 @@ export function deploymentFromJson(raw: unknown): Deployment {
   return { name: required(o, "name", isString), url: required(o, "url", isString) };
 }
 
+// `ProductDecl.port` is `Option<u16>` in the Rust; `serde_json` refuses a
+// fraction, a negative, and anything past u16::MAX. Mirrors `isU32` for
+// `ItemFilter.limit` — `isNumber` alone would accept all three.
+const isU16 = (v: unknown): v is number => typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= 65_535;
+
 /** Every field is read defensively: a config.json arrives with a repo, and a
  *  repo can come from anyone. Nothing here runs until approved (phase 6). */
 export function productDeclFromJson(raw: unknown): ProductDecl {
@@ -238,7 +245,7 @@ export function productDeclFromJson(raw: unknown): ProductDecl {
     name: optional(o, "name", isString, null as string | null),
     run: required(o, "run", isString),
     dir: optional(o, "dir", isString, null as string | null),
-    port: optional(o, "port", isNumber, null as number | null),
+    port: optional(o, "port", isU16, null as number | null),
   };
 }
 

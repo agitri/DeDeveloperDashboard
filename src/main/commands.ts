@@ -58,7 +58,9 @@ import * as eolLive from "../core/eol/live";
 import * as eolSchedule from "../core/eol/schedule";
 import * as eolWatchlist from "../core/eol/watchlist";
 import { itemId as makeItemId } from "../core/sync/adapter";
-import type { Item, ItemFilter, Settings } from "../core/models";
+import * as supervise from "../core/products/supervise";
+import * as productLog from "../core/products/log";
+import type { Item, ItemFilter, Product, Settings } from "../core/models";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Handler = (args: Record<string, any>) => unknown;
@@ -906,6 +908,67 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
     eol_unwatch: async ({ env, path }) => eolWatchlist.remove(root(env), String(path)),
 
     eol_watchlist: async ({ env }) => eolWatchlist.load(root(env)),
+
+    // --- products: what a repo declares it can run, behind a consent gate ---
+
+    /** Every product every registered project declares, with its live state.
+     *  `configOf`, not `load`: this refreshes on a timer and must run no git;
+     *  an unreadable config declares nothing rather than failing the board. */
+    products_list: async ({ env }) => {
+      const r = root(env);
+      const reg = projects.registry(r);
+      const all: Product[] = [];
+      for (const entry of reg.projects) {
+        const config = projects.configOf(entry.path);
+        if (config.products.length === 0) continue;
+        all.push(...(await supervise.assemble(r, entry.id, entry.path, config.products)));
+      }
+      return all;
+    },
+
+    /** Approve exactly what the caller is looking at — the command and directory
+     *  passed, not a re-read of a file that may have changed since the render. */
+    product_approve: ({ env, key, run, dir }) =>
+      supervise.approve(root(env), String(key), String(run), String(dir)),
+    product_revoke: ({ env, key }) => supervise.revoke(root(env), String(key)),
+
+    /** Start a product. Refuses unless this exact command has been approved. */
+    product_start: async ({ env, key, run, dir }) => {
+      const r = root(env);
+      const record = await supervise.start(r, String(key), String(run), String(dir));
+      events.log(r, {
+        kind: "product.start",
+        source: "local",
+        project: record.projectId,
+        tokensIn: null,
+        tokensOut: null,
+        costMicros: null,
+        meta: { product: record.productId, pid: record.pid },
+      });
+    },
+
+    /** Ask a product to stop: `SIGTERM`, only after the guard passes. Returns
+     *  the resulting state. */
+    product_stop: async ({ env, key }) => {
+      const r = root(env);
+      const state = await supervise.stop(r, String(key));
+      events.log(r, {
+        kind: "product.stop",
+        source: "local",
+        project: String(key).split("/")[0] ?? "",
+        tokensIn: null,
+        tokensOut: null,
+        costMicros: null,
+        meta: null,
+      });
+      return state;
+    },
+
+    /** The whole captured log, for the panel behind "output". */
+    product_log: async ({ env, key }) => {
+      const r = root(env);
+      return productLog.tail(productLog.file(r.productsLogDir(), String(key)), 400);
+    },
 
     // --- MCP: one gate, and one probe that goes through it ---
 

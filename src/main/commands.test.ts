@@ -15,7 +15,7 @@ import { Scheduler } from "../core/sync/scheduler";
 import { memorySecrets } from "../core/sync/adapter";
 import { defaultSettings, settingsSave, type Connection } from "../core/settings";
 import { register, registry } from "../core/projects";
-import type { Item } from "../core/models";
+import type { Item, Product } from "../core/models";
 import { replaceForConnection } from "../core/sync/cache";
 import { toItems } from "../core/sync/ics";
 import { load as calendarLoad } from "../core/calendar/store";
@@ -47,14 +47,7 @@ function tauriHandlers(): string[] | null {
  * `lib.rs` is not in this set, so it fails the test below until someone
  * acknowledges it here (by porting it, or by adding it to this list).
  */
-const NOT_YET_PORTED = new Set([
-  "products_list",
-  "product_approve",
-  "product_revoke",
-  "product_start",
-  "product_stop",
-  "product_log",
-]);
+const NOT_YET_PORTED = new Set<string>([]);
 
 describe("the command registry", () => {
   it.skipIf(tauriHandlers() === null)("only registers names the Tauri app has, so the frontend contract holds", () => {
@@ -1104,5 +1097,94 @@ describe("mcp commands", () => {
     await expect(commands.mcp_probe!({ env: "default", connectionId: "mcp-2" })).rejects.toThrow(
       "this server has not been approved to run — approve it in Settings first",
     );
+  });
+});
+
+async function waitUntil(cond: () => boolean | Promise<boolean>): Promise<boolean> {
+  for (let i = 0; i < 300; i++) {
+    if (await cond()) return true;
+    await new Promise((r) => setTimeout(r, 10));
+  }
+  return false;
+}
+
+describe("products commands", () => {
+  function seed() {
+    const { env } = scratchEnv("cmd-products");
+    const dir = mkdtempSync(join(tmpdir(), "ddd-proj-"));
+    mkdirSync(join(dir, ".ddd"), { recursive: true });
+    writeFileSync(
+      join(dir, ".ddd", "config.json"),
+      JSON.stringify({
+        products: [
+          { id: "svc", run: "sleep 30" },
+          { id: "talk", run: "echo hello-from-the-product" },
+        ],
+      }),
+    );
+    const entry = register(env, dir);
+    return { env, projectId: entry.id };
+  }
+
+  it("lists a product needing approval, then approves, starts, and stops it", async () => {
+    const { projectId } = seed();
+
+    let rows = (await commands.products_list!({ env: "default" })) as Product[];
+    const declared = rows.find((r) => r.productId === "svc")!;
+    expect(declared.needsApproval).toBeTruthy();
+    expect(declared.state).toEqual({ state: "stopped" });
+
+    commands.product_approve!({ env: "default", key: declared.key, run: declared.run, dir: declared.dir });
+    await commands.product_start!({ env: "default", key: declared.key, run: declared.run, dir: declared.dir });
+
+    rows = (await commands.products_list!({ env: "default" })) as Product[];
+    const running = rows.find((r) => r.productId === "svc")!;
+    expect(running.needsApproval).toBeFalsy();
+    expect(running.state.state).toBe("running");
+    const pid = (running.state as { pid: number }).pid;
+    expect(pid).toBeGreaterThan(0);
+
+    const startRows = (await commands.events_query!({ env: "default", kindPrefix: "product.start" })) as {
+      kind: string;
+      project: string;
+      meta: { product: string; pid: number };
+    }[];
+    expect(startRows.length).toBe(1);
+    expect(startRows[0]!.project).toBe(projectId);
+    expect(startRows[0]!.meta.product).toBe("svc");
+    expect(startRows[0]!.meta.pid).toBe(pid);
+
+    const stopped = await commands.product_stop!({ env: "default", key: declared.key });
+    expect(stopped).toEqual({ state: "stopped" });
+    // Idempotent: a second stop with no record still reports stopped.
+    const again = await commands.product_stop!({ env: "default", key: declared.key });
+    expect(again).toEqual({ state: "stopped" });
+
+    const stopRows = (await commands.events_query!({ env: "default", kindPrefix: "product.stop" })) as {
+      kind: string;
+      meta: unknown;
+    }[];
+    expect(stopRows.length).toBeGreaterThanOrEqual(1);
+    expect(stopRows[0]!.meta).toBeNull();
+
+    expect(
+      await waitUntil(async () => {
+        const now = (await commands.products_list!({ env: "default" })) as Product[];
+        return now.find((r) => r.productId === "svc")!.state.state !== "running";
+      }),
+    ).toBe(true);
+  });
+
+  it("captures a product's output to the log", async () => {
+    seed();
+    const rows = (await commands.products_list!({ env: "default" })) as Product[];
+    const talk = rows.find((r) => r.productId === "talk")!;
+    commands.product_approve!({ env: "default", key: talk.key, run: talk.run, dir: talk.dir });
+    await commands.product_start!({ env: "default", key: talk.key, run: talk.run, dir: talk.dir });
+
+    expect(
+      await waitUntil(async () => ((await commands.product_log!({ env: "default", key: talk.key })) as string).includes("hello-from-the-product")),
+    ).toBe(true);
+    await commands.product_stop!({ env: "default", key: talk.key });
   });
 });

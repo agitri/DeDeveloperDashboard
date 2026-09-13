@@ -163,6 +163,15 @@ describe("project files", () => {
     const c = projectConfigFromJson({ products: [{ id: "a", run: "r" }] });
     expect(c.products[0].port).toBeNull();
   });
+
+  it("rejects a non-u16 product port", () => {
+    // The Rust is `Option<u16>`: a fraction, a negative, or anything past
+    // 65535 is refused rather than silently coerced.
+    expect(() => productDeclFromJson({ id: "web", run: "r", port: 65536 })).toThrow(/invalid type for field `port`/);
+    expect(() => productDeclFromJson({ id: "web", run: "r", port: -1 })).toThrow(/invalid type for field `port`/);
+    expect(() => productDeclFromJson({ id: "web", run: "r", port: 1.5 })).toThrow(/invalid type for field `port`/);
+    expect(productDeclFromJson({ id: "web", run: "r", port: 8080 }).port).toBe(8080);
+  });
 });
 
 import { itemFilterFromJson, itemFromJson } from "./models";
