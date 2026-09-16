@@ -60,6 +60,8 @@ export interface Tab {
   color?: string | null;
   groupId?: string | null;
   widgets: Widget[];
+  /** ISO time the user last switched away from this tab; drives the sitrep "away" banner. */
+  lastVisitedAt?: string | null;
 }
 
 export interface Layout {

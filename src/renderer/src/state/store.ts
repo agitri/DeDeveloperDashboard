@@ -282,6 +282,26 @@ export const useStore = create<Store>((set, get) => ({
     if (previous !== tabId) {
       get().logEvent({ kind: "tab.switch", meta: { from: previous, to: tabId } });
     }
+    // Stamp the tab being left with when that happened, so the sitrep widget
+    // can tell how long it has sat unopened. `previous` is null on the very
+    // first selection — there is no outgoing tab to stamp.
+    if (previous !== tabId && previous !== null) {
+      const prevEnvId = envOf(get().layouts, previous);
+      if (prevEnvId) {
+        set((s) => {
+          const layout = s.layouts[prevEnvId];
+          if (!layout) return {};
+          const next = {
+            ...layout,
+            tabs: layout.tabs.map((t) =>
+              t.id === previous ? { ...t, lastVisitedAt: new Date().toISOString() } : t,
+            ),
+          };
+          persistLayout(prevEnvId, next);
+          return { layouts: { ...s.layouts, [prevEnvId]: next } };
+        });
+      }
+    }
   },
 
   /**
