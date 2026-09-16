@@ -31,6 +31,7 @@ const WIDGET_HOW: Record<string, { how: string; needs?: string }> = {
   repos: { how: "Bind a GitHub connection to list your repos, or add a local checkout by path.", needs: "A GitHub connection for remotes; local scan works without one." },
   about: { how: "Created for you by Promote to tab; shows one repo's facts and recent activity." },
   sitrep: { how: "Bind it to a project; after you have been away a while it summarises what changed." },
+  media: { how: "Play/pause, skip and set volume for whatever is playing; auto-follows Spotify or Apple Music.", needs: "macOS, or Linux with playerctl." },
 };
 
 export interface GuideStatic {

@@ -17,6 +17,7 @@ import { EolWidget } from "./EolWidget";
 import { ClockWidget } from "./ClockWidget";
 import { ItemsWidget } from "./ItemsWidget";
 import { LauncherWidget } from "./LauncherWidget";
+import { MediaWidget } from "./MediaWidget";
 import { NotesWidget, notesMenuItems } from "./NotesWidget";
 import { ProjectsWidget } from "./ProjectsWidget";
 import { RepoWidget } from "./RepoWidget";
@@ -185,6 +186,15 @@ export const WIDGETS: WidgetDefinition[] = [
     needsConnection: false,
     flush: true,
     View: SitrepWidget,
+  },
+  {
+    kind: "media",
+    name: "Media",
+    description: "Now playing: control Spotify or Apple Music (and MPRIS players on Linux).",
+    source: "local",
+    needsConnection: false,
+    flush: true,
+    View: MediaWidget,
   },
 ];
 

@@ -1,0 +1,146 @@
+import { useCallback, useEffect, useState } from "react";
+import { Empty } from "../components/Status";
+import { ipc } from "../lib/ipc";
+import { fmtTime, pickActive } from "../lib/media";
+import { useStore } from "../state/store";
+import { useRemembered } from "../state/remembered";
+import { firstLoad } from "../state/timing";
+import type { MediaState } from "../types";
+import type { WidgetViewProps } from "./registry";
+
+const EMPTY: MediaState = { supported: false, players: [], active: null };
+
+/**
+ * What is playing right now, wherever it is playing — Spotify, Apple Music,
+ * or (on Linux) anything speaking MPRIS through playerctl.
+ *
+ * There is nothing to sync here: this is a live read of the OS, the same
+ * shape as Dev servers. "Auto" follows whichever player is actually making
+ * noise; pinning one keeps the widget on it even while it is paused.
+ */
+export function MediaWidget({ widget }: WidgetViewProps) {
+  const updateWidget = useStore((s) => s.updateWidget);
+  const [state, setState] = useRemembered<MediaState>(`media:${widget.id}`, EMPTY);
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    try {
+      setState(await firstLoad("media", () => ipc.mediaState()));
+      setError(null);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoaded(true);
+    }
+  }, [setState]);
+
+  useEffect(() => {
+    void refresh();
+    const seconds = widget.refreshSeconds ?? 3;
+    const timer = setInterval(() => void refresh(), seconds * 1000);
+    return () => clearInterval(timer);
+  }, [refresh, widget.refreshSeconds]);
+
+  const pinned = String(widget.config.player ?? "auto");
+  const shown = pickActive(state.players, pinned);
+
+  function setPinned(player: string) {
+    updateWidget(widget.id, { config: { ...widget.config, player } });
+  }
+
+  async function command(action: string, value?: number) {
+    if (!shown) return;
+    try {
+      await ipc.mediaCommand(shown.player, action, value);
+    } finally {
+      await refresh();
+    }
+  }
+
+  if (error) {
+    return <Empty title="Could not read what is playing" body={error} />;
+  }
+
+  if (!loaded) return null;
+
+  if (!state.supported) {
+    return <Empty title="Media control is macOS/Linux only" />;
+  }
+
+  return (
+    <div className="media-widget">
+      {state.players.length > 1 && (
+        <div className="media-picker">
+          <select
+            className="field"
+            value={pinned}
+            onChange={(e) => setPinned(e.target.value)}
+          >
+            <option value="auto">Auto</option>
+            {state.players.map((p) => (
+              <option key={p.player} value={p.player}>
+                {p.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {!shown ? (
+        <Empty title="No player detected — open Spotify or Apple Music (on Linux, install playerctl)" />
+      ) : (
+        <div className="media-body">
+          <div className="media-art">
+            {shown.track?.artUrl ? (
+              <img src={shown.track.artUrl} alt="" />
+            ) : (
+              <div className="media-art-fallback">♪</div>
+            )}
+          </div>
+
+          <div className="media-info">
+            <div className="media-title">{shown.track?.title || "—"}</div>
+            <div className="media-sub ink-2">{shown.track?.artist || ""}</div>
+            <div className="media-sub ink-3">{shown.track?.album || ""}</div>
+            {shown.track?.durationMs !== undefined && (
+              <div className="media-time ink-3">
+                {fmtTime(shown.track?.positionMs)} / {fmtTime(shown.track?.durationMs)}
+              </div>
+            )}
+          </div>
+
+          <div className="media-transport">
+            <button className="btn sm" title="Previous" onClick={() => void command("previous")}>
+              ⏮
+            </button>
+            <button
+              className="btn sm"
+              title={shown.playing ? "Pause" : "Play"}
+              onClick={() => void command(shown.playing ? "pause" : "play")}
+            >
+              {shown.playing ? "⏸" : "▶"}
+            </button>
+            <button className="btn sm" title="Next" onClick={() => void command("next")}>
+              ⏭
+            </button>
+          </div>
+
+          {shown.volume !== null && (
+            <div className="media-volume">
+              <span className="mono-label">vol</span>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={shown.volume}
+                onChange={(e) => void command("setVolume", Number(e.target.value))}
+              />
+              <span className="media-volume-value ink-3">{shown.volume}</span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

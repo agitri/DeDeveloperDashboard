@@ -477,6 +477,21 @@
 [data-look="console"] .launch-name { font-size: var(--fs-3); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 [data-look="console"] .launch-tile.add { border-style: dashed; color: var(--text-3); justify-content: center; align-items: center; }
 
+/* --- media -------------------------------------------------------------------
+ * Console tightens the classic widget's padding to the system's spacing scale
+ * and swaps its rounded corners for the system's near-square ones — same
+ * layout, the system's density.
+ */
+[data-look="console"] .media-widget { gap: var(--sp-3); padding: var(--sp-3); }
+[data-look="console"] .media-picker .field { border-radius: var(--r-sm); }
+[data-look="console"] .media-body { gap: var(--sp-3); }
+[data-look="console"] .media-art { width: 84px; height: 84px; border-radius: var(--r-sm); border-color: var(--line-strong); }
+[data-look="console"] .media-art-fallback { color: var(--text-3); }
+[data-look="console"] .media-title { font-size: var(--fs-4); }
+[data-look="console"] .media-sub { font-size: var(--fs-3); }
+[data-look="console"] .media-time { font-size: var(--fs-2); }
+[data-look="console"] .media-transport .btn { border-radius: var(--r-sm); }
+
 /* --- toast ------------------------------------------------------------------ */
 [data-look="console"] .toast {
   position: absolute; left: 50%; bottom: 40px; transform: translateX(-50%);

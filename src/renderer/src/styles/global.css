@@ -1380,6 +1380,42 @@ button, input, textarea, select { font: inherit; color: inherit; }
 .row-detail { padding: 0 10px 8px 26px; }
 .row-detail .row-sub { padding: 2px 0; }
 
+/* --- media ------------------------------------------------------------------
+ * The now-playing widget: art, title/artist/album, a transport row and a
+ * volume slider. Same "style is a class, data is inline" line as the rest of
+ * this block — the art itself is a `<img>` fed a data URL from the host.
+ */
+.media-widget { display: flex; flex-direction: column; gap: 10px; padding: 10px; }
+.media-picker { display: flex; }
+.media-picker .field { width: auto; height: 22px; }
+.media-body { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
+.media-art {
+  width: 96px;
+  height: 96px;
+  border-radius: var(--r);
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+.media-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.media-art-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-3);
+  font-size: 28px;
+}
+.media-info { min-width: 0; max-width: 100%; }
+.media-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.media-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.media-time { font-family: var(--font-mono); font-size: 11px; margin-top: 2px; }
+.media-transport { display: flex; align-items: center; gap: 6px; }
+.media-volume { display: flex; align-items: center; gap: 8px; width: 100%; max-width: 220px; }
+.media-volume input[type="range"] { flex: 1; }
+.media-volume-value { font-family: var(--font-mono); font-size: 11px; min-width: 2ch; text-align: right; }
+
 /* --- names the Console system introduced ---------------------------------
  *
  * The markup carries both vocabularies so one component tree serves two looks
