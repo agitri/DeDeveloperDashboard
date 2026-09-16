@@ -9,6 +9,7 @@ import type { ComponentType } from "react";
 import type { Widget } from "../types";
 import type { MenuItem } from "../components/ContextMenu";
 import type { ItemFilter, RepoFilter } from "../types";
+import { AboutWidget } from "./AboutWidget";
 import { CalendarWidget } from "./CalendarWidget";
 import { DevServerWidget } from "./DevServerWidget";
 import { ProductsWidget } from "./ProductsWidget";
@@ -165,6 +166,15 @@ export const WIDGETS: WidgetDefinition[] = [
     flush: true,
     instructable: true,
     View: RepoWidget,
+  },
+  {
+    kind: "about",
+    name: "About",
+    description: "One repo at a glance: its facts, declared products and recent activity.",
+    source: "local",
+    needsConnection: false,
+    flush: true,
+    View: AboutWidget,
   },
 ];
 
