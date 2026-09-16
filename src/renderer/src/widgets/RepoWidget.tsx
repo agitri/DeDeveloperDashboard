@@ -25,6 +25,7 @@ export function RepoWidget({ widget, environmentId, focused, itemIndex }: Widget
   const [confirmUnlink, setConfirmUnlink] = useState<string | null>(null);
   const [confirmForget, setConfirmForget] = useState<string | null>(null);
   const updateWidget = useStore((s) => s.updateWidget);
+  const promoteToTab = useStore((s) => s.promoteToTab);
   const showToast = useUi((s) => s.showToast);
 
   // Compiled instructions merge under the widget's own filter bar: the switch
@@ -270,6 +271,14 @@ export function RepoWidget({ widget, environmentId, focused, itemIndex }: Widget
     }
   }
 
+  async function promote(path: string, name: string, remote?: string) {
+    try {
+      await promoteToTab({ environmentId, path, name, remote });
+    } catch (e) {
+      showToast(String(e));
+    }
+  }
+
   async function map(row: RepoRow) {
     const dir = await ipc.pickDirectory();
     if (!dir) return;
@@ -440,6 +449,21 @@ export function RepoWidget({ widget, environmentId, focused, itemIndex }: Widget
                   + Project
                 </button>
               )}
+              <button
+                className="btn sm"
+                disabled={!row.localPath}
+                title={
+                  row.localPath
+                    ? "Build a tab pre-filled for this repo"
+                    : "check out or add a local path first"
+                }
+                onClick={() =>
+                  row.localPath &&
+                  void promote(row.localPath, row.nameWithOwner.split("/").pop() || row.nameWithOwner, row.remote)
+                }
+              >
+                Promote to tab
+              </button>
               {row.localPath &&
                 (confirmUnlink === row.remote ? (
                   <>
@@ -526,6 +550,15 @@ export function RepoWidget({ widget, environmentId, focused, itemIndex }: Widget
                       onClick={() => void registerLocal(row)}
                     >
                       + Project
+                    </button>
+                  )}
+                  {!row.missing && (
+                    <button
+                      className="btn sm"
+                      title="Build a tab pre-filled for this repo"
+                      onClick={() => void promote(row.path, row.name, row.origin ?? undefined)}
+                    >
+                      Promote to tab
                     </button>
                   )}
                   {!row.missing && (

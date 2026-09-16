@@ -9,6 +9,7 @@
 
 import { create } from "zustand";
 import { ipc, DEFAULT_APPEARANCE, DEFAULT_SETTINGS } from "../lib/ipc";
+import { buildPromotedTab } from "../lib/promote";
 import { packWidgets } from "./arrange";
 import { exportLayout, importLayout } from "./portable";
 import { switchStarted } from "./timing";
@@ -69,6 +70,8 @@ interface Store {
   cycleTab(delta: number): void;
 
   addTab(environmentId?: string): void;
+  /** Build a tab pre-filled for one repo or project, registering it first. */
+  promoteToTab(input: { environmentId?: string; path: string; name: string; remote?: string }): Promise<void>;
   renameTab(tabId: string, name: string): void;
   /** Show one environment's overview instead of a tab. */
   showOverview(envId: string): void;
@@ -344,6 +347,28 @@ export const useStore = create<Store>((set, get) => ({
       };
     });
     get().logEvent({ kind: "tab.create" });
+  },
+
+  async promoteToTab(input) {
+    const envId = input.environmentId ?? get().activeEnvironmentId();
+    // Register first: a failure here must not leave a half-built tab behind.
+    const project = await ipc.projectRegister(envId, input.path);
+    const tab = buildPromotedTab(
+      { projectId: project.id, name: input.name, path: input.path, remote: input.remote },
+      uid,
+    );
+    set((s) => {
+      const layout = s.layouts[envId] ?? { version: 1, groups: [], tabs: [] };
+      const next = { ...layout, tabs: [...layout.tabs, tab] };
+      persistLayout(envId, next);
+      return {
+        layouts: { ...s.layouts, [envId]: next },
+        activeTabId: tab.id,
+        overviewEnvId: null,
+        view: "board",
+      };
+    });
+    get().logEvent({ kind: "tab.promote", project: project.id });
   },
 
   renameTab(tabId, name) {

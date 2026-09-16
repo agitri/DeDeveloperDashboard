@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ipc } from "../lib/ipc";
 import { useFocus } from "../state/focus";
+import { useStore } from "../state/store";
 import { useUi } from "../state/ui";
 import type { Project } from "../types";
 import type { WidgetViewProps } from "./registry";
@@ -26,6 +27,7 @@ export function ProjectsWidget({ widget, environmentId, focused, itemIndex }: Wi
   const [error, setError] = useState<string | null>(null);
   const registerWidget = useFocus((s) => s.registerWidget);
   const unregisterWidget = useFocus((s) => s.unregisterWidget);
+  const promoteToTab = useStore((s) => s.promoteToTab);
   const showToast = useUi((s) => s.showToast);
 
   const refresh = useCallback(async () => {
@@ -130,6 +132,14 @@ export function ProjectsWidget({ widget, environmentId, focused, itemIndex }: Wi
     }
   }
 
+  async function promote(project: Project) {
+    try {
+      await promoteToTab({ environmentId, path: project.path, name: project.name });
+    } catch (e) {
+      showToast(String(e));
+    }
+  }
+
   async function removeProject(project: Project) {
     try {
       await ipc.projectUnregister(environmentId, project.id);
@@ -183,6 +193,7 @@ export function ProjectsWidget({ widget, environmentId, focused, itemIndex }: Wi
             onToggle={() => setExpanded((cur) => (cur === project.id ? null : project.id))}
             onLaunch={() => void launch(project)}
             onOpenInEditor={() => void openInEditor(project)}
+            onPromote={() => void promote(project)}
             confirmingRemove={confirmRemove === project.id}
             onAskRemove={() => setConfirmRemove(project.id)}
             onCancelRemove={() => setConfirmRemove(null)}
@@ -201,6 +212,7 @@ function ProjectCard({
   onToggle,
   onLaunch,
   onOpenInEditor,
+  onPromote,
   confirmingRemove,
   onAskRemove,
   onCancelRemove,
@@ -212,6 +224,7 @@ function ProjectCard({
   onToggle: () => void;
   onLaunch: () => void;
   onOpenInEditor: () => void;
+  onPromote: () => void;
   confirmingRemove: boolean;
   onAskRemove: () => void;
   onCancelRemove: () => void;
@@ -253,6 +266,16 @@ function ProjectCard({
           }}
         >
           IDE
+        </button>
+        <button
+          className="btn"
+          title="Build a tab pre-filled for this project"
+          onClick={(e) => {
+            e.stopPropagation();
+            onPromote();
+          }}
+        >
+          Promote to tab
         </button>
         {/* Deliberately not disabled by `exists`: a project whose folder is
             gone is exactly the one you most need to be able to remove. */}
