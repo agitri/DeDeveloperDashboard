@@ -41,6 +41,7 @@ import * as icm from "../core/ai/icm";
 import { projectDirFor } from "../core/ai/project";
 import { route } from "../core/ai/router";
 import * as instructions from "../core/instructions";
+import * as sitrep from "../core/ai/sitrep";
 import * as calendar from "../core/calendar/store";
 import { expand, type EventSpec, type Override } from "../core/calendar/expand";
 import * as clone from "../core/repos/clone";
@@ -96,6 +97,8 @@ export const HOST_COMMANDS: readonly string[] = [
   "reveal_path",
   // nodeDDD-only: no Rust counterpart (the per-tab sitrep widget's git delta).
   "repo_changes_since",
+  // nodeDDD-only: no Rust counterpart (the per-tab sitrep widget's AI summary).
+  "tab_sitrep_generate",
 ] as const;
 
 const root = (env: string) => EnvRoot.open(env);
@@ -517,6 +520,28 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
       });
 
       return instructions.record(compiled.filter, prose.hash, unmet, chosen.model, new Date().toISOString());
+    },
+
+    /** A per-tab "what happened while I was away" summary, once, with a local
+     *  model by default. Every failure surfaces as an error and the caller
+     *  falls back to its deterministic digest. */
+    tab_sitrep_generate: async ({ env, input }) => {
+      const r = root(env);
+      const settings = settingsLoad(r);
+      const chosen = route(r, settings, sitrep.ACTION, deps.sync);
+      const si = input as sitrep.SitrepInput;
+      const draft = await chosen.provider.complete(sitrep.completionFor(si, chosen.model));
+      if (draft.refusal !== null) throw DddError.invalid(draft.refusal);
+      events.log(r, {
+        kind: "ai.tab.sitrep",
+        source: chosen.provider.id,
+        project: si.projectName,
+        tokensIn: draft.usage.inputTokens,
+        tokensOut: draft.usage.outputTokens,
+        costMicros: draft.usage.costMicros,
+        meta: { away: si.awayDays },
+      });
+      return { text: draft.text, model: chosen.model };
     },
 
     // --- calendar -----------------------------------------------------------

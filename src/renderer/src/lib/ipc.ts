@@ -919,4 +919,18 @@ export const ipc = {
       ),
     );
   },
+
+  /** What landed in a repo since a timestamp — the sitrep widget's git delta. */
+  repoChangesSince(env: string, path: string, since: string): Promise<{ commits: number; filesChanged: number; messages: string[] }> {
+    if (!isNative) return Promise.resolve({ commits: 0, filesChanged: 0, messages: [] });
+    return call("repo_changes_since", { env, path, since });
+  },
+
+  /** The per-tab "what happened while I was away" summary, once, with a local
+   *  model by default. Rejects on every failure; the caller falls back to its
+   *  deterministic digest. */
+  tabSitrepGenerate(env: string, input: unknown): Promise<{ text: string; model: string }> {
+    if (!isNative) return Promise.resolve({ text: "", model: "" });
+    return call("tab_sitrep_generate", { env, input });
+  },
 };
