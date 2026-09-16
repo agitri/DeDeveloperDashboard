@@ -36,7 +36,9 @@ export function since(iso: string, now = Date.now()): string {
   if (mins < 60) return `${mins}m`;
   const hours = Math.floor(mins / 60);
   if (hours < 24) return `${hours}h`;
-  return `${Math.floor(hours / 24)}d`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d`;
+  return `${Math.floor(days / 7)}w`;
 }
 
 /**

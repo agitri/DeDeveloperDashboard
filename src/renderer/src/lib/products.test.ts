@@ -71,6 +71,7 @@ describe("uptime", () => {
     expect(since(ago(5 * 60_000), now)).toBe("5m");
     expect(since(ago(3 * 3_600_000), now)).toBe("3h");
     expect(since(ago(50 * 3_600_000), now)).toBe("2d");
+    expect(since(ago(15 * 86_400_000), now)).toBe("2w");
   });
 
   it("says nothing rather than something wrong", () => {
