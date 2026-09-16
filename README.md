@@ -49,3 +49,17 @@ Platform notes: dev-server cwd resolution needs `lsof` on macOS and `/proc` on L
 
 The first keychain access on macOS prompts to allow the Electron binary; in a
 packaged build that will be DDD itself.
+
+## Beyond the port
+
+Two renderer-only additions, neither present in the Rust app:
+
+- **Features guide** — a modal accordion listing every widget, integration and
+  concept, opened from the classic header button or `⌘K`. It's a map of the
+  app for anyone landing on a board that's already full of tabs.
+- **Promote to tab** — a row action on the Repositories and Projects widgets
+  that builds a pre-filled tab from a repo or project: a Launcher, a
+  project-scoped Products widget, a read-only About card, and Notes.
+
+These are the first renderer features to intentionally diverge from the DDD
+renderer, rather than port it.
