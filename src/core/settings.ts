@@ -36,6 +36,7 @@ export function defaultAiSettings(): Settings["ai"] {
       "issue.tasks": "anthropic",
       "mail.classify": "local",
       "mail.draft": "anthropic",
+      "tab.sitrep": "local",
       "thread.summarize": "local",
       "widget.instructions": "local",
     },
