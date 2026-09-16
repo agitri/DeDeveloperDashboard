@@ -52,6 +52,12 @@ export function blocker(product: Product): string | null {
   return null;
 }
 
+/** Narrow a product list to one project, or pass it through when unscoped. */
+export function filterByProject(products: Product[], projectId?: string): Product[] {
+  if (!projectId) return products;
+  return products.filter((p) => p.projectId === projectId);
+}
+
 /** Group products by their project, keeping declaration order within each. */
 export function byProject(products: Product[]): { projectId: string; products: Product[] }[] {
   const groups: { projectId: string; products: Product[] }[] = [];

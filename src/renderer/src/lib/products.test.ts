@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { blocker, byProject, since, verdict } from "./products";
+import { blocker, byProject, filterByProject, since, verdict } from "./products";
 import type { Product } from "../types";
 
 const product = (over: Partial<Product> = {}): Product => ({
@@ -110,5 +110,22 @@ describe("grouping", () => {
     ]);
     expect(groups.map((g) => g.projectId)).toEqual(["a", "b"]);
     expect(groups[0]!.products.map((p) => p.key)).toEqual(["a/1", "a/2"]);
+  });
+});
+
+describe("filterByProject", () => {
+  const all = [
+    product({ key: "a/one", projectId: "a", productId: "one", name: "one" }),
+    product({ key: "b/two", projectId: "b", productId: "two", name: "two" }),
+    product({ key: "a/three", projectId: "a", productId: "three", name: "three" }),
+  ];
+  it("keeps only the matching project, in order", () => {
+    expect(filterByProject(all, "a").map((p) => p.productId)).toEqual(["one", "three"]);
+  });
+  it("is a no-op when the id is undefined", () => {
+    expect(filterByProject(all, undefined)).toEqual(all);
+  });
+  it("returns nothing for an unknown project", () => {
+    expect(filterByProject(all, "zzz")).toEqual([]);
   });
 });

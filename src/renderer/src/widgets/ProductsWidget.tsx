@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Empty, Status } from "../components/Status";
 import { ipc } from "../lib/ipc";
-import { blocker, byProject, since, verdict } from "../lib/products";
+import { blocker, byProject, filterByProject, since, verdict } from "../lib/products";
 import { useFocus } from "../state/focus";
 import { useUi } from "../state/ui";
 import type { Product } from "../types";
@@ -64,7 +64,8 @@ export function ProductsWidget({ widget, environmentId, focused, itemIndex }: Wi
     [refresh, showToast],
   );
 
-  const groups = byProject(products);
+  const projectId = typeof widget.filter.projectId === "string" ? widget.filter.projectId : undefined;
+  const groups = byProject(filterByProject(products, projectId));
   const flat = groups.flatMap((g) => g.products);
 
   const registerWidget = useFocus((s) => s.registerWidget);

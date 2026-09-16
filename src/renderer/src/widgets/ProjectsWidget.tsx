@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ipc } from "../lib/ipc";
 import { useFocus } from "../state/focus";
 import { useUi } from "../state/ui";
@@ -16,6 +16,11 @@ import { firstLoad } from "../state/timing";
  */
 export function ProjectsWidget({ widget, environmentId, focused, itemIndex }: WidgetViewProps) {
   const [projects, setProjects] = useRemembered<Project[]>(`projects:${environmentId}`, []);
+  const projectId = typeof widget.filter.projectId === "string" ? widget.filter.projectId : undefined;
+  const visibleProjects = useMemo(
+    () => (projectId ? projects.filter((p) => p.id === projectId) : projects),
+    [projects, projectId],
+  );
   const [expanded, setExpanded] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -86,20 +91,20 @@ export function ProjectsWidget({ widget, environmentId, focused, itemIndex }: Wi
   useEffect(() => {
     registerWidget(
       widget.id,
-      projects.length,
+      visibleProjects.length,
       (index) => {
-        const project = projects[index];
+        const project = visibleProjects[index];
         if (project) setExpanded((cur) => (cur === project.id ? null : project.id));
       },
       {
         launch: (index) => {
-          const project = projects[index];
+          const project = visibleProjects[index];
           if (project) void launch(project);
         },
       },
     );
     return () => unregisterWidget(widget.id);
-  }, [widget.id, projects, registerWidget, unregisterWidget, launch]);
+  }, [widget.id, visibleProjects, registerWidget, unregisterWidget, launch]);
 
   async function addProject() {
     try {
@@ -148,7 +153,7 @@ export function ProjectsWidget({ widget, environmentId, focused, itemIndex }: Wi
           borderBottom: "1px solid var(--line)",
         }}
       >
-        <span className="mono-label">{projects.length} registered</span>
+        <span className="mono-label">{visibleProjects.length} registered</span>
         <span className="grow" />
         <button className="btn" onClick={() => void addProject()}>
           Register project…
@@ -157,7 +162,7 @@ export function ProjectsWidget({ widget, environmentId, focused, itemIndex }: Wi
 
       {error && <div className="widget-error">{error}</div>}
 
-      {projects.length === 0 && !error && (
+      {visibleProjects.length === 0 && !error && (
         <Empty
           title="No projects yet."
           body="Register a directory to see its branch, recap and todos here."
@@ -165,7 +170,7 @@ export function ProjectsWidget({ widget, environmentId, focused, itemIndex }: Wi
       )}
 
       <div style={{ padding: 9 }}>
-        {projects.map((project, index) => (
+        {visibleProjects.map((project, index) => (
           <ProjectCard
             key={project.id}
             project={project}
