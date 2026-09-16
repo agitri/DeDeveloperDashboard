@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Empty } from "../components/Status";
 import { ipc } from "../lib/ipc";
+import { recentForProject } from "../lib/about";
 import { filterByProject, since } from "../lib/products";
 import { useRemembered } from "../state/remembered";
 import { firstLoad } from "../state/timing";
@@ -40,10 +41,11 @@ export function AboutWidget({ widget, environmentId }: WidgetViewProps) {
           ipc.eventsQuery(environmentId, { limit: 50 }),
         ]),
       );
+      const project = projects.find((p) => p.id === projectId) ?? null;
       setData({
-        project: projects.find((p) => p.id === projectId) ?? null,
+        project,
         products: filterByProject(products, projectId),
-        events: recentEvents.filter((e) => e.project === projectId).slice(0, 8),
+        events: recentForProject(recentEvents, project?.name, 8, projectId),
       });
       setError(null);
     } catch (e) {
@@ -134,11 +136,13 @@ export function AboutWidget({ widget, environmentId }: WidgetViewProps) {
             No products declared in this project&rsquo;s <code>.ddd/config.json</code>.
           </div>
         ) : (
-          products.map((product) => (
-            <div key={product.key} className="row-sub">
-              {product.name}
-            </div>
-          ))
+          <div className="row-detail">
+            {products.map((product) => (
+              <div key={product.key} className="row-sub">
+                {product.name}
+              </div>
+            ))}
+          </div>
         )}
       </div>
 
@@ -147,14 +151,23 @@ export function AboutWidget({ widget, environmentId }: WidgetViewProps) {
         {events.length === 0 ? (
           <div className="ink-2">No recent activity.</div>
         ) : (
-          events.map((event) => (
-            <div key={event.id} className="row-sub">
-              <span className="ink-2">{event.kind}</span>
-              <span className="meta ink-3">{since(event.ts)} ago</span>
-            </div>
-          ))
+          <div className="row-detail">
+            {events.map((event) => (
+              <div key={event.id} className="row-sub">
+                <span className="ink-2">{event.kind}</span>
+                <span className="meta ink-3">{relativeAgo(event.ts)}</span>
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </div>
   );
+}
+
+/** `since()` reads as a duration ("2h"), "just now", or "" for a bad
+ * timestamp — none of which want a bare " ago" suffix appended. */
+function relativeAgo(ts: string): string {
+  const s = since(ts);
+  return s === "" || s === "just now" ? s : `${s} ago`;
 }

@@ -86,7 +86,7 @@ export const useUi = create<UiState>((set, get) => ({
     set({ editingNoteId: widgetId, menu: null });
   },
   openMenu(x, y, items) {
-    set({ menu: { x, y, items }, paletteOpen: false, pickerOpen: false });
+    set({ menu: { x, y, items }, paletteOpen: false, pickerOpen: false, guideOpen: false });
   },
   closeMenu() {
     set({ menu: null });

@@ -451,14 +451,15 @@ export function RepoWidget({ widget, environmentId, focused, itemIndex }: Widget
               )}
               <button
                 className="btn sm"
-                disabled={!row.localPath}
+                disabled={!row.localPath || row.missing}
                 title={
-                  row.localPath
+                  row.localPath && !row.missing
                     ? "Build a tab pre-filled for this repo"
                     : "check out or add a local path first"
                 }
                 onClick={() =>
                   row.localPath &&
+                  !row.missing &&
                   void promote(row.localPath, row.nameWithOwner.split("/").pop() || row.nameWithOwner, row.remote)
                 }
               >

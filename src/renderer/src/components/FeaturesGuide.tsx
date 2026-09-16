@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { buildGuide, type GuideEntry, type GuideGroup } from "../lib/guide";
 import { useUi } from "../state/ui";
 import { WIDGETS } from "../widgets/registry";
@@ -20,10 +20,19 @@ export function FeaturesGuide() {
   const open = useUi((s) => s.guideOpen);
   const toggleGuide = useUi((s) => s.toggleGuide);
   const [openId, setOpenId] = useState<string | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   // Computed once: the guide describes what the app can do, not its current
   // state, so it never needs to be rebuilt while open.
   const entries = useMemo(() => buildGuide(WIDGETS), []);
+
+  // Focus trap: moving DOM focus onto the panel the moment it opens keeps Tab
+  // (and every other board shortcut) from reaching a widget behind the scrim.
+  // The global keydown handler in keyboard/useKeyboard.ts does the other half
+  // — suppressing board-scope actions outright while an overlay is open.
+  useEffect(() => {
+    if (open) panelRef.current?.focus();
+  }, [open]);
 
   if (!open) return null;
 
@@ -35,9 +44,12 @@ export function FeaturesGuide() {
   return (
     <div className="scrim" onMouseDown={() => toggleGuide(false)}>
       <div
+        ref={panelRef}
         className="panel"
+        tabIndex={-1}
         onMouseDown={(e) => e.stopPropagation()}
         role="dialog"
+        aria-modal="true"
         aria-label="Features guide"
         onKeyDown={(e) => {
           if (e.key === "Escape") {
@@ -78,7 +90,7 @@ function GuideRow({ entry, open, onToggle }: { entry: GuideEntry; open: boolean;
         <span className={`guide-chevron${open ? " open" : ""}`} aria-hidden="true" />
       </button>
       {open && (
-        <div id={detailId} className="guide-detail item-detail stack">
+        <div id={detailId} role="region" className="guide-detail item-detail stack">
           <div>
             <div className="mono-label caption">what it is</div>
             <div className="ink-2">{entry.what}</div>

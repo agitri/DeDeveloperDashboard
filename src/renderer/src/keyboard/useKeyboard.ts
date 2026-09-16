@@ -58,8 +58,15 @@ export function useGlobalKeys(keymap: Record<string, string[]>) {
       const action = actions.find((a) => a.id === actionId);
       if (!action) return;
 
+      // An overlay (palette, widget picker, features guide) traps keyboard
+      // focus the same way a text field does: board-scope actions (the
+      // default) would otherwise leak through the scrim and drive the board
+      // behind it, while global-scope ones — chiefly `app.escape` — must
+      // still get through so the overlay can be closed.
+      const ui = useUi.getState();
+      const overlayOpen = ui.paletteOpen || ui.pickerOpen || ui.guideOpen;
       const typing = isTypingTarget(e.target);
-      if (typing && (action.scope ?? "board") !== "global") return;
+      if ((typing || overlayOpen) && (action.scope ?? "board") !== "global") return;
 
       e.preventDefault();
       action.run();

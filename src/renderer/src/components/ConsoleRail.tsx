@@ -48,6 +48,7 @@ export function ConsoleRail({
   const closeTab = useStore((s) => s.closeTab);
   const startRenamingTab = useUi((s) => s.startRenamingTab);
   const togglePalette = useUi((s) => s.togglePalette);
+  const toggleGuide = useUi((s) => s.toggleGuide);
   const hintsVisible = useUi((s) => s.hintsVisible);
 
   // Which tab is in flight. Kept in React rather than in dataTransfer, which is
@@ -111,6 +112,14 @@ export function ConsoleRail({
         onClick={onOpenSettings}
       >
         ⚙
+      </button>
+      <button
+        className="rail-toggle"
+        title="Features guide"
+        aria-label="Features guide"
+        onClick={() => toggleGuide()}
+      >
+        ?
       </button>
       <button
         className="rail-toggle"
