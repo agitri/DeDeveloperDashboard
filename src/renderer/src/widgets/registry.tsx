@@ -20,6 +20,7 @@ import { LauncherWidget } from "./LauncherWidget";
 import { NotesWidget, notesMenuItems } from "./NotesWidget";
 import { ProjectsWidget } from "./ProjectsWidget";
 import { RepoWidget } from "./RepoWidget";
+import { SitrepWidget } from "./SitrepWidget";
 import { StatsWidget } from "./StatsWidget";
 
 export interface WidgetViewProps {
@@ -175,6 +176,15 @@ export const WIDGETS: WidgetDefinition[] = [
     needsConnection: false,
     flush: true,
     View: AboutWidget,
+  },
+  {
+    kind: "sitrep",
+    name: "Sitrep",
+    description: "What changed in a repo while you were away: processes, commits, AI.",
+    source: "local",
+    needsConnection: false,
+    flush: true,
+    View: SitrepWidget,
   },
 ];
 

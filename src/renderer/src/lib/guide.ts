@@ -30,6 +30,7 @@ const WIDGET_HOW: Record<string, { how: string; needs?: string }> = {
   eol: { how: "Assign a checkout to watch; it checks weekly whether its runtimes are still supported." },
   repos: { how: "Bind a GitHub connection to list your repos, or add a local checkout by path.", needs: "A GitHub connection for remotes; local scan works without one." },
   about: { how: "Created for you by Promote to tab; shows one repo's facts and recent activity." },
+  sitrep: { how: "Bind it to a project; after you have been away a while it summarises what changed." },
 };
 
 export interface GuideStatic {

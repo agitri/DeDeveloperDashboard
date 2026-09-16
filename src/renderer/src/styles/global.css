@@ -1213,6 +1213,31 @@ button, input, textarea, select { font: inherit; color: inherit; }
 .item-detail { padding: 8px 0 2px 15px; }
 .item-detail.stack { display: flex; flex-direction: column; gap: 6px; }
 
+/* The Sitrep widget's "while you were away" callout: the AI summary, or its
+ * deterministic digest fallback when the model could not be reached. Shown
+ * once per absence and closed with the ×, which writes a dismissed marker so
+ * it stays closed until something new happens. Same tinted-rail idiom as
+ * `.admin-note`, in the accent colour rather than the warn one — this is
+ * informational, not a caution. */
+.sitrep-banner {
+  position: relative;
+  margin: 0 0 8px;
+  padding: 8px 30px 8px 10px;
+  border-left: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border-radius: var(--r);
+  font-size: 12px;
+  line-height: 1.55;
+}
+.sitrep-banner-text { color: var(--ink-2); }
+.sitrep-banner .btn.xs { margin-top: 6px; }
+.sitrep-banner-close { position: absolute; top: 4px; right: 4px; }
+
+/* The always-on delta list under the digest headline: one line per recent
+ * event, freshest first. */
+.sitrep-timeline { display: flex; flex-direction: column; gap: 3px; }
+.sitrep-line { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+
 /* The Features guide's accordion: one row per widget/integration/concept,
  * single-open. The header is a real button so it is a Tab stop and reads as
  * expandable to a screen reader via aria-expanded, not just a hover cue. */

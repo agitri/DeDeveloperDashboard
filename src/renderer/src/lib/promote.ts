@@ -44,12 +44,16 @@ export function buildPromotedTab(input: PromoteInput, mintId: (prefix: string) =
     filter: { projectId: input.projectId },
   });
   const notes = widget("notes", { x: 6, y: 4, w: 6, h: 6 }, { config: { text: "" } });
+  const sitrep = widget("sitrep", { x: 0, y: 10, w: 12, h: 6 }, {
+    title: input.name,
+    config: { projectId: input.projectId },
+  });
 
   return {
     id: mintId("tab"),
     name: input.name,
     color: null,
     groupId: null,
-    widgets: [launcher, about, products, notes],
+    widgets: [launcher, about, products, notes, sitrep],
   };
 }

@@ -13,8 +13,8 @@ describe("buildPromotedTab", () => {
     expect(tab.name).toBe("acme");
   });
 
-  it("holds exactly launcher, products, about and notes", () => {
-    expect(tab.widgets.map((w) => w.kind).sort()).toEqual(["about", "launcher", "notes", "products"]);
+  it("holds exactly launcher, products, about, notes and sitrep", () => {
+    expect(tab.widgets.map((w) => w.kind).sort()).toEqual(["about", "launcher", "notes", "products", "sitrep"]);
   });
 
   it("gives the Launcher a terminal and an editor target for the path", () => {
@@ -30,6 +30,12 @@ describe("buildPromotedTab", () => {
     expect(products.filter.projectId).toBe("proj1");
     expect(about.config.projectId).toBe("proj1");
     expect(about.config.remote).toBe("github.com/acme/acme");
+  });
+
+  it("gives the Sitrep widget the project id and the tab's name as its title", () => {
+    const sitrep = tab.widgets.find((w) => w.kind === "sitrep")!;
+    expect(sitrep.config.projectId).toBe("proj1");
+    expect(sitrep.title).toBe("acme");
   });
 
   it("gives the Products widget a title scoping it to the repo", () => {

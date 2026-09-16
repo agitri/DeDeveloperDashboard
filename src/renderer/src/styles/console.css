@@ -381,6 +381,23 @@
 [data-look="console"] .empty .btn { align-self: flex-start; margin-top: var(--sp-2); }
 @container (max-width: 300px) {[data-look="console"] .empty-body { display: none; } }
 
+/* --- sitrep ------------------------------------------------------------- */
+/* The "while you were away" callout: the environment colour marks it as
+ * informational rather than a warning, matching `.row.is-selected`'s rail. */
+[data-look="console"] .sitrep-banner {
+  padding: var(--sp-3) calc(var(--sp-6) + var(--sp-2)) var(--sp-3) var(--sp-3);
+  border-left: 2px solid var(--env);
+  background: color-mix(in srgb, var(--env) 10%, transparent);
+  border-radius: var(--r-sm);
+  font-size: var(--fs-4);
+}
+[data-look="console"] .sitrep-banner-text { color: var(--text-2); }
+[data-look="console"] .sitrep-timeline { display: flex; flex-direction: column; gap: var(--sp-1); }
+[data-look="console"] .sitrep-line {
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-3);
+  font: 400 var(--fs-2) / 1.3 var(--font-mono); color: var(--text-3);
+}
+
 /* --- prose (notes, long empty states) --------------------------------------- */
 [data-look="console"] .prose { padding: var(--sp-3) var(--sp-4); font-size: 14px; line-height: 1.55; color: var(--text); max-width: 62ch; user-select: text; text-wrap: pretty; }
 [data-look="console"] .prose h1, [data-look="console"] .prose h2, [data-look="console"] .prose h3 { font-weight: 500; line-height: 1.25; margin: 0 0 .4em; letter-spacing: -.01em; }
