@@ -164,8 +164,12 @@ export function ProjectsWidget({ widget, environmentId, focused, itemIndex }: Wi
 
       {visibleProjects.length === 0 && !error && (
         <Empty
-          title="No projects yet."
-          body="Register a directory to see its branch, recap and todos here."
+          title={projectId ? "That project isn't registered" : "No projects yet."}
+          body={
+            projectId
+              ? "Its id doesn't match a project registered in this environment — it may have been unregistered."
+              : "Register a directory to see its branch, recap and todos here."
+          }
         />
       )}
 

@@ -78,18 +78,33 @@ export function ProductsWidget({ widget, environmentId, focused, itemIndex }: Wi
   if (error) {
     return <Empty title="Could not read your products" body={error} />;
   }
-  if (loaded && products.length === 0) {
+  // Checked against `flat` — the filtered list actually on screen — not the
+  // unfiltered `products`: a widget scoped to one project has to show its own
+  // empty state even when other projects have products declared.
+  if (loaded && flat.length === 0) {
+    const scoped = projectId !== undefined && products.length > 0;
     return (
       <Empty
-        title="No products declared"
+        title={scoped ? "No products for this project" : "No products declared"}
         body={
-          <>
-            A product is something a repo knows how to run. Declare one in that
-            repo&rsquo;s <code>.ddd/config.json</code> and it shows up here — and
-            travels with the checkout.
-          </>
+          scoped ? (
+            <>
+              This project has no products declared in its{" "}
+              <code>.ddd/config.json</code>.
+            </>
+          ) : (
+            <>
+              A product is something a repo knows how to run. Declare one in that
+              repo&rsquo;s <code>.ddd/config.json</code> and it shows up here — and
+              travels with the checkout.
+            </>
+          )
         }
-        meta={<code>{'{ "products": [{ "id": "serve", "run": "npm run dev" }] }'}</code>}
+        meta={
+          scoped ? undefined : (
+            <code>{'{ "products": [{ "id": "serve", "run": "npm run dev" }] }'}</code>
+          )
+        }
       />
     );
   }

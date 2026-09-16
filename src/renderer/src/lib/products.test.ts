@@ -128,4 +128,13 @@ describe("filterByProject", () => {
   it("returns nothing for an unknown project", () => {
     expect(filterByProject(all, "zzz")).toEqual([]);
   });
+
+  it("lets a widget tell scoped-but-empty apart from nothing-declared-at-all", () => {
+    // This is the distinction ProductsWidget's empty state relies on: other
+    // projects having products (`all.length > 0`) must not hide the fact that
+    // *this* project's filtered list is empty.
+    const filtered = filterByProject(all, "zzz");
+    expect(filtered).toHaveLength(0);
+    expect(all.length).toBeGreaterThan(0);
+  });
 });
