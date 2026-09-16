@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { awayInfo, buildDigest, extractDelta, sitrepBanner, sitrepCacheKey } from "./sitrep";
+import { awayInfo, buildDigest, extractDelta, newestRelevantTs, sitrepBanner, sitrepCacheKey } from "./sitrep";
 import type { SitrepInput } from "./sitrep";
 import type { EventRow, Product } from "../types";
 
@@ -45,6 +45,59 @@ describe("extractDelta", () => {
     expect(d.commits).toBe(4);
     expect(d.filesChanged).toBe(12);
     expect(d.aiActions).toEqual([{ action: "mail.draft", count: 2 }]);
+  });
+
+  it("excludes the widget's own ai.tab.sitrep event from aiActions", () => {
+    // Counting the sitrep's own generation event here would be self-referential
+    // noise ("AI: tab.sitrep ×N") — and could make an otherwise-empty delta
+    // look non-empty purely because the widget generated a summary for itself,
+    // which is the same feedback shape newestRelevantTs guards against below.
+    const withSelfEvent = [
+      ...events,
+      { id: 4, ts: "2026-09-11T00:00:00Z", kind: "ai.tab.sitrep", project: "acme" },
+    ] as EventRow[];
+    const d = extractDelta({
+      projectName: "acme",
+      projectId: "p1",
+      awayDays: 15,
+      products,
+      events: withSelfEvent,
+      changes: { commits: 4, filesChanged: 12, messages: ["fix"] },
+    });
+    expect(d.aiActions).toEqual([{ action: "mail.draft", count: 2 }]);
+    expect(d.aiActions.some((a) => a.action === "tab.sitrep")).toBe(false);
+  });
+});
+
+describe("newestRelevantTs", () => {
+  it("returns the newest timestamp among the events", () => {
+    const events = [
+      { id: 1, ts: "2026-09-08T00:00:00Z", kind: "product.stop", project: "acme" },
+      { id: 2, ts: "2026-09-10T00:00:00Z", kind: "ai.mail.draft", project: "acme" },
+    ] as EventRow[];
+    expect(newestRelevantTs(events)).toBe("2026-09-10T00:00:00Z");
+  });
+
+  it("returns empty for no events", () => {
+    expect(newestRelevantTs([])).toBe("");
+  });
+
+  it("ignores ai.tab.sitrep events, even when one is the newest", () => {
+    // The bug this guards against: tab_sitrep_generate logs ai.tab.sitrep
+    // stamped with the current time. If that event could set the newest
+    // timestamp, every generation would advance the cache key, invalidating
+    // the summary just cached and triggering another generation — forever,
+    // on an away tab left open.
+    const events = [
+      { id: 1, ts: "2026-09-08T00:00:00Z", kind: "ai.mail.draft", project: "acme" },
+      { id: 2, ts: "2026-09-15T00:00:00Z", kind: "ai.tab.sitrep", project: "acme" },
+    ] as EventRow[];
+    expect(newestRelevantTs(events)).toBe("2026-09-08T00:00:00Z");
+  });
+
+  it("returns empty when only ai.tab.sitrep events are present", () => {
+    const events = [{ id: 1, ts: "2026-09-15T00:00:00Z", kind: "ai.tab.sitrep", project: "acme" }] as EventRow[];
+    expect(newestRelevantTs(events)).toBe("");
   });
 });
 

@@ -3,7 +3,7 @@ import { Empty } from "../components/Status";
 import { ipc } from "../lib/ipc";
 import { recentForProject } from "../lib/about";
 import { since } from "../lib/products";
-import { awayInfo, buildDigest, extractDelta, isEmptyDelta, sitrepBanner, sitrepCacheKey } from "../lib/sitrep";
+import { awayInfo, buildDigest, extractDelta, isEmptyDelta, newestRelevantTs, sitrepBanner, sitrepCacheKey } from "../lib/sitrep";
 import type { SitrepInput } from "../lib/sitrep";
 import { useStore } from "../state/store";
 import { useRemembered } from "../state/remembered";
@@ -36,14 +36,6 @@ interface SitrepCache {
 }
 
 const FALLBACK_WINDOW_MS = 30 * 86_400_000;
-
-/** The newest timestamp among a set of events, or "" for none — used only to
- *  build the cache key, never as a sort tiebreaker. */
-function newestTs(events: EventRow[]): string {
-  let t = "";
-  for (const e of events) if (e.ts > t) t = e.ts;
-  return t;
-}
 
 /**
  * What changed in a repo while you were away: the widget the "Promote to tab"
@@ -126,9 +118,13 @@ export function SitrepWidget({ widget, environmentId }: WidgetViewProps) {
     ? extractDelta({ projectName: project.name, projectId, awayDays: away.days, products, events, changes })
     : null;
 
+  // `newestRelevantTs` deliberately excludes the widget's own `ai.tab.sitrep`
+  // event — see its doc comment. Using a plain "newest of all events" here
+  // would feed each generation's own event back into the key that decides
+  // whether to generate again, regenerating forever on an away tab left open.
   const currentKey = sitrepCacheKey({
     lastVisitedAt,
-    newestEventTs: newestTs(events),
+    newestEventTs: newestRelevantTs(events),
     commits: delta?.commits ?? 0,
     filesChanged: delta?.filesChanged ?? 0,
   });
