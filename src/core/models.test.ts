@@ -91,6 +91,7 @@ describe("layout.json", () => {
           name: "T",
           color: null,
           groupId: null,
+          lastVisitedAt: null,
           widgets: [
             {
               id: "w",
@@ -106,6 +107,17 @@ describe("layout.json", () => {
         },
       ],
     });
+  });
+
+  it("round-trips lastVisitedAt, and defaults it to null when the field is absent", () => {
+    const withStamp = layoutFromJson({
+      tabs: [{ id: "t1", name: "T1", widgets: [], lastVisitedAt: "2026-08-01T12:00:00.000Z" }],
+    });
+    expect(withStamp.tabs[0]!.lastVisitedAt).toBe("2026-08-01T12:00:00.000Z");
+
+    // Backward-compat: a tab written before this field existed still loads.
+    const withoutStamp = layoutFromJson({ tabs: [{ id: "t2", name: "T2", widgets: [] }] });
+    expect(withoutStamp.tabs[0]!.lastVisitedAt).toBeNull();
   });
 });
 

@@ -12,6 +12,22 @@ describe("layout on disk", () => {
     expect(layoutLoad(env).tabs[0]?.name).toBe("T");
     expect(readFileSync(env.layoutFile(), "utf8")).toContain('"name": "T"');
   });
+
+  it("survives an app restart: lastVisitedAt round-trips through save/load", () => {
+    const { env } = scratchEnv("layout-last-visited");
+    layoutSave(env, {
+      version: 1,
+      groups: [],
+      tabs: [
+        { id: "away", name: "Away", color: null, groupId: null, widgets: [], lastVisitedAt: "2026-08-01T12:00:00.000Z" },
+        { id: "fresh", name: "Fresh", color: null, groupId: null, widgets: [] },
+      ],
+    });
+    const loaded = layoutLoad(env);
+    expect(loaded.tabs.find((t) => t.id === "away")?.lastVisitedAt).toBe("2026-08-01T12:00:00.000Z");
+    // Backward-compat: a tab with no stamp still loads, defaulting to null.
+    expect(loaded.tabs.find((t) => t.id === "fresh")?.lastVisitedAt).toBeNull();
+  });
 });
 
 describe("layout files the user picks", () => {

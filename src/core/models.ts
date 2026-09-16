@@ -135,6 +135,7 @@ export function tabFromJson(raw: unknown): Tab {
     color: optional(o, "color", isString, null as string | null),
     groupId: optional(o, "groupId", isString, null as string | null),
     widgets: optional(o, "widgets", isArray, [] as unknown[]).map(widgetFromJson),
+    lastVisitedAt: optional(o, "lastVisitedAt", isString, null as string | null),
   };
 }
 
