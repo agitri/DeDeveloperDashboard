@@ -150,3 +150,12 @@ describe("command", () => {
     await expect(command("spotify", "next", undefined, async () => ok(""), "win32")).rejects.toThrow();
   });
 });
+
+describe("command guards the action", () => {
+  it("rejects an unknown action instead of silently setting volume", async () => {
+    const runner = vi.fn<Runner>(async () => ok(""));
+    // A forged/legacy action like "play" must throw, not fall through to setVolume.
+    await expect(command("spotify", "play" as never, undefined, runner, "darwin")).rejects.toThrow();
+    expect(runner).not.toHaveBeenCalled();
+  });
+});

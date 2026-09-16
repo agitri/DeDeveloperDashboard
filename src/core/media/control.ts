@@ -197,6 +197,12 @@ export async function command(
   runner: Runner = execFileRunner,
   platform: NodeJS.Platform = process.platform,
 ): Promise<void> {
+  // Guard the action at the trust boundary: both backends' verb selection ends
+  // in a `setVolume` else-branch, so an unrecognised action (e.g. a forged IPC
+  // payload, or the old "play"/"pause" bug) would silently set the volume
+  // instead of being rejected. Validate here, once, for every platform.
+  const KNOWN: readonly MediaAction[] = ["playpause", "next", "previous", "setVolume"];
+  if (!KNOWN.includes(action)) throw DddError.invalid(`unknown media action ${JSON.stringify(action)}`);
   const v = action === "setVolume" && value !== undefined ? Math.min(100, Math.max(0, value)) : value;
   if (platform === "darwin") return macCommand(runner, player, action, v);
   if (platform === "linux") return linuxCommand(runner, player, action, v);

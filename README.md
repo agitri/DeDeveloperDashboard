@@ -52,7 +52,7 @@ packaged build that will be DDD itself.
 
 ## Beyond the port
 
-Two renderer-only additions, neither present in the Rust app:
+Renderer-only additions, none present in the Rust app:
 
 - **Features guide** — a modal accordion listing every widget, integration and
   concept, opened from the classic header button or `⌘K`. It's a map of the
@@ -66,6 +66,12 @@ Two renderer-only additions, neither present in the Rust app:
   shows a dismissible "while you were away" summary written by the local
   model, falling back to a deterministic digest when no model is available.
   It reads `Tab.lastVisitedAt`, stamped when you switch away from a tab.
+- **Media** — a now-playing widget that shows the current track and controls
+  play/pause, next, previous and volume, auto-following whatever is playing.
+  On macOS it drives Spotify and Apple Music through AppleScript; on Linux it
+  drives any MPRIS player (Spotify, browsers, VLC, …) through `playerctl`. No
+  login required. Windows is not supported. Album art is inlined by the main
+  process so the content-security policy does not block it.
 
 These are the first renderer features to intentionally diverge from the DDD
 renderer, rather than port it.
