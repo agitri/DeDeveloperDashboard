@@ -7,6 +7,7 @@ import type { MenuItem } from "../components/ContextMenu";
 interface UiState {
   paletteOpen: boolean;
   pickerOpen: boolean;
+  guideOpen: boolean;
   /** True while the ⌘-hold (or `?`) shortcut overlay is showing. */
   hintsVisible: boolean;
   renamingTabId: string | null;
@@ -28,6 +29,7 @@ interface UiState {
 
   togglePalette(open?: boolean): void;
   togglePicker(open?: boolean): void;
+  toggleGuide(open?: boolean): void;
   setHints(visible: boolean): void;
   /** `?` shows the same overlay as holding ⌘, but latched until dismissed. */
   flashHints(): void;
@@ -46,6 +48,7 @@ let toastTimer: ReturnType<typeof setTimeout> | undefined;
 export const useUi = create<UiState>((set, get) => ({
   paletteOpen: false,
   pickerOpen: false,
+  guideOpen: false,
   hintsVisible: false,
   renamingTabId: null,
   renamingGroupId: null,
@@ -57,10 +60,13 @@ export const useUi = create<UiState>((set, get) => ({
   settingsEnvId: null,
 
   togglePalette(open) {
-    set((s) => ({ paletteOpen: open ?? !s.paletteOpen, pickerOpen: false }));
+    set((s) => ({ paletteOpen: open ?? !s.paletteOpen, pickerOpen: false, guideOpen: false }));
   },
   togglePicker(open) {
-    set((s) => ({ pickerOpen: open ?? !s.pickerOpen, paletteOpen: false }));
+    set((s) => ({ pickerOpen: open ?? !s.pickerOpen, paletteOpen: false, guideOpen: false }));
+  },
+  toggleGuide(open) {
+    set((s) => ({ guideOpen: open ?? !s.guideOpen, paletteOpen: false, pickerOpen: false }));
   },
   setHints(visible) {
     set({ hintsVisible: visible });

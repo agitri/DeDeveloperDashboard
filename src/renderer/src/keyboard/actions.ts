@@ -164,6 +164,13 @@ export function buildActions(): Action[] {
       run: () => useUi.getState().flashHints(),
     },
     {
+      id: "app.guide",
+      title: "Features guide",
+      group: "App",
+      keywords: "help widgets integrations concepts onboarding what does this do",
+      run: () => useUi.getState().toggleGuide(true),
+    },
+    {
       id: "app.escape",
       title: "Close overlay / drop focus",
       group: "App",
@@ -172,6 +179,7 @@ export function buildActions(): Action[] {
         const u = useUi.getState();
         if (u.paletteOpen) u.togglePalette(false);
         else if (u.pickerOpen) u.togglePicker(false);
+        else if (u.guideOpen) u.toggleGuide(false);
         // Escape unwinds one level at a time. A control first — leaving the
         // widget from inside a button would skip a step you can see.
         else if (focusedControl()) focusedControl()?.blur();

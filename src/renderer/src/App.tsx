@@ -4,6 +4,7 @@ import { ConsoleRail } from "./components/ConsoleRail";
 import { CommandPalette } from "./components/CommandPalette";
 import { EnvironmentOverview } from "./components/EnvironmentOverview";
 import { ContextMenu } from "./components/ContextMenu";
+import { FeaturesGuide } from "./components/FeaturesGuide";
 import { HintOverlay } from "./components/HintOverlay";
 import { SettingsPage } from "./components/SettingsPage";
 import { TabStrip } from "./components/TabStrip";
@@ -100,6 +101,7 @@ export default function App() {
       <CommandPalette keymap={keymap} />
       <ContextMenu />
       <WidgetPicker />
+      <FeaturesGuide />
       {hintsEnabled && <HintOverlay keymap={keymap} />}
       {toast && <div className="toast">{toast}</div>}
       {lookChanged && (
@@ -157,6 +159,14 @@ export default function App() {
         <button className="palette-hint" onClick={() => togglePalette(true)}>
           <span>Search actions, tabs, projects</span>
           {paletteBinding && <kbd className="kbd">{formatBinding(paletteBinding)}</kbd>}
+        </button>
+        <button
+          className="icon-btn"
+          title="Features guide"
+          aria-label="Features guide"
+          onClick={() => useUi.getState().toggleGuide()}
+        >
+          ?
         </button>
         <button
           className="icon-btn"

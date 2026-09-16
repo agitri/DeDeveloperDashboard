@@ -1212,6 +1212,39 @@ button, input, textarea, select { font: inherit; color: inherit; }
 /* The block an item expands into: a draft, a comment box, an explanation. */
 .item-detail { padding: 8px 0 2px 15px; }
 .item-detail.stack { display: flex; flex-direction: column; gap: 6px; }
+
+/* The Features guide's accordion: one row per widget/integration/concept,
+ * single-open. The header is a real button so it is a Tab stop and reads as
+ * expandable to a screen reader via aria-expanded, not just a hover cue. */
+.guide-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.guide-row:hover { background: var(--raised); }
+/* A CSS triangle, not a glyph: it rotates cleanly and needs no font fallback. */
+.guide-chevron {
+  flex: none;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 4px 0 4px 6px;
+  border-color: transparent transparent transparent var(--ink-3);
+  transition: transform 120ms var(--ease);
+}
+.guide-chevron.open { transform: rotate(90deg); }
+/* The revealed body: same indent idiom as .item-detail, but the guide has no
+ * row-mark column to align under, so it takes the row's own padding instead. */
+.guide-detail { padding: 10px 14px 14px; border-bottom: 1px solid var(--line); }
 /* A drafted reply: monospace, growable, and not a one-line field. */
 .field.draft { height: auto; padding: 8px; resize: vertical; font-family: var(--font-mono); }
 /* Model output, which arrives with its own line breaks. */

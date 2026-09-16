@@ -553,6 +553,12 @@
   [data-look="console"] .filter-bar .mono-label { display: none; }
 }
 
+/* The Features guide accordion. Colours and the chevron already inherit from
+ * the shared tokens; only the density needs to follow Console's tighter,
+ * 0.7×-scaled spacing rather than classic's. */
+[data-look="console"] .guide-row { padding: var(--sp-3) var(--sp-4); }
+[data-look="console"] .guide-detail { padding: var(--sp-3) var(--sp-6) var(--sp-4); }
+
 /* Adding a board. The tab strip had a `+`; the rail that replaces it needs one
  * too, or an environment becomes a closed set. Dashed, like the design's
  * `.launch-tile.add`, so it reads as an affordance rather than a board. */
