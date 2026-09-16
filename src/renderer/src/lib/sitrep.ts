@@ -118,7 +118,7 @@ export function sitrepBanner(args: {
   if (!args.away || isEmptyDelta(args.delta)) {
     return { show: false, source: "none", text: "" };
   }
-  if (args.dismissedKey && args.dismissedKey >= args.currentKey) {
+  if (args.dismissedKey === args.currentKey) {
     return { show: false, source: "none", text: "" };
   }
 

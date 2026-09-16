@@ -117,6 +117,23 @@ describe("sitrepBanner", () => {
     expect(sitrepBanner({ ...base, dismissedKey: "k1" }).show).toBe(true);
   });
 
+  it("does not treat a dismissal at a lower commit count as covering a higher one across a digit boundary", () => {
+    // A composite key embeds unpadded integers, so lexicographic comparison is
+    // not monotonic at a digit-count boundary: "...::9::5" >= "...::10::6" is
+    // true in JS even though 10 commits is strictly newer than 9. Dismissal
+    // must be exact-match only, never an ordering comparison.
+    const lastVisitedAt = "2026-09-01T00:00:00Z";
+    const nineCommits = sitrepCacheKey({ lastVisitedAt, newestEventTs: "", commits: 9, filesChanged: 5 });
+    const tenCommits = sitrepCacheKey({ lastVisitedAt, newestEventTs: "", commits: 10, filesChanged: 6 });
+    expect(nineCommits >= tenCommits).toBe(true); // sanity check: the trap this guards against is real
+
+    const dismissedAtNine = { ...base, currentKey: tenCommits, dismissedKey: nineCommits };
+    expect(sitrepBanner(dismissedAtNine).show).toBe(true); // a new commit — must show again
+
+    const stillAtNine = { ...base, currentKey: nineCommits, dismissedKey: nineCommits };
+    expect(sitrepBanner(stillAtNine).show).toBe(false); // the exact dismissed range — stays hidden
+  });
+
   it("shows the cached text when its key matches the current range", () => {
     expect(sitrepBanner({ ...base, cached: { text: "Summary of the week", key: "k2" } })).toEqual({
       show: true,
