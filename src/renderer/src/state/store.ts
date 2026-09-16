@@ -116,6 +116,14 @@ interface Store {
   removeWidget(widgetId: string): void;
   updateWidgetLayout(updates: { id: string; x: number; y: number; w: number; h: number }[]): void;
   updateWidget(widgetId: string, patch: Partial<Widget>): void;
+  /**
+   * `updateWidget`, but targeted at a specific tab rather than whichever one
+   * is active. A widget on a background tab can still have work in flight —
+   * the Sitrep widget's AI summary, most likely — that resolves after the
+   * user has switched away; without this the write would silently miss
+   * (`updateWidget` reads `activeTab()`) and the result would be discarded.
+   */
+  updateWidgetIn(tabId: string, widgetId: string, patch: Partial<Widget>): void;
   /** Tidy the active tab: reading order, current sizes, no gaps. */
   arrangeWidgets(): void;
 
@@ -682,6 +690,24 @@ export const useStore = create<Store>((set, get) => ({
         ...layout,
         tabs: layout.tabs.map((t) =>
           t.id === tab.id
+            ? { ...t, widgets: t.widgets.map((w) => (w.id === widgetId ? { ...w, ...patch } : w)) }
+            : t,
+        ),
+      };
+      persistLayout(envId, next);
+      return { layouts: { ...s.layouts, [envId]: next } };
+    });
+  },
+
+  updateWidgetIn(tabId, widgetId, patch) {
+    const envId = envOf(get().layouts, tabId);
+    if (!envId) return;
+    set((s) => {
+      const layout = s.layouts[envId]!;
+      const next = {
+        ...layout,
+        tabs: layout.tabs.map((t) =>
+          t.id === tabId
             ? { ...t, widgets: t.widgets.map((w) => (w.id === widgetId ? { ...w, ...patch } : w)) }
             : t,
         ),

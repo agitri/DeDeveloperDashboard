@@ -930,7 +930,7 @@ export const ipc = {
    *  model by default. Rejects on every failure; the caller falls back to its
    *  deterministic digest. */
   tabSitrepGenerate(env: string, input: unknown): Promise<{ text: string; model: string }> {
-    if (!isNative) return Promise.resolve({ text: "", model: "" });
+    if (!isNative) return Promise.reject(new Error("tab_sitrep_generate needs the desktop app"));
     return call("tab_sitrep_generate", { env, input });
   },
 };

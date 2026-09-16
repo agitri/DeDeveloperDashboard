@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { awayInfo, buildDigest, extractDelta } from "./sitrep";
+import { awayInfo, buildDigest, extractDelta, sitrepBanner, sitrepCacheKey } from "./sitrep";
+import type { SitrepInput } from "./sitrep";
 import type { EventRow, Product } from "../types";
 
 const day = 86_400_000;
@@ -54,5 +55,93 @@ describe("buildDigest", () => {
     expect(text).toContain("api");
     const empty = buildDigest({ projectName: "acme", awayDays: 15, processesStopped: [], processesRunning: 0, commits: 0, filesChanged: 0, commitMessages: [], aiActions: [] });
     expect(empty.toLowerCase()).toContain("nothing");
+  });
+});
+
+describe("sitrepCacheKey", () => {
+  it("keys off the newest event timestamp when there is one", () => {
+    const key = sitrepCacheKey({
+      lastVisitedAt: "2026-09-01T00:00:00Z",
+      newestEventTs: "2026-09-10T00:00:00Z",
+      commits: 1,
+      filesChanged: 2,
+    });
+    expect(key).toContain("2026-09-10T00:00:00Z");
+  });
+
+  it("falls back to lastVisitedAt when there are no events", () => {
+    const key = sitrepCacheKey({ lastVisitedAt: "2026-09-01T00:00:00Z", newestEventTs: "", commits: 0, filesChanged: 0 });
+    expect(key).toContain("2026-09-01T00:00:00Z");
+  });
+
+  it("changes when the commit count changes, even with identical timestamps", () => {
+    const a = sitrepCacheKey({ lastVisitedAt: "2026-09-01T00:00:00Z", newestEventTs: "", commits: 1, filesChanged: 2 });
+    const b = sitrepCacheKey({ lastVisitedAt: "2026-09-01T00:00:00Z", newestEventTs: "", commits: 2, filesChanged: 2 });
+    expect(a).not.toBe(b);
+  });
+
+  it("changes when the file count changes, even with identical timestamps and commit count", () => {
+    const a = sitrepCacheKey({ lastVisitedAt: "2026-09-01T00:00:00Z", newestEventTs: "", commits: 1, filesChanged: 2 });
+    const b = sitrepCacheKey({ lastVisitedAt: "2026-09-01T00:00:00Z", newestEventTs: "", commits: 1, filesChanged: 9 });
+    expect(a).not.toBe(b);
+  });
+});
+
+describe("sitrepBanner", () => {
+  const delta: SitrepInput = {
+    projectName: "acme",
+    awayDays: 20,
+    processesStopped: [],
+    processesRunning: 0,
+    commits: 3,
+    filesChanged: 5,
+    commitMessages: [],
+    aiActions: [],
+  };
+  const empty: SitrepInput = { ...delta, commits: 0, processesStopped: [], aiActions: [] };
+  const base = { away: true, delta, currentKey: "k2", genError: false };
+
+  it("hides when not away", () => {
+    expect(sitrepBanner({ ...base, away: false })).toEqual({ show: false, source: "none", text: "" });
+  });
+
+  it("hides on an empty delta", () => {
+    expect(sitrepBanner({ ...base, delta: empty }).source).toBe("none");
+  });
+
+  it("hides when dismissed for this exact range", () => {
+    expect(sitrepBanner({ ...base, dismissedKey: "k2" }).show).toBe(false);
+  });
+
+  it("does not hide when the dismissed range is older than the current one", () => {
+    expect(sitrepBanner({ ...base, dismissedKey: "k1" }).show).toBe(true);
+  });
+
+  it("shows the cached text when its key matches the current range", () => {
+    expect(sitrepBanner({ ...base, cached: { text: "Summary of the week", key: "k2" } })).toEqual({
+      show: true,
+      source: "cached",
+      text: "Summary of the week",
+    });
+  });
+
+  it("treats a stale cached key as nothing cached yet, asking the caller to generate", () => {
+    const r = sitrepBanner({ ...base, cached: { text: "Old summary", key: "k1" } });
+    expect(r).toEqual({ show: true, source: "generated", text: "" });
+  });
+
+  it("falls back to the digest on a generation error", () => {
+    const r = sitrepBanner({ ...base, genError: true });
+    expect(r.source).toBe("digest");
+    expect(r.text).toBe(buildDigest(delta));
+  });
+
+  it("falls back to the digest on a resolved-but-empty cached summary for this range", () => {
+    const r = sitrepBanner({ ...base, cached: { text: "", key: "k2" } });
+    expect(r.source).toBe("digest");
+  });
+
+  it("asks the caller to generate when nothing is cached yet and there is no error", () => {
+    expect(sitrepBanner(base)).toEqual({ show: true, source: "generated", text: "" });
   });
 });

@@ -3,7 +3,7 @@ import { Empty } from "../components/Status";
 import { ipc } from "../lib/ipc";
 import { recentForProject } from "../lib/about";
 import { since } from "../lib/products";
-import { awayInfo, buildDigest, extractDelta, isEmptyDelta } from "../lib/sitrep";
+import { awayInfo, buildDigest, extractDelta, isEmptyDelta, sitrepBanner, sitrepCacheKey } from "../lib/sitrep";
 import type { SitrepInput } from "../lib/sitrep";
 import { useStore } from "../state/store";
 import { useRemembered } from "../state/remembered";
@@ -37,6 +37,14 @@ interface SitrepCache {
 
 const FALLBACK_WINDOW_MS = 30 * 86_400_000;
 
+/** The newest timestamp among a set of events, or "" for none — used only to
+ *  build the cache key, never as a sort tiebreaker. */
+function newestTs(events: EventRow[]): string {
+  let t = "";
+  for (const e of events) if (e.ts > t) t = e.ts;
+  return t;
+}
+
 /**
  * What changed in a repo while you were away: the widget the "Promote to tab"
  * card builds for you, alongside About and Products.
@@ -44,22 +52,30 @@ const FALLBACK_WINDOW_MS = 30 * 86_400_000;
  * Bound to a single project by `widget.config.projectId`, the same as About.
  * Unlike About it also reads its own tab's `lastVisitedAt` — there is no tab
  * prop on `WidgetViewProps`, so it walks the store to find the tab that holds
- * this widget's id, the way the brief's per-tab-sitrep design calls for.
+ * this widget's id, the way the per-tab-sitrep design calls for. That same
+ * lookup gives it the tab's id, which it needs anyway: a generated summary
+ * has to land on the tab that owns this widget even if the user has switched
+ * away by the time it resolves, so writes go through `updateWidgetIn`
+ * (tab-targeted) rather than `updateWidget` (active-tab-targeted).
  *
- * The AI summary is best-effort and cached on the widget: a thrown error from
- * `tabSitrepGenerate` (Ollama down, most likely) must never surface as a
- * crash — it falls back to the deterministic digest with a manual retry,
- * the same rule InstructionsPanel already follows for its own model call.
+ * All of the cache/fallback *decisions* — what the banner shows, and whether
+ * the range is stale — live in pure, tested helpers (`sitrepCacheKey`,
+ * `sitrepBanner` in `lib/sitrep.ts`). This component only wires them to the
+ * store and to `ipc.tabSitrepGenerate`, and never throws even when that call
+ * rejects (Ollama down, no desktop bridge, or anything else) — the same rule
+ * InstructionsPanel already follows for its own model call.
  */
 export function SitrepWidget({ widget, environmentId }: WidgetViewProps) {
   const projectId = String(widget.config.projectId ?? "");
   const awayDays = Number(widget.config.awayDays ?? 14);
 
-  const updateWidget = useStore((s) => s.updateWidget);
+  const updateWidgetIn = useStore((s) => s.updateWidgetIn);
   const tabs = useStore((s) => s.tabs());
-  const lastVisitedAt = tabs.find((t) => t.widgets.some((w) => w.id === widget.id))?.lastVisitedAt ?? null;
+  const ownTab = tabs.find((t) => t.widgets.some((w) => w.id === widget.id));
+  const tabId = ownTab?.id ?? null;
+  const lastVisitedAt = ownTab?.lastVisitedAt ?? null;
 
-  const [data, setData] = useRemembered<SitrepData>(`sitrep:${environmentId}:${projectId}`, EMPTY);
+  const [data, setData] = useRemembered<SitrepData>(`sitrep:${environmentId}:${widget.id}`, EMPTY);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -79,7 +95,9 @@ export function SitrepWidget({ widget, environmentId }: WidgetViewProps) {
           ipc.eventsQuery(environmentId, { since: lastVisitedAt ?? undefined, kindPrefix: "product.", limit: 200 }),
         ]);
         const proj = projects.find((p) => p.id === projectId) ?? null;
-        const merged = [...aiEvents, ...productEvents].sort((a, b) => (a.ts < b.ts ? 1 : -1));
+        // Newest first; `0` for equal timestamps keeps the comparator a valid
+        // total order rather than one that quietly depends on sort stability.
+        const merged = [...aiEvents, ...productEvents].sort((a, b) => (a.ts === b.ts ? 0 : a.ts < b.ts ? 1 : -1));
         const fallbackSince = new Date(Date.now() - FALLBACK_WINDOW_MS).toISOString();
         const repoChanges = proj
           ? await ipc.repoChangesSince(environmentId, proj.path, lastVisitedAt ?? fallbackSince)
@@ -108,24 +126,49 @@ export function SitrepWidget({ widget, environmentId }: WidgetViewProps) {
     ? extractDelta({ projectName: project.name, projectId, awayDays: away.days, products, events, changes })
     : null;
 
-  // The range this sitrep covers: the newest thing we know about, data-only —
-  // never wall-clock time — so it stays stable across renders and only moves
-  // forward when a fresh event or a new absence actually arrives.
-  let throughTs = lastVisitedAt ?? "";
-  for (const e of events) if (e.ts > throughTs) throughTs = e.ts;
+  const currentKey = sitrepCacheKey({
+    lastVisitedAt,
+    newestEventTs: newestTs(events),
+    commits: delta?.commits ?? 0,
+    filesChanged: delta?.filesChanged ?? 0,
+  });
 
-  const cached = widget.config.sitrep as SitrepCache | undefined;
-  const showBanner = away.away && !!delta && !isEmptyDelta(delta);
-  const dismissed = !!cached?.dismissedRange && !!throughTs && cached.dismissedRange >= throughTs;
-  const cacheValid = !!cached?.text && !!cached.coveredThroughTs && !!throughTs && cached.coveredThroughTs >= throughTs;
+  const cachedRaw = widget.config.sitrep as SitrepCache | undefined;
+  const cached =
+    cachedRaw?.text !== undefined && cachedRaw.coveredThroughTs !== undefined
+      ? { text: cachedRaw.text, key: cachedRaw.coveredThroughTs }
+      : undefined;
+  // A stale `genError` (from a previous, now-superseded range) must not leak
+  // into this range's decision — only a failure *of this attempt* counts.
+  const effectiveGenError = genError && attempted.current === currentKey;
+
+  const banner = delta
+    ? sitrepBanner({
+        away: away.away,
+        delta,
+        cached,
+        currentKey,
+        genError: effectiveGenError,
+        dismissedKey: cachedRaw?.dismissedRange,
+      })
+    : { show: false, source: "none" as const, text: "" };
 
   const generate = useCallback(
     async (input: SitrepInput, key: string) => {
+      if (!tabId) return;
       setPending(true);
       setGenError(false);
       try {
         const result = await ipc.tabSitrepGenerate(environmentId, input);
-        updateWidget(widget.id, {
+        if (!result.text) {
+          // A resolved-but-empty summary (the no-native-bridge preview path,
+          // or a future degenerate model response) is treated exactly like a
+          // thrown error: fall through to the digest rather than caching
+          // nothing and getting stuck on "Summarising…" forever.
+          setGenError(true);
+          return;
+        }
+        updateWidgetIn(tabId, widget.id, {
           config: {
             ...widget.config,
             sitrep: {
@@ -137,24 +180,23 @@ export function SitrepWidget({ widget, environmentId }: WidgetViewProps) {
             },
           },
         });
-      } catch (e) {
-        // Ollama down, or any other failure: never throw. The caller falls
-        // back to the deterministic digest and a manual retry.
+      } catch {
+        // Ollama down, no desktop bridge, or anything else: never throw. The
+        // banner falls back to the deterministic digest and a manual retry.
         setGenError(true);
-        void e;
       } finally {
         setPending(false);
       }
     },
-    [environmentId, widget.id, widget.config, updateWidget],
+    [environmentId, tabId, widget.id, widget.config, updateWidgetIn],
   );
 
   useEffect(() => {
-    if (!showBanner || dismissed || cacheValid || !delta || !throughTs) return;
-    if (attempted.current === throughTs) return;
-    attempted.current = throughTs;
-    void generate(delta, throughTs);
-  }, [showBanner, dismissed, cacheValid, delta, throughTs, generate]);
+    if (!delta || banner.source !== "generated") return;
+    if (attempted.current === currentKey) return;
+    attempted.current = currentKey;
+    void generate(delta, currentKey);
+  }, [banner.source, delta, currentKey, generate]);
 
   if (!projectId) {
     return <Empty title="Bind a project to see its sitrep" />;
@@ -185,26 +227,25 @@ export function SitrepWidget({ widget, environmentId }: WidgetViewProps) {
   const recent = recentForProject(events, project.name, 8, projectId);
 
   function dismiss() {
-    updateWidget(widget.id, {
+    if (!tabId) return;
+    updateWidgetIn(tabId, widget.id, {
       config: {
         ...widget.config,
-        sitrep: { ...(cached ?? {}), dismissedRange: throughTs },
+        sitrep: { ...(cachedRaw ?? {}), dismissedRange: currentKey },
       },
     });
   }
 
   return (
     <div className="item-detail stack">
-      {showBanner && !dismissed && (
+      {banner.show && (
         <div className="sitrep-banner">
           <button className="icon-btn sitrep-banner-close" aria-label="Dismiss" onClick={dismiss}>
             ×
           </button>
-          <div className="sitrep-banner-text">
-            {cacheValid ? cached!.text : genError ? buildDigest(delta!) : "Summarising…"}
-          </div>
-          {genError && (
-            <button className="btn xs" disabled={pending} onClick={() => void generate(delta!, throughTs)}>
+          <div className="sitrep-banner-text">{banner.source === "generated" ? "Summarising…" : banner.text}</div>
+          {banner.source === "digest" && (
+            <button className="btn xs" disabled={pending} onClick={() => void generate(delta!, currentKey)}>
               {pending ? "Summarising…" : "Summarise with AI"}
             </button>
           )}
