@@ -44,11 +44,13 @@ import * as instructions from "../core/instructions";
 import * as calendar from "../core/calendar/store";
 import { expand, type EventSpec, type Override } from "../core/calendar/expand";
 import * as clone from "../core/repos/clone";
+import { changesSince } from "../core/repos/changes";
 import { repoFilterFromJson } from "../core/repos/filter";
 import * as links from "../core/repos/links";
 import { normalize } from "../core/repos/remote";
 import * as scan from "../core/repos/scan";
 import { MEMO_FLOOR_MS, Memo, devServerFilterFromJson, list as devServerList, readMachine, type KnownProject } from "../core/dev/board";
+import { execFileRunner } from "../core/dev/run";
 import * as listen from "../core/dev/listen";
 import * as probe from "../core/dev/probe";
 import { mayStop, refusalMessage, signal } from "../core/dev/stop";
@@ -83,14 +85,17 @@ export interface CommandDeps {
   machineRead?: typeof readMachine;
 }
 
-/** Commands the host adds on top of the Tauri set (dialogs and the shell,
- *  which were Tauri plugins). Kept here so the contract test knows them. */
+/** Commands the host adds on top of the Tauri set: dialogs and the shell
+ *  (which were Tauri plugins), plus nodeDDD-only additions with no Rust
+ *  counterpart. Kept here so the contract test knows them. */
 export const HOST_COMMANDS: readonly string[] = [
   "dialog_save",
   "dialog_open_file",
   "dialog_pick_directory",
   "open_external",
   "reveal_path",
+  // nodeDDD-only: no Rust counterpart (the per-tab sitrep widget's git delta).
+  "repo_changes_since",
 ] as const;
 
 const root = (env: string) => EnvRoot.open(env);
@@ -791,6 +796,13 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
           // rejection that takes the app down.
         });
       return target;
+    },
+
+    /** What landed in a repo since a timestamp — the sitrep widget's git
+     *  delta. nodeDDD-only: there is no Rust counterpart. */
+    repo_changes_since: async ({ env, path, since }) => {
+      void env;
+      return changesSince(execFileRunner, String(path), String(since));
     },
 
     // --- dev servers: a live read of the machine. Writes nothing. ---
