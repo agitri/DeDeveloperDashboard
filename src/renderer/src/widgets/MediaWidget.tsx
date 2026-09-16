@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { Empty } from "../components/Status";
 import { ipc } from "../lib/ipc";
-import { fmtTime, pickActive } from "../lib/media";
+import { fmtTime, pickActive, toggleAction } from "../lib/media";
 import { useStore } from "../state/store";
 import { useRemembered } from "../state/remembered";
 import { firstLoad } from "../state/timing";
-import type { MediaState } from "../types";
+import type { MediaAction, MediaState } from "../types";
 import type { WidgetViewProps } from "./registry";
 
 const EMPTY: MediaState = { supported: false, players: [], active: null };
@@ -44,19 +44,31 @@ export function MediaWidget({ widget }: WidgetViewProps) {
 
   const pinned = String(widget.config.player ?? "auto");
   const shown = pickActive(state.players, pinned);
+  // The picker's <select> must always resolve to one of its own options —
+  // fall back to "auto" once the pinned player is no longer live, rather
+  // than rendering blank.
+  const pinnedIsLive = pinned !== "auto" && state.players.some((p) => p.player === pinned);
 
-  function setPinned(player: string) {
-    updateWidget(widget.id, { config: { ...widget.config, player } });
-  }
+  const setPinned = useCallback(
+    (player: string) => {
+      updateWidget(widget.id, { config: { ...widget.config, player } });
+    },
+    [updateWidget, widget.id, widget.config],
+  );
 
-  async function command(action: string, value?: number) {
-    if (!shown) return;
-    try {
-      await ipc.mediaCommand(shown.player, action, value);
-    } finally {
-      await refresh();
-    }
-  }
+  const command = useCallback(
+    async (action: MediaAction, value?: number) => {
+      if (!shown) return;
+      try {
+        await ipc.mediaCommand(shown.player, action, value);
+      } catch (e) {
+        setError(String(e));
+      } finally {
+        await refresh();
+      }
+    },
+    [shown, refresh],
+  );
 
   if (error) {
     return <Empty title="Could not read what is playing" body={error} />;
@@ -74,7 +86,7 @@ export function MediaWidget({ widget }: WidgetViewProps) {
         <div className="media-picker">
           <select
             className="field"
-            value={pinned}
+            value={pinnedIsLive ? pinned : "auto"}
             onChange={(e) => setPinned(e.target.value)}
           >
             <option value="auto">Auto</option>
@@ -117,7 +129,7 @@ export function MediaWidget({ widget }: WidgetViewProps) {
             <button
               className="btn sm"
               title={shown.playing ? "Pause" : "Play"}
-              onClick={() => void command(shown.playing ? "pause" : "play")}
+              onClick={() => void command(toggleAction())}
             >
               {shown.playing ? "⏸" : "▶"}
             </button>

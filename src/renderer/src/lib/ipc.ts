@@ -22,6 +22,7 @@ import type {
   Global,
   Layout,
   McpReport,
+  MediaAction,
   MediaState,
   LocalEvent,
   Occurrence,
@@ -942,7 +943,7 @@ export const ipc = {
     return call("media_state");
   },
 
-  mediaCommand(player: string, action: string, value?: number): Promise<void> {
+  mediaCommand(player: string, action: MediaAction, value?: number): Promise<void> {
     if (!isNative) return Promise.resolve();
     return call("media_command", { player, action, value });
   },

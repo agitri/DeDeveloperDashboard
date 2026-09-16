@@ -5,7 +5,7 @@
  * as a plain map, and `ipc.ts` is what wires it to a window.
  */
 import { existsSync, statSync } from "node:fs";
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { EnvRoot, pathsInfo } from "../core/paths";
@@ -293,24 +293,57 @@ function artMime(contentType: string | null, url: string): string {
 const ART_CACHE_MAX = 4;
 const artCache = new Map<string, string>();
 
+/** Album art is a small cover thumbnail; anything bigger is refused rather
+ *  than read into memory — bounds both a huge/stalled `file://` source (a
+ *  hung mount, a multi-GB file) and a large or slow-loris-style http body. */
+const ART_MAX_BYTES = 8 * 1024 * 1024;
+
+function isImageContentType(contentType: string | null): boolean {
+  if (!contentType) return true; // undetermined — artMime falls back to a guess by extension
+  return contentType.split(";")[0]!.trim().toLowerCase().startsWith("image/");
+}
+
 /**
  * An `http(s)` or `file://` album-art URL, inlined as a `data:` URL so the
  * renderer never makes its own network or filesystem request. Art is
- * best-effort: any failure (network, timeout, missing file) returns `null`
- * rather than surfacing an error, and the caller just keeps the old art.
+ * best-effort: any failure (network, timeout, missing file, oversize, wrong
+ * content type) returns `null` rather than surfacing an error, and the
+ * caller just keeps the old art.
  *
- * Cached by source URL — capped at a handful of entries — so a 3-second poll
- * of an unchanged track re-fetches nothing.
+ * Cached by source URL for `http(s)` sources — capped at a handful of
+ * entries — so a 3-second poll of an unchanged track re-fetches nothing.
+ * `file://` sources are never served from cache: some MPRIS players reuse a
+ * fixed path (e.g. `/tmp/…coverart`) whose bytes change per track, so caching
+ * by URL would show a stale cover.
  */
 async function artDataUrl(url: string, fetchFn: typeof globalThis.fetch): Promise<string | null> {
-  const cached = artCache.get(url);
-  if (cached) return cached;
+  const isFile = url.startsWith("file://");
+  if (!isFile && !url.startsWith("http://") && !url.startsWith("https://")) return null;
+
+  if (!isFile) {
+    const cached = artCache.get(url);
+    if (cached) return cached;
+  }
+
   try {
     let dataUrl: string;
-    if (url.startsWith("file://")) {
-      const buf = await readFile(fileURLToPath(url));
+    if (isFile) {
+      // Trust boundary: this path comes from local MPRIS/media-app metadata
+      // (playerctl / osascript output), not from the network — still capped
+      // below because "local" doesn't mean "small" (a hung mount, a
+      // multi-GB file).
+      const path = fileURLToPath(url);
+      let size: number;
+      try {
+        size = (await stat(path)).size;
+      } catch {
+        return null;
+      }
+      if (size > ART_MAX_BYTES) return null;
+      const buf = await readFile(path);
+      if (buf.byteLength > ART_MAX_BYTES) return null;
       dataUrl = `data:${artMime(null, url)};base64,${buf.toString("base64")}`;
-    } else if (url.startsWith("http://") || url.startsWith("https://")) {
+    } else {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 3000);
       let res: Response;
@@ -320,15 +353,20 @@ async function artDataUrl(url: string, fetchFn: typeof globalThis.fetch): Promis
         clearTimeout(timer);
       }
       if (!res.ok) return null;
+      const contentType = res.headers.get("content-type");
+      if (!isImageContentType(contentType)) return null;
+      const lenHeader = res.headers.get("content-length");
+      if (lenHeader && Number(lenHeader) > ART_MAX_BYTES) return null;
       const buf = Buffer.from(await res.arrayBuffer());
-      dataUrl = `data:${artMime(res.headers.get("content-type"), url)};base64,${buf.toString("base64")}`;
-    } else {
-      return null;
+      if (buf.byteLength > ART_MAX_BYTES) return null;
+      dataUrl = `data:${artMime(contentType, url)};base64,${buf.toString("base64")}`;
     }
-    artCache.set(url, dataUrl);
-    if (artCache.size > ART_CACHE_MAX) {
-      const oldest = artCache.keys().next().value;
-      if (oldest !== undefined) artCache.delete(oldest);
+    if (!isFile) {
+      artCache.set(url, dataUrl);
+      if (artCache.size > ART_CACHE_MAX) {
+        const oldest = artCache.keys().next().value;
+        if (oldest !== undefined) artCache.delete(oldest);
+      }
     }
     return dataUrl;
   } catch {
@@ -1101,17 +1139,22 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
 
     // --- media: OS-level playback control, for the media widget ---
 
-    /** Every player found, and which one the widget follows. The active
-     *  player's album art (if any) is inlined as a `data:` URL. nodeDDD-only:
-     *  there is no Rust counterpart. */
+    /** Every player found, and which one the widget follows. Every player's
+     *  album art (if any) is inlined as a `data:` URL — not just the active
+     *  one — because the widget can be pinned to a non-active player, and a
+     *  raw `https://`/`file://` URL would be blocked by the renderer's CSP.
+     *  nodeDDD-only: there is no Rust counterpart. */
     media_state: async () => {
       const s = await mediaControl.state();
-      const active = s.players.find((p) => p.player === s.active);
-      const url = active?.track?.artUrl;
-      if (url) {
-        const dataUrl = await artDataUrl(url, deps.sync.fetch);
-        if (dataUrl && active?.track) active.track.artUrl = dataUrl;
-      }
+      await Promise.all(
+        s.players.map(async (p) => {
+          const track = p.track;
+          const url = track?.artUrl;
+          if (!track || !url) return;
+          const dataUrl = await artDataUrl(url, deps.sync.fetch);
+          if (dataUrl) track.artUrl = dataUrl;
+        }),
+      );
       return s;
     },
 

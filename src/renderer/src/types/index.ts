@@ -587,3 +587,9 @@ export interface MediaState {
   players: PlayerState[];
   active: string | null;
 }
+
+/** Renderer twin of `core/media/control.ts`'s `MediaAction` — keeping the two
+ *  unions in sync means a stray `"play"`/`"pause"` (the API has only a single
+ *  `"playpause"` toggle) fails to compile at the `ipc.mediaCommand` boundary
+ *  instead of silently falling through to the volume branch. */
+export type MediaAction = "playpause" | "next" | "previous" | "setVolume";

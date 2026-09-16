@@ -24,7 +24,10 @@ export interface MediaState {
 }
 export type MediaAction = "playpause" | "next" | "previous" | "setVolume";
 
-const TAB = "\t";
+// A control character that cannot appear in track metadata (unlike a tab,
+// which some titles/artists/albums do contain and which would otherwise
+// shift every later field — wrong volume, wrong art, etc).
+const FIELD_SEP = "\x1f";
 const num = (s: string | undefined): number | undefined => {
   if (s === undefined || s.trim() === "") return undefined;
   const n = Number(s);
@@ -43,13 +46,16 @@ const MAC_APP: Record<string, string> = { spotify: "Spotify", music: "Music" };
 // One guarded script per player: returns "" if not running (never launches it).
 function macScript(app: string): string {
   const art = app === "Spotify" ? "(artwork url of t)" : '""';
+  // AppleScript's "tab" constant is a literal tab character, which can occur
+  // in metadata; "ASCII character 31" (unit separator) cannot.
   return [
     `if application "${app}" is running then`,
     `  tell application "${app}"`,
     `    try`,
+    `      set d to ASCII character 31`,
     `      set st to player state as text`,
     `      set t to current track`,
-    `      return st & tab & (name of t) & tab & (artist of t) & tab & (album of t) & tab & ${art} & tab & ((duration of t) as text) & tab & ((player position) as text) & tab & ((sound volume) as text)`,
+    `      return st & d & (name of t) & d & (artist of t) & d & (album of t) & d & ${art} & d & ((duration of t) as text) & d & ((player position) as text) & d & ((sound volume) as text)`,
     `    on error`,
     `      return "stopped"`,
     `    end try`,
@@ -63,7 +69,7 @@ function macScript(app: string): string {
 function parseMacLine(player: string, out: string): PlayerState | null {
   const line = out.trim();
   if (line === "") return null;
-  const f = line.split(TAB);
+  const f = line.split(FIELD_SEP);
   const st = (f[0] ?? "").toLowerCase();
   const durRaw = num(f[5]);
   // Spotify duration is ms; Music duration is seconds.
@@ -100,7 +106,8 @@ async function macState(runner: Runner): Promise<PlayerState[]> {
 }
 
 async function macCommand(runner: Runner, player: Player, action: MediaAction, value?: number): Promise<void> {
-  const app = MAC_APP[player] ?? "Spotify";
+  const app = MAC_APP[player];
+  if (!app) throw DddError.notFound(`unknown media player ${JSON.stringify(player)}`);
   const verb =
     action === "playpause" ? "playpause"
     : action === "next" ? "next track"
@@ -111,14 +118,23 @@ async function macCommand(runner: Runner, player: Player, action: MediaAction, v
 
 // ---- Linux (playerctl / MPRIS) ----
 
-const PC_FORMAT =
-  "{{playerName}}\t{{status}}\t{{title}}\t{{artist}}\t{{album}}\t{{mpris:artUrl}}\t{{position}}\t{{mpris:length}}\t{{volume}}";
+const PC_FORMAT = [
+  "{{playerName}}",
+  "{{status}}",
+  "{{title}}",
+  "{{artist}}",
+  "{{album}}",
+  "{{mpris:artUrl}}",
+  "{{position}}",
+  "{{mpris:length}}",
+  "{{volume}}",
+].join(FIELD_SEP);
 
 function parsePlayerctl(out: string): PlayerState[] {
   const players: PlayerState[] = [];
   for (const line of lines(out)) {
     if (line.trim() === "") continue;
-    const f = line.split(TAB);
+    const f = line.split(FIELD_SEP);
     const name = f[0] ?? "";
     if (name === "") continue;
     const posUs = num(f[6]);
@@ -181,7 +197,8 @@ export async function command(
   runner: Runner = execFileRunner,
   platform: NodeJS.Platform = process.platform,
 ): Promise<void> {
-  if (platform === "darwin") return macCommand(runner, player, action, value);
-  if (platform === "linux") return linuxCommand(runner, player, action, value);
+  const v = action === "setVolume" && value !== undefined ? Math.min(100, Math.max(0, value)) : value;
+  if (platform === "darwin") return macCommand(runner, player, action, v);
+  if (platform === "linux") return linuxCommand(runner, player, action, v);
   throw DddError.config("media control is not supported on this platform");
 }

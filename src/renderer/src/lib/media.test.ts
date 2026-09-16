@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fmtTime, pickActive } from "./media";
+import { fmtTime, pickActive, toggleAction } from "./media";
 import type { PlayerState } from "../types";
 
 const player = (over: Partial<PlayerState> = {}): PlayerState => ({
@@ -47,6 +47,15 @@ describe("pickActive", () => {
 
   it("returns null when there are no players", () => {
     expect(pickActive([])).toBeNull();
+  });
+});
+
+describe("toggleAction", () => {
+  // Locks down the play/pause fix: the widget's transport toggle must always
+  // dispatch the one real API verb, "playpause" — not "play"/"pause", which
+  // are not `MediaAction` members and silently zeroed the volume instead.
+  it("always dispatches \"playpause\"", () => {
+    expect(toggleAction()).toBe("playpause");
   });
 });
 

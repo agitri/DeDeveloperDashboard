@@ -1,4 +1,4 @@
-import type { PlayerState } from "../types";
+import type { MediaAction, PlayerState } from "../types";
 
 /** The player to show: the pinned one if present, else the playing one, else the first. */
 export function pickActive(players: PlayerState[], pinned?: string): PlayerState | null {
@@ -7,6 +7,15 @@ export function pickActive(players: PlayerState[], pinned?: string): PlayerState
     if (p) return p;
   }
   return players.find((p) => p.playing) ?? players[0] ?? null;
+}
+
+/** The action for the widget's single transport button: the API has one
+ *  play/pause toggle, not separate play and pause verbs, so this is what the
+ *  button dispatches regardless of whether the track is currently playing.
+ *  ("play"/"pause" are not `MediaAction` members and would silently fall
+ *  through to the volume branch on both backends — see control.ts.) */
+export function toggleAction(): MediaAction {
+  return "playpause";
 }
 
 /** ms → "m:ss", "" when unknown. */
