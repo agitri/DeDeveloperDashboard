@@ -59,7 +59,13 @@ Two renderer-only additions, neither present in the Rust app:
   app for anyone landing on a board that's already full of tabs.
 - **Promote to tab** — a row action on the Repositories and Projects widgets
   that builds a pre-filled tab from a repo or project: a Launcher, a
-  project-scoped Products widget, a read-only About card, and Notes.
+  project-scoped Products widget, a read-only About card, Notes, and a Sitrep.
+- **Sitrep** — a project-bound widget reporting what changed in a repo while
+  you were away from its tab: processes that stopped, commits and changed
+  files, and what the AI did. After a long absence (14 days by default) it
+  shows a dismissible "while you were away" summary written by the local
+  model, falling back to a deterministic digest when no model is available.
+  It reads `Tab.lastVisitedAt`, stamped when you switch away from a tab.
 
 These are the first renderer features to intentionally diverge from the DDD
 renderer, rather than port it.
