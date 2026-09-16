@@ -560,3 +560,30 @@ export interface Product {
   /** The last few lines it printed. */
   log: string;
 }
+
+// --- media widget: OS-level playback control (renderer twin of core/media/control.ts) ---
+
+export interface Track {
+  title: string;
+  artist: string;
+  album: string;
+  /** A `data:` URL by the time it reaches the renderer — the host inlines it. */
+  artUrl?: string;
+  positionMs?: number;
+  durationMs?: number;
+}
+
+export interface PlayerState {
+  player: string;
+  label: string;
+  playing: boolean;
+  /** 0-100, or null when unknown. */
+  volume: number | null;
+  track?: Track;
+}
+
+export interface MediaState {
+  supported: boolean;
+  players: PlayerState[];
+  active: string | null;
+}

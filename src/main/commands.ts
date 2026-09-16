@@ -5,7 +5,9 @@
  * as a plain map, and `ipc.ts` is what wires it to a window.
  */
 import { existsSync, statSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { basename, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { EnvRoot, pathsInfo } from "../core/paths";
 import {
   environmentCreate,
@@ -63,6 +65,7 @@ import * as eolWatchlist from "../core/eol/watchlist";
 import { itemId as makeItemId } from "../core/sync/adapter";
 import * as supervise from "../core/products/supervise";
 import * as productLog from "../core/products/log";
+import * as mediaControl from "../core/media/control";
 import type { Item, ItemFilter, Product, Settings } from "../core/models";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -99,6 +102,9 @@ export const HOST_COMMANDS: readonly string[] = [
   "repo_changes_since",
   // nodeDDD-only: no Rust counterpart (the per-tab sitrep widget's AI summary).
   "tab_sitrep_generate",
+  // nodeDDD-only: no Rust counterpart (the media widget's playback state and controls).
+  "media_state",
+  "media_command",
 ] as const;
 
 const root = (env: string) => EnvRoot.open(env);
@@ -269,6 +275,65 @@ function specFromLocal(event: calendar.LocalEvent, color: string): EventSpec | n
  *  from a random draw, which serves the same purpose. */
 function uuidIsh(): string {
   return (BigInt(Date.now()) * 1_000_000n + BigInt(Math.floor(Math.random() * 1_000_000))).toString(16);
+}
+
+/** Best guess at a MIME type when the source did not give one: by extension,
+ *  falling back to JPEG — the common case for album art. */
+function artMime(contentType: string | null, url: string): string {
+  if (contentType) return contentType.split(";")[0]!.trim();
+  const ext = url.split(".").pop()?.toLowerCase();
+  if (ext === "png") return "image/png";
+  if (ext === "gif") return "image/gif";
+  if (ext === "webp") return "image/webp";
+  return "image/jpeg";
+}
+
+/** Cap on the `artDataUrl` cache: one track's worth of headroom per player,
+ *  not a general-purpose image cache. */
+const ART_CACHE_MAX = 4;
+const artCache = new Map<string, string>();
+
+/**
+ * An `http(s)` or `file://` album-art URL, inlined as a `data:` URL so the
+ * renderer never makes its own network or filesystem request. Art is
+ * best-effort: any failure (network, timeout, missing file) returns `null`
+ * rather than surfacing an error, and the caller just keeps the old art.
+ *
+ * Cached by source URL — capped at a handful of entries — so a 3-second poll
+ * of an unchanged track re-fetches nothing.
+ */
+async function artDataUrl(url: string, fetchFn: typeof globalThis.fetch): Promise<string | null> {
+  const cached = artCache.get(url);
+  if (cached) return cached;
+  try {
+    let dataUrl: string;
+    if (url.startsWith("file://")) {
+      const buf = await readFile(fileURLToPath(url));
+      dataUrl = `data:${artMime(null, url)};base64,${buf.toString("base64")}`;
+    } else if (url.startsWith("http://") || url.startsWith("https://")) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 3000);
+      let res: Response;
+      try {
+        res = await fetchFn(url, { signal: controller.signal });
+      } finally {
+        clearTimeout(timer);
+      }
+      if (!res.ok) return null;
+      const buf = Buffer.from(await res.arrayBuffer());
+      dataUrl = `data:${artMime(res.headers.get("content-type"), url)};base64,${buf.toString("base64")}`;
+    } else {
+      return null;
+    }
+    artCache.set(url, dataUrl);
+    if (artCache.size > ART_CACHE_MAX) {
+      const oldest = artCache.keys().next().value;
+      if (oldest !== undefined) artCache.delete(oldest);
+    }
+    return dataUrl;
+  } catch {
+    return null;
+  }
 }
 
 export function createCommands(deps: CommandDeps): Record<string, Handler> {
@@ -1032,6 +1097,32 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
       const token = await oauth.accessToken(r, connection, deps.sync);
       const cx = fetchContext({ environmentId: r.id, connection, token, fetch: deps.sync.fetch });
       return new McpAdapter().probe(cx);
+    },
+
+    // --- media: OS-level playback control, for the media widget ---
+
+    /** Every player found, and which one the widget follows. The active
+     *  player's album art (if any) is inlined as a `data:` URL. nodeDDD-only:
+     *  there is no Rust counterpart. */
+    media_state: async () => {
+      const s = await mediaControl.state();
+      const active = s.players.find((p) => p.player === s.active);
+      const url = active?.track?.artUrl;
+      if (url) {
+        const dataUrl = await artDataUrl(url, deps.sync.fetch);
+        if (dataUrl && active?.track) active.track.artUrl = dataUrl;
+      }
+      return s;
+    },
+
+    /** Play/pause, skip, or set volume on one player. nodeDDD-only: there is
+     *  no Rust counterpart. */
+    media_command: async ({ player, action, value }) => {
+      await mediaControl.command(
+        String(player),
+        action as mediaControl.MediaAction,
+        value === undefined ? undefined : Number(value),
+      );
     },
   };
 }

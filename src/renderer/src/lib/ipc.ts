@@ -22,6 +22,7 @@ import type {
   Global,
   Layout,
   McpReport,
+  MediaState,
   LocalEvent,
   Occurrence,
   PathsInfo,
@@ -932,5 +933,17 @@ export const ipc = {
   tabSitrepGenerate(env: string, input: unknown): Promise<{ text: string; model: string }> {
     if (!isNative) return Promise.reject(new Error("tab_sitrep_generate needs the desktop app"));
     return call("tab_sitrep_generate", { env, input });
+  },
+
+  /** Every player found and which one the widget follows. Browser preview
+   *  has no OS to read, so it reports the platform as unsupported. */
+  mediaState(): Promise<MediaState> {
+    if (!isNative) return Promise.resolve({ supported: false, players: [], active: null });
+    return call("media_state");
+  },
+
+  mediaCommand(player: string, action: string, value?: number): Promise<void> {
+    if (!isNative) return Promise.resolve();
+    return call("media_command", { player, action, value });
   },
 };
