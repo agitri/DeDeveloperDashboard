@@ -16,6 +16,11 @@ export interface WizardStep {
   /** Whether the user has completed this step, given the baseline captured when
    *  the step began and the current snapshot. Pure. */
   done(baseline: WizardSnapshot, current: WizardSnapshot): boolean;
+  /** When true for the snapshot captured as this step becomes active, the
+   *  controller auto-advances past it instead of showing it — for a step
+   *  that would otherwise be uncompletable (e.g. "switch tabs" with only one
+   *  tab). Pure; evaluated once, right where the baseline is captured. */
+  skipWhen?: (current: WizardSnapshot) => boolean;
 }
 
 const advanceable = () => true; // welcome/finish: the user clicks Next
@@ -33,7 +38,7 @@ export const STEPS: WizardStep[] = [
     title: "Make an environment",
     instruction: "Environments are separate boards. Create one: press ⌘⇧N, then Create.",
     shortcut: "⌘⇧N",
-    target: "environments",
+    target: "settings",
     hint: "⌘⇧N opens Settings → Environments. Type a name and click Create.",
     done: (b, c) => c.envCount > b.envCount,
   },
@@ -54,6 +59,10 @@ export const STEPS: WizardStep[] = [
     target: "tab-strip",
     hint: "Click a different tab in the strip, or press ⌃Tab.",
     done: (b, c) => c.activeTabId !== b.activeTabId,
+    // With fewer than two tabs there is nothing to switch to — `selectTab`
+    // early-returns when the id doesn't change, so this step would otherwise
+    // be a dead end on a fresh board.
+    skipWhen: (c) => c.tabCount < 2,
   },
   {
     id: "widget",

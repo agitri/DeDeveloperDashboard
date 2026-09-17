@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useWizard } from "../onboarding/useWizard";
+import { useUi } from "../state/ui";
 import { Spotlight } from "./Spotlight";
 
 /**
@@ -21,10 +22,14 @@ export function Wizard() {
   useEffect(() => {
     if (!active) return;
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        exit();
-      }
+      if (e.key !== "Escape") return;
+      // WidgetPicker/CommandPalette/FeaturesGuide close on Escape with
+      // `preventDefault` but not `stopPropagation` — if one of them is open,
+      // this Escape is theirs to dismiss, not the tour's to exit on.
+      const { paletteOpen, pickerOpen, guideOpen } = useUi.getState();
+      if (paletteOpen || pickerOpen || guideOpen) return;
+      e.preventDefault();
+      exit();
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);

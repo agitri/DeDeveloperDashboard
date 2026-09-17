@@ -609,7 +609,10 @@ button, input, textarea, select { font: inherit; color: inherit; }
   position: fixed;
   right: 16px;
   bottom: 16px;
-  z-index: 60;
+  /* Below .scrim (50) — the panel and a scrim modal (widget picker, command
+     palette) don't need to coexist visually, and the wizard is non-blocking,
+     so on a narrow window it must never sit above and swallow a picker click. */
+  z-index: 45;
   width: 300px;
   display: flex;
   flex-direction: column;

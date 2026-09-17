@@ -108,6 +108,13 @@ function goTo(nextIndex: number) {
     return;
   }
   const baseline = snapshotNow();
+  // A step whose gate is already unsatisfiable at the moment it would begin
+  // (e.g. "switch tabs" with only one tab) is never shown — same path as a
+  // detected completion, but with no reward, since the user did nothing.
+  if (STEPS[nextIndex]?.skipWhen?.(baseline)) {
+    goTo(nextIndex + 1);
+    return;
+  }
   useWizard.setState({
     active: true,
     index: nextIndex,

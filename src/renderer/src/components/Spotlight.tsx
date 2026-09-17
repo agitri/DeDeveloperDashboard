@@ -36,9 +36,23 @@ export function Spotlight({ target, intense }: { target?: string; intense?: bool
     // exactly the one being spotlit.
     window.addEventListener("scroll", schedule, true);
     window.addEventListener("resize", schedule);
+
+    // In-place reflow (the tab strip widening as tabs are added) doesn't fire
+    // either scroll or resize, so the cut-out would otherwise go stale until
+    // the next unrelated event. Missing target/ResizeObserver is not an
+    // error — the rAF-scheduled `measure()` above still renders whatever it
+    // finds (or nothing).
+    let observer: ResizeObserver | undefined;
+    const el = document.querySelector(`[data-wizard-target="${target}"]`);
+    if (el && typeof ResizeObserver !== "undefined") {
+      observer = new ResizeObserver(schedule);
+      observer.observe(el);
+    }
+
     return () => {
       window.removeEventListener("scroll", schedule, true);
       window.removeEventListener("resize", schedule);
+      observer?.disconnect();
       if (frameRef.current !== undefined) cancelAnimationFrame(frameRef.current);
     };
   }, [target, intense]);

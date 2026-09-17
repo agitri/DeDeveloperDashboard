@@ -159,7 +159,7 @@ export default function App() {
           }}
           onOpenSettings={openAppSettings}
         />
-        <div className="board" data-wizard-target="board">
+        <div className="board">
           {content}
         </div>
         {overlays}

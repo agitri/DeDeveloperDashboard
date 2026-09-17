@@ -27,13 +27,41 @@ describe("wizard steps", () => {
     expect(doneOf("switch")(base, { ...base, activeTabId: "t2" })).toBe(true);
     expect(doneOf("widget")(base, { ...base, widgetCount: 4 })).toBe(true);
   });
+  // A field-swap (checking the wrong count) must not pass: each step's
+  // `done` reacts to its own field only, not any field moving.
+  it("tab step ignores a widget-count change", () => {
+    expect(doneOf("tab")(base, { ...base, widgetCount: 9 })).toBe(false);
+  });
+  it("switch step ignores a tab-count change", () => {
+    expect(doneOf("switch")(base, { ...base, tabCount: 9 })).toBe(false);
+  });
+  it("widget step ignores a tab-count change", () => {
+    expect(doneOf("widget")(base, { ...base, tabCount: 9 })).toBe(false);
+  });
   it("settings step completes when the settings view is open", () => {
     expect(doneOf("settings")(base, { ...base, view: "settings" })).toBe(true);
     expect(doneOf("settings")(base, base)).toBe(false);
   });
+  it("settings step stays false when the view is unchanged, even if another field moves", () => {
+    expect(doneOf("settings")(base, { ...base, envCount: 9, tabCount: 9, widgetCount: 9, activeTabId: "t9" })).toBe(
+      false,
+    );
+  });
   it("welcome and finish auto-complete (advanced by the user, not an action)", () => {
     expect(doneOf("welcome")(base, base)).toBe(true);
     expect(doneOf("finish")(base, base)).toBe(true);
+  });
+
+  it("the switch step's skipWhen gates on tab count, so a single-tab board never lands on a dead-end step", () => {
+    const switchStep = STEPS.find((s) => s.id === "switch")!;
+    expect(switchStep.skipWhen?.({ ...base, tabCount: 1 })).toBe(true);
+    expect(switchStep.skipWhen?.({ ...base, tabCount: 2 })).toBe(false);
+  });
+  it("only the switch step declares skipWhen", () => {
+    for (const s of STEPS) {
+      if (s.id === "switch") continue;
+      expect(s.skipWhen).toBeUndefined();
+    }
   });
 
   it("progress is 1-based over the total", () => {
