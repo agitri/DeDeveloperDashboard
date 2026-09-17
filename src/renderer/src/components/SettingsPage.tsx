@@ -235,7 +235,7 @@ function EnvironmentsPanel({ activeId }: { activeId: string }) {
         <div className="card-head">
           <div className="grow">Add an environment</div>
         </div>
-        <div className="card-body">
+        <div className="card-body" data-wizard-target="env-create">
           <Row label="Name" desc="Work, Personal, or one per client.">
             <input
               className="field"

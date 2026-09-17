@@ -6,6 +6,7 @@ import { DEFAULT_KEYMAP, buildActions, type Action } from "./actions";
 import { eventToBinding, isTypingTarget, normalizeBinding } from "./keys";
 import { ipc } from "../lib/ipc";
 import { useUi } from "../state/ui";
+import { useWizard } from "../onboarding/useWizard";
 
 export function useKeymap(): Record<string, string[]> {
   const [keymap, setKeymap] = useState<Record<string, string[]>>(DEFAULT_KEYMAP);
@@ -45,8 +46,16 @@ export function useGlobalKeys(keymap: Record<string, string[]>) {
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       // Hold ⌘ (or Ctrl) to see what every key does. Hints are how shortcuts get
-      // learned; a cheat sheet nobody opens is how they die.
-      if ((e.key === "Meta" || e.key === "Control") && !useUi.getState().paletteOpen) {
+      // learned; a cheat sheet nobody opens is how they die. But during the
+      // onboarding tour every step tells you to press a ⌘-shortcut, so the
+      // cheat sheet would pop over the wizard's own spotlight on every step —
+      // suppress it while the tour is running (the coach panel shows the one
+      // shortcut that matters).
+      if (
+        (e.key === "Meta" || e.key === "Control") &&
+        !useUi.getState().paletteOpen &&
+        !useWizard.getState().active
+      ) {
         useUi.getState().setHints(true);
       }
 

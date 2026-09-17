@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useWizard } from "../onboarding/useWizard";
 import { useUi } from "../state/ui";
+import { useStore } from "../state/store";
 import { Spotlight } from "./Spotlight";
 
 /**
@@ -18,6 +19,13 @@ export function Wizard() {
   const skip = useWizard((s) => s.skip);
   const exit = useWizard((s) => s.exit);
   const showMe = useWizard((s) => s.showMe);
+  // The "create an environment" step spans two UI states: on the board its
+  // target is the settings gear (press ⌘⇧N), but once ⌘⇧N has opened
+  // Settings → Environments the gear is behind you — follow the spotlight to
+  // the actual Create control so we're not dimming the panel while pointing at
+  // an irrelevant corner.
+  const view = useStore((s) => s.view);
+  const settingsPanel = useUi((s) => s.settingsPanel);
 
   useEffect(() => {
     if (!active) return;
@@ -46,9 +54,14 @@ export function Wizard() {
   const isBookend = step.id === "welcome" || step.id === "finish";
   const advanceLabel = step.id === "finish" ? "Finish" : isBookend ? "Next" : "Skip step";
 
+  const spotlightTarget =
+    step.id === "environment" && view === "settings" && settingsPanel === "environments"
+      ? "env-create"
+      : step.target;
+
   return (
     <>
-      <Spotlight target={step.target} intense={showHint} />
+      <Spotlight target={spotlightTarget} intense={showHint} />
       <div className="wizard-panel" role="dialog" aria-label="Guided tour">
         {reward ? (
           <div className="wizard-reward" aria-hidden="true">
