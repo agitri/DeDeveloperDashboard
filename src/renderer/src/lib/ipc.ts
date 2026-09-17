@@ -382,6 +382,15 @@ export const ipc = {
     return call("global_appearance_save", { appearance });
   },
 
+  globalWizardSave(completed: boolean, step: number): Promise<Global> {
+    if (!isNative) {
+      const next = { ...mem.read("global", MOCK_GLOBAL), wizard: { completed, step } };
+      mem.write("global", next);
+      return Promise.resolve(next);
+    }
+    return call("global_wizard_save", { completed, step });
+  },
+
   environmentCreate(id: string, name: string, color: string): Promise<Global> {
     if (!isNative) {
       const g = mem.read("global", MOCK_GLOBAL);

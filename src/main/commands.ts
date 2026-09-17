@@ -16,6 +16,7 @@ import {
   environmentUpdate,
   globalAppearanceSave,
   globalLoad,
+  globalWizardSave,
 } from "../core/global";
 import { layoutFileRead, layoutFileWrite, layoutLoad, layoutSave } from "../core/layout";
 import { layoutFromJson } from "../core/models";
@@ -105,6 +106,8 @@ export const HOST_COMMANDS: readonly string[] = [
   // nodeDDD-only: no Rust counterpart (the media widget's playback state and controls).
   "media_state",
   "media_command",
+  // nodeDDD-only: no Rust counterpart (the onboarding wizard's progress).
+  "global_wizard_save",
 ] as const;
 
 const root = (env: string) => EnvRoot.open(env);
@@ -379,6 +382,7 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
     // --- environments ---
     global_load: () => globalLoad(),
     global_appearance_save: ({ appearance }) => globalAppearanceSave(appearanceRequired(appearance)),
+    global_wizard_save: ({ completed, step }) => globalWizardSave(Boolean(completed), Number(step ?? 0)),
     environment_create: ({ id, name, color }) => environmentCreate(id, name, color),
     environment_update: ({ id, name, color, hidden, collapsed }) =>
       environmentUpdate(id, { name, color, hidden, collapsed }),

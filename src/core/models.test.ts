@@ -21,11 +21,13 @@ describe("global.json", () => {
     ]);
     expect(g.activeEnvironmentId).toBe("default");
     expect(g.appearance?.theme).toBe("system");
+    // A fresh install has not started the onboarding tour.
+    expect(g.wizard).toBeNull();
     // Field order is the Rust struct order, so the two apps write diffable files.
-    expect(Object.keys(g)).toEqual(["version", "environments", "activeEnvironmentId", "appearance"]);
+    expect(Object.keys(g)).toEqual(["version", "environments", "activeEnvironmentId", "appearance", "wizard"]);
   });
 
-  it("fills serde's defaults: version, hidden, collapsed, appearance", () => {
+  it("fills serde's defaults: version, hidden, collapsed, appearance, wizard", () => {
     const g = globalFromJson({
       environments: [{ id: "work", name: "Work", color: "#000" }],
       activeEnvironmentId: "work",
@@ -33,6 +35,26 @@ describe("global.json", () => {
     expect(g.version).toBe(1);
     expect(g.environments[0]).toEqual({ id: "work", name: "Work", color: "#000", hidden: false, collapsed: false });
     expect(g.appearance).toBeNull();
+    // Absent from a file written before the wizard existed — backward-compat.
+    expect(g.wizard).toBeNull();
+  });
+
+  it("reads a present wizard block", () => {
+    const g = globalFromJson({
+      environments: [],
+      activeEnvironmentId: "default",
+      wizard: { completed: true, step: 3 },
+    });
+    expect(g.wizard).toEqual({ completed: true, step: 3 });
+  });
+
+  it("treats an invalid wizard block as absent, rather than throwing", () => {
+    const g = globalFromJson({
+      environments: [],
+      activeEnvironmentId: "default",
+      wizard: "not an object",
+    });
+    expect(g.wizard).toBeNull();
   });
 
   it("refuses a file missing a required field, as serde would", () => {

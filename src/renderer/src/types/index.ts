@@ -13,12 +13,19 @@ export interface Environment {
   collapsed?: boolean;
 }
 
+/** The onboarding tour's progress — app-global, like appearance. */
+export interface WizardState {
+  completed: boolean;
+  step: number;
+}
+
 export interface Global {
   /** One appearance for the whole app, not one per environment. */
   appearance: AppearanceSettings;
   version: number;
   environments: Environment[];
   activeEnvironmentId: string;
+  wizard?: WizardState | null;
 }
 
 export interface GridPos {

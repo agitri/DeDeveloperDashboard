@@ -6,7 +6,14 @@ import { existsSync, rmSync } from "node:fs";
 import { DddError } from "./error";
 import { EnvRoot, globalFile } from "./paths";
 import { readJson, readJsonOpt, writeJson } from "./store";
-import { defaultGlobal, globalFromJson, type AppearanceSettings, type Global, type StoredGlobal } from "./models";
+import {
+  defaultGlobal,
+  globalFromJson,
+  type AppearanceSettings,
+  type Global,
+  type StoredGlobal,
+  type WizardState,
+} from "./models";
 import { appearanceFromJson, settingsLoad } from "./settings";
 import * as secrets from "./secrets";
 
@@ -61,6 +68,15 @@ function globalSave(g: Global): void {
 export function globalAppearanceSave(appearance: AppearanceSettings): Global {
   const g = globalLoad();
   g.appearance = appearance;
+  globalSave(g);
+  return g;
+}
+
+/** The onboarding tour's state — app-global, like appearance. */
+export function globalWizardSave(completed: boolean, step: number): Global {
+  const g = globalLoad();
+  const wizard: WizardState = { completed, step };
+  g.wizard = wizard;
   globalSave(g);
   return g;
 }

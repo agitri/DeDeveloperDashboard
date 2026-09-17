@@ -31,6 +31,7 @@ import type {
   TabGroup,
   Todo,
   Widget,
+  WizardState,
 } from "../renderer/src/types";
 
 export type {
@@ -55,6 +56,7 @@ export type {
   TabGroup,
   Todo,
   Widget,
+  WizardState,
 };
 
 /** `global.json` as it may be on disk: `appearance` is absent in files written
@@ -64,6 +66,7 @@ export interface StoredGlobal {
   environments: Environment[];
   activeEnvironmentId: string;
   appearance: AppearanceSettings | null;
+  wizard: WizardState | null;
 }
 
 // --- environments --------------------------------------------------------------
@@ -85,6 +88,8 @@ export function defaultGlobal(): Global {
     environments: [{ id: "default", name: "Default", color: "#2f6ae8", hidden: false, collapsed: false }],
     activeEnvironmentId: "default",
     appearance: defaultAppearance(),
+    // A fresh install has not started the tour.
+    wizard: null,
   };
 }
 
@@ -92,11 +97,23 @@ export function globalFromJson(raw: unknown): StoredGlobal {
   const o = record(raw, "global");
   const environments = required(o, "environments", isArray).map(environmentFromJson);
   const appearance = o.appearance === undefined || o.appearance === null ? null : appearanceRequired(o.appearance);
+  const wizardRaw = o.wizard;
+  const wizard =
+    wizardRaw && typeof wizardRaw === "object"
+      ? {
+          completed: (wizardRaw as Record<string, unknown>).completed === true,
+          step:
+            typeof (wizardRaw as Record<string, unknown>).step === "number"
+              ? ((wizardRaw as Record<string, unknown>).step as number)
+              : 0,
+        }
+      : null;
   return {
     version: optional(o, "version", isNumber, 1),
     environments,
     activeEnvironmentId: required(o, "activeEnvironmentId", isString),
     appearance,
+    wizard,
   };
 }
 

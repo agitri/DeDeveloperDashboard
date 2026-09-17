@@ -9,6 +9,7 @@ import {
   environmentUpdate,
   globalAppearanceSave,
   globalLoad,
+  globalWizardSave,
 } from "./global";
 import type { AppearanceSettings } from "./models";
 
@@ -80,6 +81,55 @@ describe("appearance on global.json", () => {
     const appearance: AppearanceSettings = { ...globalLoad().appearance, theme: "light" };
     globalAppearanceSave(appearance);
     expect(globalLoad().appearance.theme).toBe("light");
+  });
+});
+
+describe("the onboarding wizard on global.json", () => {
+  it("defaults to null on a fresh install", () => {
+    scratchEnv("wizard-fresh");
+    expect(globalLoad().wizard).toBeNull();
+  });
+
+  it("loads null from a global.json written before the wizard existed", () => {
+    const { env } = scratchEnv("wizard-backcompat");
+    writeFileSync(
+      env.settingsFile(),
+      JSON.stringify({ version: 1, appearance: { theme: "dark", defaultRefreshSeconds: 60 }, connections: [] }),
+    );
+    writeFileSync(
+      globalFile(),
+      JSON.stringify({
+        version: 1,
+        environments: [{ id: "default", name: "Default", color: "#2f6ae8", hidden: false }],
+        activeEnvironmentId: "default",
+      }),
+    );
+    expect(globalLoad().wizard).toBeNull();
+  });
+
+  it("round-trips a wizard block already on disk", () => {
+    const { env } = scratchEnv("wizard-roundtrip");
+    writeFileSync(
+      env.settingsFile(),
+      JSON.stringify({ version: 1, appearance: { theme: "dark", defaultRefreshSeconds: 60 }, connections: [] }),
+    );
+    writeFileSync(
+      globalFile(),
+      JSON.stringify({
+        version: 1,
+        environments: [{ id: "default", name: "Default", color: "#2f6ae8", hidden: false }],
+        activeEnvironmentId: "default",
+        appearance: { theme: "dark", defaultRefreshSeconds: 60 },
+        wizard: { completed: true, step: 3 },
+      }),
+    );
+    expect(globalLoad().wizard).toEqual({ completed: true, step: 3 });
+  });
+
+  it("saving the wizard state persists it, and a later load returns it", () => {
+    scratchEnv("wizard-save");
+    globalWizardSave(true, 5);
+    expect(globalLoad().wizard).toEqual({ completed: true, step: 5 });
   });
 });
 
