@@ -42,7 +42,7 @@ export function TabStrip({ keymap }: { keymap: Record<string, string[]> }) {
   const visibleEnvs = environments.filter((e) => !e.hidden);
 
   return (
-    <div className="strip" role="tablist">
+    <div className="strip" data-wizard-target="tab-strip" role="tablist">
       {visibleEnvs.map((env) => {
         const envTabs = tabs.filter((t) => t.environmentId === env.id);
         if (envTabs.length === 0) return null;
@@ -66,7 +66,13 @@ export function TabStrip({ keymap }: { keymap: Record<string, string[]> }) {
         );
       })}
 
-      <button className="strip-add" title="New tab" aria-label="New tab" onClick={() => addTab()}>
+      <button
+        className="strip-add"
+        data-wizard-target="new-tab"
+        title="New tab"
+        aria-label="New tab"
+        onClick={() => addTab()}
+      >
         +
       </button>
       {hintsVisible && keymap["tab.new"]?.[0] && (
@@ -231,6 +237,7 @@ function EnvBand({
           from the app's, which live behind the header's own gear. */}
       <div
         className={`env-tab${showingOverview ? " active" : ""}`}
+        data-wizard-target="environments"
         style={{ ["--env" as string]: env.color }}
       >
         <button

@@ -107,6 +107,7 @@ export function ConsoleRail({
 
       <button
         className="rail-toggle"
+        data-wizard-target="settings"
         title="App settings"
         aria-label="App settings"
         onClick={onOpenSettings}

@@ -591,6 +591,28 @@
 [data-look="console"] .guide-row { padding: var(--sp-3) var(--sp-4); }
 [data-look="console"] .guide-detail { padding: var(--sp-3) var(--sp-6) var(--sp-4); }
 
+/* The onboarding wizard's coach panel. `.wizard-panel` reads `--surface` /
+ * `--ink` / `--shadow`, which Console never redefines (it has its own
+ * `--surface-2` / `--text` / `--shadow-md` instead) — without this it would
+ * float over the dark rail in classic's light-mode colours. */
+[data-look="console"] .wizard-panel {
+  background: var(--surface-2);
+  color: var(--text);
+  border-color: var(--line-strong);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-md);
+  font-family: var(--font-ui);
+}
+[data-look="console"] .wizard-title { color: var(--text); }
+[data-look="console"] .wizard-instruction { color: var(--text-2); }
+[data-look="console"] .wizard-hint {
+  background: color-mix(in srgb, var(--env) 14%, transparent);
+  color: var(--text-2);
+  border-radius: var(--r-sm);
+}
+[data-look="console"] .wizard-exit { color: var(--text-3); }
+[data-look="console"] .wizard-spotlight { border-radius: var(--r-sm); }
+
 /* Adding a board. The tab strip had a `+`; the rail that replaces it needs one
  * too, or an environment becomes a closed set. Dashed, like the design's
  * `.launch-tile.add`, so it reads as an affordance rather than a board. */

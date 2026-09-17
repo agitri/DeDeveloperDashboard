@@ -586,6 +586,103 @@ button, input, textarea, select { font: inherit; color: inherit; }
 }
 @keyframes hint { from { opacity: 0; transform: scale(0.9); } }
 
+/* --- onboarding wizard -----------------------------------------------------
+ * A DO wizard, not a modal: the spotlight never blocks a click and the coach
+ * panel is a corner card, not a `.scrim`. See docs/superpowers/specs/
+ * 2026-09-17-onboarding-wizard-design.md.
+ */
+
+.wizard-spotlight {
+  position: fixed;
+  z-index: 45;
+  border-radius: 10px;
+  pointer-events: none;
+  transition:
+    left 160ms var(--ease),
+    top 160ms var(--ease),
+    width 160ms var(--ease),
+    height 160ms var(--ease),
+    box-shadow 160ms var(--ease);
+}
+
+.wizard-panel {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 60;
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  animation: rise 160ms var(--ease);
+}
+
+.wizard-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.wizard-progress { color: var(--ink-3); }
+.wizard-exit {
+  width: 20px;
+  height: 20px;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.wizard-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.wizard-instruction {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.wizard-key {
+  align-self: flex-start;
+  height: 22px;
+  padding: 0 8px;
+  font-size: 12px;
+}
+
+.wizard-hint {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: var(--r);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--ink-2);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.wizard-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 2px;
+}
+.wizard-actions-end { display: flex; gap: 6px; }
+
+.wizard-reward {
+  padding: 22px 0;
+  font-size: 34px;
+  text-align: center;
+  animation: wizard-pop 220ms var(--ease);
+}
+@keyframes wizard-pop { from { opacity: 0; transform: scale(0.6); } }
+
 /* --- settings ------------------------------------------------------------ */
 
 .settings {

@@ -8,6 +8,10 @@ interface UiState {
   paletteOpen: boolean;
   pickerOpen: boolean;
   guideOpen: boolean;
+  /** Set by a replay entry point (palette action, guide button); the wizard
+   *  watches this and starts itself, then clears it. Not a toggle — it is a
+   *  one-shot request, always consumed the moment it is seen. */
+  tourRequested: boolean;
   /** True while the ⌘-hold (or `?`) shortcut overlay is showing. */
   hintsVisible: boolean;
   renamingTabId: string | null;
@@ -30,6 +34,8 @@ interface UiState {
   togglePalette(open?: boolean): void;
   togglePicker(open?: boolean): void;
   toggleGuide(open?: boolean): void;
+  requestTour(): void;
+  clearTourRequest(): void;
   setHints(visible: boolean): void;
   /** `?` shows the same overlay as holding ⌘, but latched until dismissed. */
   flashHints(): void;
@@ -49,6 +55,7 @@ export const useUi = create<UiState>((set, get) => ({
   paletteOpen: false,
   pickerOpen: false,
   guideOpen: false,
+  tourRequested: false,
   hintsVisible: false,
   renamingTabId: null,
   renamingGroupId: null,
@@ -67,6 +74,12 @@ export const useUi = create<UiState>((set, get) => ({
   },
   toggleGuide(open) {
     set((s) => ({ guideOpen: open ?? !s.guideOpen, paletteOpen: false, pickerOpen: false }));
+  },
+  requestTour() {
+    set({ tourRequested: true });
+  },
+  clearTourRequest() {
+    set({ tourRequested: false });
   },
   setHints(visible) {
     set({ hintsVisible: visible });

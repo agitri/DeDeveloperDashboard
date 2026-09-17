@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Canvas } from "./components/Canvas";
 import { ConsoleRail } from "./components/ConsoleRail";
 import { CommandPalette } from "./components/CommandPalette";
@@ -10,9 +10,12 @@ import { SettingsPage } from "./components/SettingsPage";
 import { TabStrip } from "./components/TabStrip";
 import { TitleBar } from "./components/TitleBar";
 import { WidgetPicker } from "./components/WidgetPicker";
+import { Wizard } from "./components/Wizard";
 import { IS_MAC, formatBinding } from "./keyboard/keys";
 import { useGlobalKeys, useKeymap } from "./keyboard/useKeyboard";
+import { ipc } from "./lib/ipc";
 import { isConsole, rememberLook } from "./lib/look";
+import { useWizard } from "./onboarding/useWizard";
 import { useStore } from "./state/store";
 import { useUi } from "./state/ui";
 
@@ -41,6 +44,20 @@ export default function App() {
     void load();
     document.documentElement.dataset.platform = IS_MAC ? "mac" : "other";
   }, [load]);
+
+  // First-run: once the board has actually loaded, an absent or unfinished
+  // tour starts itself. Guarded with a ref rather than `global.wizard` alone —
+  // `start` persists `step` on its own first advance, and without the ref that
+  // write would immediately re-arm this same effect. Native-only: the browser
+  // preview has no `~/.ddd/global.json` for it to mean anything against.
+  const firstRunRef = useRef(false);
+  useEffect(() => {
+    if (!ready || firstRunRef.current || !ipc.isNative) return;
+    const wizard = useStore.getState().global?.wizard;
+    if (wizard?.completed) return;
+    firstRunRef.current = true;
+    useWizard.getState().start(wizard?.step ?? 0);
+  }, [ready]);
 
   // Theme. `system` follows the OS live rather than only at startup.
   useEffect(() => {
@@ -102,6 +119,7 @@ export default function App() {
       <ContextMenu />
       <WidgetPicker />
       <FeaturesGuide />
+      <Wizard />
       {hintsEnabled && <HintOverlay keymap={keymap} />}
       {toast && <div className="toast">{toast}</div>}
       {lookChanged && (
@@ -141,7 +159,9 @@ export default function App() {
           }}
           onOpenSettings={openAppSettings}
         />
-        <div className="board">{content}</div>
+        <div className="board" data-wizard-target="board">
+          {content}
+        </div>
         {overlays}
       </div>
     );
@@ -170,6 +190,7 @@ export default function App() {
         </button>
         <button
           className="icon-btn"
+          data-wizard-target="settings"
           title={
             settingsBinding
               ? `App settings (${formatBinding(settingsBinding)})`

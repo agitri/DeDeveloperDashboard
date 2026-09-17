@@ -51,7 +51,7 @@ export function Canvas({ tab }: { tab: EnvTab | null }) {
 
   if (!tab) {
     return (
-      <div className="canvas">
+      <div className="canvas" data-wizard-target="board">
         <div className="canvas-empty">
           <h2>No tab open</h2>
           <p>Press ⌘T for a new tab, or ⌘K to search everything.</p>
@@ -61,7 +61,7 @@ export function Canvas({ tab }: { tab: EnvTab | null }) {
   }
 
   return (
-    <div className="canvas" ref={containerRef}>
+    <div className="canvas" data-wizard-target="board" ref={containerRef}>
       {tab.widgets.length === 0 ? (
         <div className="canvas-empty">
           <h2>{tab.name} is empty</h2>
