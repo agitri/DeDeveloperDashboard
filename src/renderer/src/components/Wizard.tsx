@@ -26,13 +26,19 @@ export function Wizard() {
       // WidgetPicker/CommandPalette/FeaturesGuide close on Escape with
       // `preventDefault` but not `stopPropagation` — if one of them is open,
       // this Escape is theirs to dismiss, not the tour's to exit on.
+      // We MUST read the flags in the CAPTURE phase (third arg `true`): those
+      // overlays clear their own open-flag in a bubble-phase React handler, so
+      // a bubble-phase listener here would read state they already reset and
+      // exit the tour anyway. Capture runs before their handler, so we still
+      // see the overlay as open. Matches the capture-phase global handlers in
+      // SettingsPage/ContextMenu.
       const { paletteOpen, pickerOpen, guideOpen } = useUi.getState();
       if (paletteOpen || pickerOpen || guideOpen) return;
       e.preventDefault();
       exit();
     }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
   }, [active, exit]);
 
   if (!active || !step) return null;
