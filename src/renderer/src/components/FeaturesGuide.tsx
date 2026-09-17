@@ -58,7 +58,19 @@ export function FeaturesGuide() {
           }
         }}
       >
-        <div className="panel-input">Features guide</div>
+        <div className="panel-input guide-header">
+          <span>Features guide</span>
+          <button
+            type="button"
+            className="btn sm"
+            onClick={() => {
+              useUi.getState().requestTour();
+              toggleGuide(false);
+            }}
+          >
+            Start the tour
+          </button>
+        </div>
         <div className="panel-list">
           {groups.map(({ group, entries: groupEntries }) => (
             <div key={group}>

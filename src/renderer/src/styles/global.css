@@ -1335,6 +1335,10 @@ button, input, textarea, select { font: inherit; color: inherit; }
 .sitrep-timeline { display: flex; flex-direction: column; gap: 3px; }
 .sitrep-line { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 
+/* The Features guide's title bar: the "Features guide" label plus a button
+ * that replays the onboarding tour, so it's reachable without the palette. */
+.guide-header { display: flex; align-items: center; justify-content: space-between; }
+
 /* The Features guide's accordion: one row per widget/integration/concept,
  * single-open. The header is a real button so it is a Tab stop and reads as
  * expandable to a screen reader via aria-expanded, not just a hover cue. */

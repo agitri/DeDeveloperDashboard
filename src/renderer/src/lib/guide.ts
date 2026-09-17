@@ -57,6 +57,7 @@ export const GUIDE_CONCEPTS: GuideStatic[] = [
   { id: "concept:ai", title: "AI routing", what: "Which model answers each AI action — local Ollama or Anthropic.", how: "Set an Ollama URL or an Anthropic key in Settings → AI; actions default to local where they can." },
   { id: "concept:looks", title: "Looks", what: "Two visual treatments of the whole app: classic and console.", how: "Choose a look; it is remembered across launches." },
   { id: "concept:approval", title: "Run approval", what: "Why starting a product needs a one-time consent.", how: "Approve the exact command and directory once; a checkout can declare a command but never auto-run it." },
+  { id: "concept:tour", title: "Guided tour", what: "A hands-on walkthrough: create an environment, add tabs and a widget, and open settings.", how: "It runs on first launch; replay it anytime from here or the command palette (Start tour)." },
 ];
 
 export function buildGuide(widgets: WidgetDefinition[]): GuideEntry[] {

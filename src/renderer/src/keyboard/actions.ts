@@ -171,6 +171,13 @@ export function buildActions(): Action[] {
       run: () => useUi.getState().toggleGuide(true),
     },
     {
+      id: "wizard.start",
+      title: "Start tour",
+      group: "App",
+      keywords: "onboarding walkthrough replay help wizard",
+      run: () => useUi.getState().requestTour(),
+    },
+    {
       id: "app.escape",
       title: "Close overlay / drop focus",
       group: "App",

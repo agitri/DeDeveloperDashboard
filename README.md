@@ -54,6 +54,12 @@ packaged build that will be DDD itself.
 
 Renderer-only additions, none present in the Rust app:
 
+- **Onboarding wizard** — an interactive first-run tour that has you actually
+  create an environment, add tabs and a widget, and open settings, rather than
+  narrate over a static screen. A spotlight highlights the live control for
+  each step and completion is detected from real state changes, not clicks on
+  a "next" button. Replayable anytime from the Features guide ("Start the
+  tour") or the command palette ("Start tour").
 - **Features guide** — a modal accordion listing every widget, integration and
   concept, opened from the classic header button or `⌘K`. It's a map of the
   app for anyone landing on a board that's already full of tabs.
