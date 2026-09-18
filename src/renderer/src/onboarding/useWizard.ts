@@ -46,7 +46,12 @@ function snapshotNow(): WizardSnapshot {
   return {
     envCount: s.global?.environments.length ?? 0,
     tabCount: s.tabs().length,
-    widgetCount: s.activeTab()?.widgets.length ?? 0,
+    // Total widgets across ALL tabs, not just the active one. The "add a
+    // widget" step captures a baseline, then the user may add the widget to a
+    // different tab than the one that was active when the step began (a full
+    // board pushes them to an emptier tab) — an active-tab-only count would
+    // then compare two unrelated tabs and never register the addition.
+    widgetCount: s.tabs().reduce((sum, t) => sum + t.widgets.length, 0),
     activeTabId: s.activeTabId,
     view: s.view,
   };

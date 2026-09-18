@@ -75,7 +75,8 @@ export function useGlobalKeys(keymap: Record<string, string[]>) {
       const ui = useUi.getState();
       const overlayOpen = ui.paletteOpen || ui.pickerOpen || ui.guideOpen;
       const typing = isTypingTarget(e.target);
-      if ((typing || overlayOpen) && (action.scope ?? "board") !== "global") return;
+      const suppressed = (typing || overlayOpen) && (action.scope ?? "board") !== "global";
+      if (suppressed) return;
 
       e.preventDefault();
       action.run();
