@@ -57,11 +57,14 @@ function snapshotNow(): WizardSnapshot {
 let unsubscribes: Array<() => void> = [];
 let hintTimer: ReturnType<typeof setTimeout> | undefined;
 let rewardTimer: ReturnType<typeof setTimeout> | undefined;
+let pollTimer: ReturnType<typeof setInterval> | undefined;
 
 function stopWatchingStep() {
   for (const unsubscribe of unsubscribes) unsubscribe();
   unsubscribes = [];
   clearTimeout(hintTimer);
+  clearInterval(pollTimer);
+  pollTimer = undefined;
 }
 
 function armHintTimer() {
@@ -84,6 +87,12 @@ function watchStep(index: number, baseline: WizardSnapshot) {
     if (alreadyTrueAtBaseline) return;
     if (step.done(baseline, snapshotNow())) celebrateThenAdvance(index);
   };
+  // The store subscriptions are the fast path, but a short poll is the safety
+  // net: a DO wizard that silently fails to notice the action the user just
+  // performed is worse than a 400ms tick. `celebrateThenAdvance` tears
+  // everything (subs + this poll) down on the first hit, so it never
+  // double-fires.
+  pollTimer = setInterval(check, 400);
   unsubscribes = [useStore.subscribe(check), useUi.subscribe(check)];
 }
 

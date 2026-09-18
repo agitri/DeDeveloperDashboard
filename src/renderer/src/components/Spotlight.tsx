@@ -31,6 +31,14 @@ export function Spotlight({ target, intense }: { target?: string; intense?: bool
     }
 
     schedule();
+    // A short poll keeps the cut-out honest no matter how the target got there:
+    // a target that mounts a tick after the step begins (the settings gear as
+    // the panel opens), one that moves without a scroll/resize (the tab strip
+    // as tabs are added), or a view change swapping the element out. The
+    // scroll/resize listeners and the ResizeObserver below still handle the
+    // common cases immediately; this only guarantees we never sit on a stale
+    // or missed rect.
+    const poll = window.setInterval(schedule, 250);
     // Capture phase: a scroll inside a nested pane (the settings body, a
     // widget list) does not bubble to window, and the element it moves may be
     // exactly the one being spotlit.
@@ -50,6 +58,7 @@ export function Spotlight({ target, intense }: { target?: string; intense?: bool
     }
 
     return () => {
+      clearInterval(poll);
       window.removeEventListener("scroll", schedule, true);
       window.removeEventListener("resize", schedule);
       observer?.disconnect();
