@@ -54,6 +54,7 @@ function snapshotNow(): WizardSnapshot {
     widgetCount: s.tabs().reduce((sum, t) => sum + t.widgets.length, 0),
     activeTabId: s.activeTabId,
     view: s.view,
+    guideOpen: useUi.getState().guideOpen,
   };
 }
 

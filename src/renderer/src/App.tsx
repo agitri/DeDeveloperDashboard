@@ -184,6 +184,7 @@ export default function App() {
           className="icon-btn"
           title="Features guide"
           aria-label="Features guide"
+          data-wizard-target="guide"
           onClick={() => useUi.getState().toggleGuide()}
         >
           ?

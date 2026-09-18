@@ -118,6 +118,7 @@ export function ConsoleRail({
         className="rail-toggle"
         title="Features guide"
         aria-label="Features guide"
+        data-wizard-target="guide"
         onClick={() => toggleGuide()}
       >
         ?

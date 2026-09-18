@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { STEPS, progress, type WizardSnapshot } from "./steps";
 
-const base: WizardSnapshot = { envCount: 1, tabCount: 2, widgetCount: 3, activeTabId: "t1", view: "board" };
+const base: WizardSnapshot = { envCount: 1, tabCount: 2, widgetCount: 3, activeTabId: "t1", view: "board", guideOpen: false };
 
 describe("wizard steps", () => {
   it("every step has copy and a done predicate", () => {
@@ -12,8 +12,8 @@ describe("wizard steps", () => {
     }
   });
 
-  it("the flow is welcome → environment → tab → switch → widget → settings → finish", () => {
-    expect(STEPS.map((s) => s.id)).toEqual(["welcome", "environment", "tab", "switch", "widget", "settings", "finish"]);
+  it("the flow is welcome → environment → tab → switch → widget → settings → features → finish", () => {
+    expect(STEPS.map((s) => s.id)).toEqual(["welcome", "environment", "tab", "switch", "widget", "settings", "features", "finish"]);
   });
 
   const doneOf = (id: string) => STEPS.find((s) => s.id === id)!.done;
@@ -46,6 +46,11 @@ describe("wizard steps", () => {
     expect(doneOf("settings")(base, { ...base, envCount: 9, tabCount: 9, widgetCount: 9, activeTabId: "t9" })).toBe(
       false,
     );
+  });
+  it("features step completes when the guide opens", () => {
+    expect(doneOf("features")(base, { ...base, guideOpen: true })).toBe(true);
+    expect(doneOf("features")(base, base)).toBe(false);
+    expect(doneOf("features")(base, { ...base, view: "settings" })).toBe(false);
   });
   it("welcome and finish auto-complete (advanced by the user, not an action)", () => {
     expect(doneOf("welcome")(base, base)).toBe(true);

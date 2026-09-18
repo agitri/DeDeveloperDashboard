@@ -4,6 +4,7 @@ export interface WizardSnapshot {
   widgetCount: number;
   activeTabId: string | null;
   view: string;
+  guideOpen: boolean;
 }
 
 export interface WizardStep {
@@ -81,6 +82,15 @@ export const STEPS: WizardStep[] = [
     target: "settings",
     hint: "⌘, opens Settings, or click the gear. Connections and AI live there.",
     done: (_b, c) => c.view === "settings",
+  },
+  {
+    id: "features",
+    title: "Find every feature",
+    instruction: "Every widget, integration and concept is listed in the Features Guide. Open it — the ? button, top-right.",
+    shortcut: "?",
+    target: "guide",
+    hint: "Click the ? button in the header, or press ⌘K and choose “Features guide”. Come back here anytime you forget how something works.",
+    done: (_b, c) => c.guideOpen,
   },
   {
     id: "finish",
