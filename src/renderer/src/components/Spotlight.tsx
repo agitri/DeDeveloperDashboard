@@ -12,6 +12,10 @@ import { useEffect, useRef, useState } from "react";
 export function Spotlight({ target, intense }: { target?: string; intense?: boolean }) {
   const [rect, setRect] = useState<DOMRect | null>(null);
   const frameRef = useRef<number | undefined>(undefined);
+  // Which target we've already scrolled into view, so we bring it on-screen
+  // once (when it first appears) rather than fighting the user's own scroll on
+  // every poll tick.
+  const scrolledFor = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     if (!target) {
@@ -22,6 +26,13 @@ export function Spotlight({ target, intense }: { target?: string; intense?: bool
     function measure() {
       frameRef.current = undefined;
       const el = document.querySelector(`[data-wizard-target="${target}"]`);
+      // A long environment list pushes the "Create" control below the fold, so
+      // the cut-out (and the autofocused input) would sit off-screen. Scroll it
+      // into view the first time we find it for this target.
+      if (el && scrolledFor.current !== target) {
+        scrolledFor.current = target;
+        el.scrollIntoView({ block: "center", behavior: "smooth" });
+      }
       setRect(el ? el.getBoundingClientRect() : null);
     }
 
