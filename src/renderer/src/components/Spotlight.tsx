@@ -32,6 +32,13 @@ export function Spotlight({ target, intense }: { target?: string; intense?: bool
       if (el && scrolledFor.current !== target) {
         scrolledFor.current = target;
         el.scrollIntoView({ block: "center", behavior: "smooth" });
+        // If the spotlit area is a form (the environment step's Create card),
+        // drop the cursor in its first text field so the user can just type —
+        // preventScroll because we've already centred it above. Colour inputs
+        // are skipped; a target with no text input (a gear, the tab strip) is
+        // left alone.
+        const input = el.querySelector<HTMLElement>('input:not([type="color"]):not([type="checkbox"]), textarea');
+        input?.focus({ preventScroll: true });
       }
       setRect(el ? el.getBoundingClientRect() : null);
     }

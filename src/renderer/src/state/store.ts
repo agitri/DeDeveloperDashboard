@@ -760,10 +760,19 @@ export const useStore = create<Store>((set, get) => ({
       ipc.layoutLoad(id),
       ipc.settingsLoad(id).catch(() => DEFAULT_SETTINGS),
     ]);
+    // Land in the new environment rather than leaving the user where they were:
+    // you make it, you go there. It has no tabs yet, so show its overview and
+    // make it the active environment (so the next `New tab` lands in it, not
+    // the old one). `activeTabId: null` lets `activeEnvironmentId()` fall
+    // through to `global.activeEnvironmentId`.
+    void ipc.environmentSetActive(id);
     set((s) => ({
-      global,
+      global: { ...global, activeEnvironmentId: id },
       layouts: { ...s.layouts, [id]: layout },
       settings: { ...s.settings, [id]: settings },
+      activeTabId: null,
+      overviewEnvId: id,
+      view: "board",
     }));
   },
 
