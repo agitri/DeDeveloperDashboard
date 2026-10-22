@@ -7,7 +7,8 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync,
 import { tmpdir } from "node:os";
 import { basename, resolve, join } from "node:path";
 import { scratchEnv } from "../core/testing";
-import { HOST_COMMANDS, createCommands } from "./commands";
+import { NOT_IN_TAURI, createCommands } from "./commands";
+import { COMMANDS, HOST_COMMANDS } from "../shared/commands";
 import { recordingEmitter } from "../core/emitter";
 import { ProjectWatcher, type ProjectChanged } from "../core/watcher";
 import { EnvRoot } from "../core/paths";
@@ -57,7 +58,7 @@ const NOT_YET_PORTED = new Set<string>([]);
 describe("the command registry", () => {
   it.skipIf(tauriHandlers() === null)("only registers names the Tauri app has, so the frontend contract holds", () => {
     const known = new Set(tauriHandlers());
-    const invented = Object.keys(commands).filter((name) => !known.has(name) && !HOST_COMMANDS.includes(name));
+    const invented = Object.keys(commands).filter((name) => !known.has(name) && !NOT_IN_TAURI.includes(name));
     expect(invented).toEqual([]);
   });
 
@@ -78,6 +79,21 @@ describe("the command registry", () => {
     expect(rows).toHaveLength(1);
     const info = (await commands.paths_info!({ env: "work" })) as { environmentDir: string };
     expect(info.environmentDir).toBe(`${home}/environments/work`);
+  });
+
+  it("declares every command's arguments in the shared table, and registers every declared command", () => {
+    const declared = new Set(Object.keys(COMMANDS));
+    const registered = new Set([...Object.keys(commands), ...HOST_COMMANDS]);
+    expect([...registered].filter((n) => !declared.has(n))).toEqual([]);
+    expect([...declared].filter((n) => !registered.has(n))).toEqual([]);
+  });
+
+  it("rejects a wrong-typed argument before the handler runs", async () => {
+    scratchEnv("registry-args");
+    await expect(async () => commands.environment_create!({ id: 1, name: "One", color: "#000" })).rejects.toThrow(
+      /^json: environment_create: invalid type for field `id`, expected string/,
+    );
+    expect(() => commands.path_exists!({})).toThrow(/^json: path_exists: missing field `path`/);
   });
 
   it("validates layout_save's input instead of writing it as-is", async () => {

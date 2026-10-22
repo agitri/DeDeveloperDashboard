@@ -19,7 +19,7 @@ import {
   globalWizardSave,
 } from "../core/global";
 import { layoutFileRead, layoutFileWrite, layoutLoad, layoutSave } from "../core/layout";
-import { layoutFromJson } from "../core/models";
+import { eventInputFromJson, layoutFromJson } from "../core/models";
 import { appearanceRequired, defaultSettings, settingsFromJson, settingsLoad, settingsSave } from "../core/settings";
 import { keymapLoad, keymapSave } from "../core/keymap";
 import * as events from "../core/events";
@@ -69,13 +69,16 @@ import * as productLog from "../core/products/log";
 import * as mediaControl from "../core/media/control";
 import * as modelScan from "../core/models/scan";
 import * as modelMove from "../core/models/move";
+import { validated } from "./args";
+import type { CoreCommand, ParsedArgs } from "../shared/commands";
 import type { Item, ItemFilter, Product, Settings } from "../core/models";
 
-// Arguments arrive over IPC untyped and every handler coerces what it reads
-// (`String(id)`, `Number(value)`), so the `any` is the honest type here and
-// the unsafe-* rules are silenced for this file rather than at each site.
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-assignment */
-export type Handler = (args: Record<string, any>) => unknown;
+/** A registered command as the dispatcher sees it: raw IPC arguments in,
+ *  parsed by `validated` against the shared table before the typed handler
+ *  below runs. */
+export type Handler = (args: Record<string, unknown>) => unknown;
+
+type Handlers = { [K in CoreCommand]: (args: ParsedArgs<K>) => unknown };
 
 /** What the stateful commands need from the host. Main builds one of these;
  *  tests build one with a recording emitter. */
@@ -99,10 +102,10 @@ export interface CommandDeps {
   modelRoots?: modelScan.StoreRoots;
 }
 
-/** Commands the host adds on top of the Tauri set: dialogs and the shell
- *  (which were Tauri plugins), plus nodeDDD-only additions with no Rust
+/** Commands the Tauri app does not have: the dialogs and the shell (which
+ *  were Tauri plugins there), plus nodeDDD-only additions with no Rust
  *  counterpart. Kept here so the contract test knows them. */
-export const HOST_COMMANDS: readonly string[] = [
+export const NOT_IN_TAURI: readonly string[] = [
   "dialog_save",
   "dialog_open_file",
   "dialog_pick_directory",
@@ -391,11 +394,11 @@ async function artDataUrl(url: string, fetchFn: typeof globalThis.fetch): Promis
 }
 
 export function createCommands(deps: CommandDeps): Record<string, Handler> {
-  return {
+  const handlers: Handlers = {
     // --- environments ---
     global_load: () => globalLoad(),
     global_appearance_save: ({ appearance }) => globalAppearanceSave(appearanceRequired(appearance)),
-    global_wizard_save: ({ completed, step }) => globalWizardSave(Boolean(completed), Number(step ?? 0)),
+    global_wizard_save: ({ completed, step }) => globalWizardSave(completed, step ?? 0),
     environment_create: ({ id, name, color }) => environmentCreate(id, name, color),
     environment_update: ({ id, name, color, hidden, collapsed }) => environmentUpdate(id, { name, color, hidden, collapsed }),
     environment_set_active: ({ id }) => environmentSetActive(id),
@@ -412,7 +415,7 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
     keymap_save: ({ keymap }) => keymapSave(keymap),
 
     // --- events ---
-    event_log: ({ env, event }) => events.eventLog(root(env), event),
+    event_log: ({ env, event }) => events.eventLog(root(env), eventInputFromJson(event)),
     events_query: ({ env, since, kindPrefix, limit }) => events.query(root(env), { since, kindPrefix, limit: limit ?? 500 }),
     events_clear: ({ env }) => events.clear(root(env)),
 
@@ -483,7 +486,7 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
     /** An explicit choice wins; otherwise the global default. */
     open_in_editor: ({ path, editor }) => {
       const configured = globalLoad().appearance.editor;
-      const explicit = typeof editor === "string" ? editor.trim() : "";
+      const explicit = editor?.trim() ?? "";
       return launcher.openInEditor(path, explicit !== "" ? explicit : configured);
     },
 
@@ -496,7 +499,7 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
       const r = root(env);
       let total = 0;
       for (const connection of settingsLoad(r).connections) {
-        if (typeof connectionId === "string" && connectionId !== connection.id) continue;
+        if (connectionId !== undefined && connectionId !== connection.id) continue;
         deps.scheduler.invalidate(connection.id);
         total += await deps.scheduler.syncConnection(r, connection);
       }
@@ -536,7 +539,7 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
 
     /** Which AI actions apply to this item. The UI asks rather than guessing. */
     ai_actions_for: ({ env, itemId }) => {
-      const item = cache.find(root(env), String(itemId));
+      const item = cache.find(root(env), itemId);
       if (item === null) return [];
       return actions.availableFor(item).map((a) => ({ id: a.id, label: a.label, target: a.target }));
     },
@@ -545,7 +548,7 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
      *  Read-only and free: no model is contacted, nothing is logged. */
     ai_context_for: async ({ env, itemId }) => {
       const r = root(env);
-      const item = cache.find(r, String(itemId));
+      const item = cache.find(r, itemId);
       if (item === null) throw DddError.notFound(`item ${JSON.stringify(itemId)}`);
       const dir = projectDirFor(r, item);
       // No project behind this item at all — distinct from a project with no
@@ -558,9 +561,9 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
      *  lands in the composer, and a human presses Send. */
     ai_draft: async ({ env, itemId, action }) => {
       const r = root(env);
-      const item = cache.find(r, String(itemId));
+      const item = cache.find(r, itemId);
       if (item === null) throw DddError.notFound(`item ${JSON.stringify(itemId)}`);
-      const definition = actions.action(String(action));
+      const definition = actions.action(action);
       if (definition === null) throw DddError.notFound(`AI action ${JSON.stringify(action)}`);
 
       // ICM is a mandatory input, not an optional extra.
@@ -569,7 +572,7 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
       const usedProjectContext = context.trim() !== "";
 
       const settings = settingsLoad(r);
-      const chosen = route(r, settings, String(action), deps.sync);
+      const chosen = route(r, settings, action, deps.sync);
       const draft = await chosen.provider.complete({
         system: actions.systemPrompt(definition, context),
         prompt: actions.userPrompt(definition, item),
@@ -604,27 +607,27 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
 
     // --- widget instructions ---
 
-    widget_instructions_load: async ({ env, widgetId }) => instructions.load(root(env), String(widgetId)),
-    widget_instructions_save: ({ env, widgetId, text }) => instructions.save(root(env), String(widgetId), String(text)),
+    widget_instructions_load: async ({ env, widgetId }) => instructions.load(root(env), widgetId),
+    widget_instructions_save: ({ env, widgetId, text }) => instructions.save(root(env), widgetId, text),
     widget_instructions_clear: ({ env, widgetId }) => {
-      instructions.clear(root(env), String(widgetId));
+      instructions.clear(root(env), widgetId);
     },
-    widget_instructions_template: ({ kind }) => instructions.template(String(kind)),
+    widget_instructions_template: ({ kind }) => instructions.template(kind),
 
     /** Compile prose into a filter, once, with a local model by default. Every
      *  failure surfaces as an error and the caller keeps its last good filter. */
     widget_instructions_compile: async ({ env, widgetId, kind }) => {
       const r = root(env);
-      const prose = instructions.load(r, String(widgetId));
+      const prose = instructions.load(r, widgetId);
       if (prose.text.trim() === "") throw DddError.invalid("there is nothing written to compile");
 
       const settings = settingsLoad(r);
       const chosen = route(r, settings, instructions.ACTION, deps.sync);
-      const draft = await chosen.provider.complete(instructions.completionFor(String(kind), prose.text, chosen.model));
+      const draft = await chosen.provider.complete(instructions.completionFor(kind, prose.text, chosen.model));
       if (draft.refusal !== null) throw DddError.invalid(draft.refusal);
 
       const parsed = instructions.parseResponse(draft.text);
-      const compiled = instructions.compileValue(String(kind), parsed.filter);
+      const compiled = instructions.compileValue(kind, parsed.filter);
       const unmet = [...parsed.unmet, ...compiled.unmet];
 
       events.log(r, {
@@ -673,8 +676,8 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
      *  be stored. */
     calendar_list: async ({ env, from, to }) => {
       const r = root(env);
-      const start = parseInstant(String(from), "from");
-      const end = parseInstant(String(to), "to");
+      const start = parseInstant(from, "from");
+      const end = parseInstant(to, "to");
 
       // `settings_load(...).unwrap_or_default()` in the Rust: a broken
       // settings file must not empty the calendar.
@@ -710,7 +713,7 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
     },
 
     calendar_event_delete: async ({ env, id }) => {
-      calendar.remove(root(env), String(id));
+      calendar.remove(root(env), id);
     },
 
     // --- repos: the bridge between what GitHub knows and what is on disk ---
@@ -813,7 +816,7 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
      *  projects — filling the projects list uninvited is presumptuous. */
     repo_scan: async ({ env, rootDir }) => {
       const r = root(env);
-      const dir = String(rootDir);
+      const dir = rootDir;
       if (!isDir(dir)) throw DddError.notFound(`${dir} is not a directory`);
 
       const found = await scan.scanRoot(dir);
@@ -869,7 +872,7 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
      *  than refused — forks and worktrees are legitimate. */
     repo_link: async ({ env, remote, path }) => {
       const r = root(env);
-      const dir = String(path);
+      const dir = path;
       if (!isDir(dir)) throw DddError.notFound(`${dir} is not a directory`);
 
       const url = await projects.gitRemote(dir);
@@ -879,7 +882,7 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
       // See `links.canonicalPath`: stored path must be canonical or the
       // projectId join in `repos_list` never fires.
       const canonical = links.canonicalPath(dir);
-      links.upsert(r, { remote: String(remote), path: canonical, source: "manual", confidence });
+      links.upsert(r, { remote: remote, path: canonical, source: "manual", confidence });
 
       // You clicked, so registering is the point. `projects.register` does its
       // own canonicalization of `path`, independently of the one above.
@@ -890,7 +893,7 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
      *  scan finds what is under a nominated root; this is for everything else. */
     repo_add_local: async ({ env, path }) => {
       const r = root(env);
-      const dir = String(path);
+      const dir = path;
       if (!isDir(dir)) throw DddError.notFound(`${dir} is not a directory`);
       if (!existsSync(join(dir, ".git"))) {
         // This is the Repositories widget; a folder that is not a repository
@@ -912,13 +915,13 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
     /** Forget a checkout by path. Touches neither the folder nor the project
      *  registry — the same rule `repo_unlink` follows, by the other identifier. */
     repo_forget: async ({ env, path }) => {
-      links.removeByPath(root(env), String(path));
+      links.removeByPath(root(env), path);
     },
 
     /** Drop a link. Unlinking a repo from its folder says nothing about whether
      *  that folder still belongs in the projects list. */
     repo_unlink: async ({ env, remote }) => {
-      links.remove(root(env), String(remote));
+      links.remove(root(env), remote);
     },
 
     /** Clone a repo into a parent directory, detached. Returns as soon as the
@@ -928,11 +931,11 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
       const r = root(env);
       // Prepared before detaching: a refusal must reach the user as a failed
       // command, not as a progress event nobody is listening for yet.
-      const target = clone.prepare(String(parentDir), String(remote));
+      const target = clone.prepare(parentDir, remote);
       void clone
-        .run(r, String(remote), String(cloneUrl), target, (p: clone.Progress) => {
+        .run(r, remote, cloneUrl, target, (p: clone.Progress) => {
           deps.emit.emit("ddd://repo-progress", {
-            remote: String(remote),
+            remote: remote,
             phase: p.phase,
             percent: p.percent,
             done: p.done,
@@ -951,7 +954,7 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
      *  delta. nodeDDD-only: there is no Rust counterpart. */
     repo_changes_since: async ({ env, path, since }) => {
       void env;
-      return changesSince(execFileRunner, String(path), String(since));
+      return changesSince(execFileRunner, path, since);
     },
 
     // --- dev servers: a live read of the machine. Writes nothing. ---
@@ -978,7 +981,7 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
      *  latency for a process that is not in the HTTP list. */
     dev_server_probe: async ({ address, port, http }) => {
       try {
-        const found = await probe.run(probe.target(String(address), Number(port)), Boolean(http), probe.DEADLINE_MS);
+        const found = await probe.run(probe.target(address, port), http, probe.DEADLINE_MS);
         const out: probe.DevProbe = { health: found.health, latencyMs: found.latencyMs, checkedAt: new Date().toISOString() };
         return out;
       } catch (e) {
@@ -996,10 +999,10 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
       // Deliberately not the memo: a two-second-old snapshot is exactly what
       // the guard exists to distrust.
       const fresh = await listen.enumerate();
-      const refusal = mayStop(String(key), Number(pid), String(processName), fresh);
+      const refusal = mayStop(key, pid, processName, fresh);
       if (refusal !== null) throw DddError.invalid(refusalMessage(refusal));
 
-      signal(Number(pid));
+      signal(pid);
 
       // Logged because it is destructive and irreversible, in the same table
       // the rest of the board's actions are already visible in. The Rust
@@ -1012,7 +1015,7 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
           tokensIn: null,
           tokensOut: null,
           costMicros: null,
-          meta: { key: String(key), pid: Number(pid), process: String(processName) },
+          meta: { key: key, pid: pid, process: processName },
         });
       } catch {
         // Nothing to do: the process is already stopping.
@@ -1057,16 +1060,10 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
     },
 
     /** Assign a checkout to the watcher, with the live URL you typed for it. */
-    eol_watch: async ({ env, path, url, note }) =>
-      eolWatchlist.add(
-        root(env),
-        String(path),
-        url === undefined || url === null ? null : String(url),
-        note === undefined || note === null ? null : String(note),
-      ),
+    eol_watch: async ({ env, path, url, note }) => eolWatchlist.add(root(env), path, url ?? null, note ?? null),
 
     /** Stop watching. Forgets the record; the checkout on disk is untouched. */
-    eol_unwatch: async ({ env, path }) => eolWatchlist.remove(root(env), String(path)),
+    eol_unwatch: async ({ env, path }) => eolWatchlist.remove(root(env), path),
 
     eol_watchlist: async ({ env }) => eolWatchlist.load(root(env)),
 
@@ -1089,13 +1086,13 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
 
     /** Approve exactly what the caller is looking at — the command and directory
      *  passed, not a re-read of a file that may have changed since the render. */
-    product_approve: ({ env, key, run, dir }) => supervise.approve(root(env), String(key), String(run), String(dir)),
-    product_revoke: ({ env, key }) => supervise.revoke(root(env), String(key)),
+    product_approve: ({ env, key, run, dir }) => supervise.approve(root(env), key, run, dir),
+    product_revoke: ({ env, key }) => supervise.revoke(root(env), key),
 
     /** Start a product. Refuses unless this exact command has been approved. */
     product_start: async ({ env, key, run, dir }) => {
       const r = root(env);
-      const record = await supervise.start(r, String(key), String(run), String(dir));
+      const record = await supervise.start(r, key, run, dir);
       events.log(r, {
         kind: "product.start",
         source: "local",
@@ -1111,11 +1108,11 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
      *  the resulting state. */
     product_stop: async ({ env, key }) => {
       const r = root(env);
-      const state = await supervise.stop(r, String(key));
+      const state = await supervise.stop(r, key);
       events.log(r, {
         kind: "product.stop",
         source: "local",
-        project: String(key).split("/")[0] ?? "",
+        project: key.split("/")[0] ?? "",
         tokensIn: null,
         tokensOut: null,
         costMicros: null,
@@ -1127,7 +1124,7 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
     /** The whole captured log, for the panel behind "output". */
     product_log: async ({ env, key }) => {
       const r = root(env);
-      return productLog.tail(productLog.file(r.productsLogDir(), String(key)), 400);
+      return productLog.tail(productLog.file(r.productsLogDir(), key), 400);
     },
 
     // --- MCP: one gate, and one probe that goes through it ---
@@ -1138,7 +1135,7 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
      * Bound to the exact argv, so editing the command in Settings voids the
      * approval: what you agreed to run is no longer what would run.
      */
-    mcp_consent: async ({ command }) => consentToken(parseArgv(String(command))),
+    mcp_consent: async ({ command }) => consentToken(parseArgv(command)),
 
     /**
      * Handshake with a server and report what it offers, without writing
@@ -1181,7 +1178,7 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
     /** Play/pause, skip, or set volume on one player. nodeDDD-only: there is
      *  no Rust counterpart. */
     media_command: async ({ player, action, value }) => {
-      await mediaControl.command(String(player), action as mediaControl.MediaAction, value === undefined ? undefined : Number(value));
+      await mediaControl.command(player, action as mediaControl.MediaAction, value);
     },
 
     // --- local models: what the runtimes downloaded, and moving one out ---
@@ -1195,10 +1192,11 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
      *  remembered. nodeDDD-only. */
     models_move: async ({ id, dest }) => {
       const roots = deps.modelRoots ?? modelScan.defaultRoots();
-      const wanted = String(id);
+      const wanted = id;
       const found = (await modelScan.scan(roots)).stores.flatMap((s) => s.models).find((m) => m.id === wanted);
       if (!found) throw DddError.notFound(`no model ${JSON.stringify(wanted)} in any store`);
-      return modelMove.moveModel(found, roots, String(dest), (p) => deps.emit.emit("ddd://models-progress", p));
+      return modelMove.moveModel(found, roots, dest, (p) => deps.emit.emit("ddd://models-progress", p));
     },
   };
+  return validated(handlers);
 }

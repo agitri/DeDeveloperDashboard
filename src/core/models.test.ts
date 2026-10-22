@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DddError } from "./error";
 import {
+  eventInputFromJson,
   defaultGlobal,
   defaultLayout,
   defaultProjectConfig,
@@ -151,6 +152,17 @@ describe("layout.json", () => {
 });
 
 describe("project files", () => {
+  it("reads an event input: kind required, the counters optional and numeric", () => {
+    expect(eventInputFromJson({ kind: "tab.switch" })).toEqual({ kind: "tab.switch" });
+    expect(eventInputFromJson({ kind: "ai.draft", tokensIn: 12, meta: { model: "x" } })).toMatchObject({
+      kind: "ai.draft",
+      tokensIn: 12,
+      meta: { model: "x" },
+    });
+    expect(() => eventInputFromJson({})).toThrow(/missing field `kind`/);
+    expect(() => eventInputFromJson({ kind: "x", tokensIn: "12" })).toThrow(/invalid type for field `tokensIn`/);
+  });
+
   it("fills todo defaults, in Rust field order", () => {
     const t = todoFromJson({ id: "t", text: "x" });
     expect(t).toEqual({ id: "t", text: "x", done: false, createdAt: null, source: null });

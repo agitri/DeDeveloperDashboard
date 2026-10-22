@@ -3,6 +3,7 @@
 // layout work is 90% of the frontend, and waiting on a Rust rebuild to nudge a
 // grid column would be a miserable way to build it.
 
+import type { CommandArgs, CommandName } from "../../../shared/commands";
 import type {
   AiActionInfo,
   AppearanceSettings,
@@ -42,7 +43,9 @@ import type {
 const bridge = typeof window !== "undefined" ? window.ddd : undefined;
 const isNative = bridge !== undefined;
 
-async function call<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
+// `K` types the arguments against the shared command table; `T` is the
+// result, inferred from the wrapper's declared return type.
+async function call<T = unknown, K extends CommandName = CommandName>(cmd: K, args?: CommandArgs<K>): Promise<T> {
   if (!bridge) throw new Error(`${cmd} needs the desktop app`);
   return bridge.invoke<T>(cmd, args);
 }
@@ -62,11 +65,11 @@ async function call<T>(cmd: string, args?: Record<string, unknown>): Promise<T> 
  */
 const inFlight = new Map<string, Promise<unknown>>();
 
-function shared<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
+function shared<T = unknown, K extends CommandName = CommandName>(cmd: K, args?: CommandArgs<K>): Promise<T> {
   const key = `${cmd}:${JSON.stringify(args ?? {})}`;
   const running = inFlight.get(key) as Promise<T> | undefined;
   if (running) return running;
-  const started = call<T>(cmd, args).finally(() => inFlight.delete(key));
+  const started = call<T, K>(cmd, args).finally(() => inFlight.delete(key));
   inFlight.set(key, started);
   return started;
 }
@@ -686,7 +689,7 @@ export const ipc = {
       URL.revokeObjectURL(url);
       return suggestedName;
     }
-    const path = await call<string | null>("dialog_save", { suggestedName });
+    const path: string | null = await call("dialog_save", { suggestedName });
     if (!path) return null;
     // Main writes it. The webview picks the path and never touches the disk —
     // the same reason connect-src is what it is.
@@ -709,14 +712,14 @@ export const ipc = {
         input.click();
       });
     }
-    const picked = await call<string | null>("dialog_open_file");
+    const picked: string | null = await call("dialog_open_file");
     if (!picked) return null;
     return call("layout_file_read", { path: picked });
   },
 
   async pickDirectory(): Promise<string | null> {
     if (!isNative) return null;
-    return call<string | null>("dialog_pick_directory");
+    return call("dialog_pick_directory");
   },
 
   reposList(env: string, filter: { scope?: string; query?: string }): Promise<RepoListing> {

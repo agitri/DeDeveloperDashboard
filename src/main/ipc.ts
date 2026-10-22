@@ -8,7 +8,9 @@ import { BrowserWindow, dialog, ipcMain, shell, type IpcMainInvokeEvent } from "
 import { DddError } from "../core/error";
 import { clampUiScale } from "../core/settings";
 import type { Handler } from "./commands";
+import { validated } from "./args";
 import { dispatch, type HostHandler } from "./dispatch";
+import type { HostCommand, ParsedArgs } from "../shared/commands";
 import { bootLook } from "./look";
 
 const LAYOUT_FILTER = [{ name: "DDD layout", extensions: ["json"] }];
@@ -16,9 +18,9 @@ const LAYOUT_FILTER = [{ name: "DDD layout", extensions: ["json"] }];
 const owner = (event: unknown) => BrowserWindow.fromWebContents((event as IpcMainInvokeEvent).sender) ?? undefined;
 
 /** The commands that were Tauri plugins: dialogs pick paths, the shell opens things. */
-const host: Record<string, HostHandler> = {
+const handlers: { [K in HostCommand]: (args: ParsedArgs<K>, event: unknown) => unknown } = {
   async dialog_save({ suggestedName }, event) {
-    const r = await dialog.showSaveDialog(owner(event)!, { defaultPath: String(suggestedName), filters: LAYOUT_FILTER });
+    const r = await dialog.showSaveDialog(owner(event)!, { defaultPath: suggestedName, filters: LAYOUT_FILTER });
     return r.canceled || !r.filePath ? null : r.filePath;
   },
   async dialog_open_file(_args, event) {
@@ -32,7 +34,7 @@ const host: Record<string, HostHandler> = {
   async open_external({ url }) {
     let parsed: URL;
     try {
-      parsed = new URL(String(url));
+      parsed = new URL(url);
     } catch {
       throw DddError.invalid(`not a URL: ${url}`);
     }
@@ -43,14 +45,16 @@ const host: Record<string, HostHandler> = {
   },
   /** Show a folder in the OS file manager. A directory on disk, never a URL. */
   reveal_path({ path }) {
-    shell.showItemInFolder(String(path));
+    shell.showItemInFolder(path);
   },
   /** Browser zoom for the calling window — the Appearance "UI scale" slider.
    *  Clamped the same way core clamps the saved value. */
   window_set_zoom({ factor }, event) {
-    owner(event)?.webContents.setZoomFactor(clampUiScale(Number(factor)));
+    owner(event)?.webContents.setZoomFactor(clampUiScale(factor));
   },
 };
+
+export const host: Record<string, HostHandler> = validated(handlers);
 
 export function registerIpc(commands: Record<string, Handler>): void {
   ipcMain.handle("ddd:invoke", (event, cmd: unknown, args: unknown) => dispatch(cmd, args, event, host, commands));

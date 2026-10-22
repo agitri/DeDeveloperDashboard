@@ -342,6 +342,25 @@ const isU32 = (v: unknown): v is number => typeof v === "number" && Number.isInt
 /** Every field optional (`#[serde(default)]`); `null` and absent both mean
  *  "not narrowing on this", and only present fields are kept — a stored
  *  filter reads as what it narrows and nothing else. */
+/** An event as the renderer logs it: only `kind` is required, the counters
+ *  must be numbers when given, and `meta` is kept as whatever JSON it was. */
+export function eventInputFromJson(raw: unknown): EventInput {
+  const o = record(raw, "event");
+  const out: EventInput = { kind: required(o, "kind", isString) };
+  const source = optional(o, "source", isString, null);
+  const project = optional(o, "project", isString, null);
+  const tokensIn = optional(o, "tokensIn", isNumber, null);
+  const tokensOut = optional(o, "tokensOut", isNumber, null);
+  const costMicros = optional(o, "costMicros", isNumber, null);
+  if (source !== null) out.source = source;
+  if (project !== null) out.project = project;
+  if (tokensIn !== null) out.tokensIn = tokensIn;
+  if (tokensOut !== null) out.tokensOut = tokensOut;
+  if (costMicros !== null) out.costMicros = costMicros;
+  if (o.meta !== undefined) out.meta = o.meta;
+  return out;
+}
+
 export function itemFilterFromJson(raw: unknown): ItemFilter {
   const o = record(raw, "filter");
   const out: ItemFilter = {};
