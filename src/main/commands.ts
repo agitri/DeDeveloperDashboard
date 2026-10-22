@@ -67,6 +67,8 @@ import { itemId as makeItemId } from "../core/sync/adapter";
 import * as supervise from "../core/products/supervise";
 import * as productLog from "../core/products/log";
 import * as mediaControl from "../core/media/control";
+import * as modelScan from "../core/models/scan";
+import * as modelMove from "../core/models/move";
 import type { Item, ItemFilter, Product, Settings } from "../core/models";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -88,6 +90,10 @@ export interface CommandDeps {
    *  call site that already closed over the binding. Defaults to the real
    *  `readMachine`. */
   machineRead?: typeof readMachine;
+  /** Where the local-model runtimes keep their downloads. Overridable so a
+   *  test scans a scratch tree instead of the developer's own 50 GB. Defaults
+   *  to the runtimes' well-known folders plus their env overrides. */
+  modelRoots?: modelScan.StoreRoots;
 }
 
 /** Commands the host adds on top of the Tauri set: dialogs and the shell
@@ -99,6 +105,8 @@ export const HOST_COMMANDS: readonly string[] = [
   "dialog_pick_directory",
   "open_external",
   "reveal_path",
+  // nodeDDD-only: no Rust counterpart (Appearance → UI scale, applied as browser zoom).
+  "window_set_zoom",
   // nodeDDD-only: no Rust counterpart (the per-tab sitrep widget's git delta).
   "repo_changes_since",
   // nodeDDD-only: no Rust counterpart (the per-tab sitrep widget's AI summary).
@@ -106,6 +114,9 @@ export const HOST_COMMANDS: readonly string[] = [
   // nodeDDD-only: no Rust counterpart (the media widget's playback state and controls).
   "media_state",
   "media_command",
+  // nodeDDD-only: no Rust counterpart (the local-models widget's scan and per-model move).
+  "models_scan",
+  "models_move",
   // nodeDDD-only: no Rust counterpart (the onboarding wizard's progress).
   "global_wizard_save",
 ] as const;
@@ -1170,6 +1181,23 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
         action as mediaControl.MediaAction,
         value === undefined ? undefined : Number(value),
       );
+    },
+
+    // --- local models: what the runtimes downloaded, and moving one out ---
+
+    /** Every runtime store and the models inside it. nodeDDD-only. */
+    models_scan: async () => modelScan.scan(deps.modelRoots ?? modelScan.defaultRoots()),
+
+    /** Physically move one model (by its scan id) into `dest`, streaming
+     *  `ddd://models-progress` while it copies. The model is looked up fresh
+     *  so the path used is always what is on disk now, never what the widget
+     *  remembered. nodeDDD-only. */
+    models_move: async ({ id, dest }) => {
+      const roots = deps.modelRoots ?? modelScan.defaultRoots();
+      const wanted = String(id);
+      const found = (await modelScan.scan(roots)).stores.flatMap((s) => s.models).find((m) => m.id === wanted);
+      if (!found) throw DddError.notFound(`no model ${JSON.stringify(wanted)} in any store`);
+      return modelMove.moveModel(found, roots, String(dest), (p) => deps.emit.emit("ddd://models-progress", p));
     },
   };
 }

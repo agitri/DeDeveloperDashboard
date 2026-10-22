@@ -740,6 +740,10 @@ export const useStore = create<Store>((set, get) => ({
   },
 
   async saveAppearance(next) {
+    // Optimistic: a second control changed before this save returns must see
+    // the first change, or the later save overwrites it with the stale value.
+    const current = get().global;
+    if (current) set({ global: { ...current, appearance: next } });
     const global = await ipc.globalAppearanceSave(next);
     set({ global });
   },

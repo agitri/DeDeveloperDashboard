@@ -69,9 +69,33 @@ describe("settings defaults", () => {
       launchCommand: "claude",
       defaultRefreshSeconds: 120,
       showShortcutHints: false,
+      uiScale: 1,
+      hintSize: "medium",
+      accent: null,
+      scheme: "default",
     });
     expect(appearanceFromJson({ theme: "dark" }).theme).toBe("system");
     expect(appearanceFromJson(null).theme).toBe("system");
+  });
+
+  it("fills the appearance additions with defaults and clamps the UI scale", () => {
+    const base = { theme: "dark", defaultRefreshSeconds: 120 };
+    const a = appearanceFromJson(base);
+    expect(a.uiScale).toBe(1);
+    expect(a.hintSize).toBe("medium");
+    expect(a.scheme).toBe("default");
+    expect(a.accent).toBeNull();
+    expect(appearanceFromJson({ ...base, uiScale: 3 }).uiScale).toBe(1.5);
+    expect(appearanceFromJson({ ...base, uiScale: 0.1 }).uiScale).toBe(0.8);
+    expect(appearanceFromJson({ ...base, uiScale: 1.23, hintSize: "large", scheme: "nord", accent: "#ff8800" })).toMatchObject({
+      uiScale: 1.23,
+      hintSize: "large",
+      scheme: "nord",
+      accent: "#ff8800",
+    });
+    // Unknown enum values fall back rather than failing the block.
+    expect(appearanceFromJson({ ...base, hintSize: "huge" }).hintSize).toBe("medium");
+    expect(appearanceFromJson({ ...base, accent: "red" }).accent).toBeNull();
   });
 
   it("discards the whole legacy block, not just the bad field, on any failure", () => {

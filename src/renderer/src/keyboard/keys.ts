@@ -60,11 +60,21 @@ const GLYPHS: Record<string, string> = {
 
 /** What the hint chips and the palette show. */
 export function formatBinding(binding: string): string {
+  const { mods, key } = splitBinding(binding);
+  return mods + key;
+}
+
+/** The badge's two parts: the modifier glyphs (with their joiner) and the key
+ *  label. Kept apart so the `Kbd` component can give ⌘⇧⌥ a font that draws
+ *  them at full size — the mono fonts lack those glyphs and the fallback
+ *  renders them visibly smaller than the key next to them. */
+export function splitBinding(binding: string): { mods: string; key: string } {
   const parts = normalizeBinding(binding).split("+");
   const key = parts.pop() ?? "";
   const mods = parts.map((p) => GLYPHS[p] ?? p);
   const label = GLYPHS[key] ?? (key.length === 1 ? key.toUpperCase() : key);
-  return IS_MAC ? [...mods, label].join("") : [...mods, label].join("+");
+  if (mods.length === 0) return { mods: "", key: label };
+  return IS_MAC ? { mods: mods.join(""), key: label } : { mods: mods.join("+") + "+", key: label };
 }
 
 /** True when the event came from somewhere the user is typing prose. */

@@ -76,6 +76,11 @@ describe("global.json", () => {
       "launchCommand",
       "defaultRefreshSeconds",
       "showShortcutHints",
+      // nodeDDD additions, after the Rust fields so the shared prefix stays byte-identical.
+      "uiScale",
+      "hintSize",
+      "accent",
+      "scheme",
     ]);
     expect(g.appearance).toEqual({
       theme: "dark",
@@ -85,6 +90,10 @@ describe("global.json", () => {
       launchCommand: "claude",
       defaultRefreshSeconds: 60,
       showShortcutHints: false,
+      uiScale: 1,
+      hintSize: "medium",
+      accent: null,
+      scheme: "default",
     });
   });
 

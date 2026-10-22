@@ -130,6 +130,18 @@ button, input, textarea, select { font: inherit; color: inherit; }
   white-space: nowrap;
 }
 
+/* Shortcut badge size (Settings → Appearance). Medium is a touch larger than
+ * the original 17px badge; small is that original. The :root prefix
+ * out-specifies console.css's `[data-look] .kbd` rule, so one block serves
+ * both looks. */
+/* ⌘⇧⌥⌃ are not in the mono fonts; the fallback draws them small. The system
+ * font has them at the right optical size, and a touch larger still reads
+ * better next to a capital. */
+.kbd .kbd-mod { font-family: -apple-system, system-ui, var(--font-mono); font-size: 1.2em; line-height: 1; margin-right: 1px; }
+:root[data-hints="small"] .kbd { min-width: 16px; height: 16px; font-size: 9.5px; padding: 0 3px; }
+:root[data-hints="medium"] .kbd { min-width: 19px; height: 19px; font-size: 11px; padding: 0 5px; }
+:root[data-hints="large"] .kbd { min-width: 23px; height: 23px; font-size: 13.5px; padding: 0 6px; border-radius: 4px; }
+
 .icon-btn {
   display: inline-flex;
   align-items: center;
@@ -811,7 +823,17 @@ button, input, textarea, select { font: inherit; color: inherit; }
   padding: 9px 11px;
   border-bottom: 1px solid var(--line);
 }
-.project-head .name { font-weight: 500; }
+.project-head .name { font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The Remove… confirmation: a strip under the header, so it is never clipped
+ * however narrow the widget is. */
+.project-confirm {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 12px;
+  padding: 8px 11px; font-size: 12px; line-height: 1.5;
+  border-bottom: 1px solid var(--line);
+  border-left: 2px solid color-mix(in srgb, var(--err) 55%, transparent);
+  background: color-mix(in srgb, var(--err) 6%, transparent);
+}
+.project-confirm-actions { display: flex; gap: 6px; flex-shrink: 0; }
 .project-meta {
   display: flex;
   flex-wrap: wrap;
@@ -1519,6 +1541,50 @@ button, input, textarea, select { font: inherit; color: inherit; }
 .media-volume { display: flex; align-items: center; gap: 8px; width: 100%; max-width: 220px; }
 .media-volume input[type="range"] { flex: 1; }
 .media-volume-value { font-family: var(--font-mono); font-size: 11px; min-width: 2ch; text-align: right; }
+
+/* --- local models -----------------------------------------------------------
+ * A bar (total on disk, destination folder, Move all) over one section per
+ * runtime store, rows reusing `.row`. A running move swaps the row's subtitle
+ * for a thin progress bar; a refused move swaps it for the reason. */
+.models-widget { display: flex; flex-direction: column; }
+.models-bar {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px;
+  padding: 8px 10px; border-bottom: 1px solid var(--line);
+}
+.models-total, .models-dest { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.models-total-value { font-family: var(--font-mono); font-size: 13px; font-weight: 600; }
+.models-dest { flex: 1; }
+.models-dest-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px; font-size: 11.5px; }
+.models-actions { display: flex; gap: 6px; margin-left: auto; }
+.models-confirm {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin: 8px 10px 0; padding: 8px 10px; font-size: 12px; line-height: 1.5;
+  border-left: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border-radius: var(--r);
+}
+.models-confirm code { font-family: var(--font-mono); font-size: 11px; }
+.models-confirm-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.models-store-head {
+  display: flex; align-items: baseline; gap: 8px; padding: 10px 10px 4px;
+}
+.models-store-name { font-weight: 600; }
+.models-store-root { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; font-family: var(--font-mono); }
+.models-store-bytes { font-family: var(--font-mono); font-size: 11.5px; }
+/* The console look lays `.row` out as a mark/main/auto grid; this row has a
+ * size cell and a button cell after the main, so it keeps its own flex layout
+ * whatever the look (the selector out-specifies the console override). */
+.models-widget .models-row, [data-look="console"] .models-widget .models-row {
+  display: flex; align-items: center; gap: 10px; padding: 7px 10px;
+}
+.models-row-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.models-row .row-title { font-family: var(--font-mono); font-size: 12px; }
+.models-row-bytes { font-family: var(--font-mono); font-size: 11.5px; min-width: 6ch; text-align: right; }
+.models-row-error { color: var(--err); white-space: normal; }
+.models-row .row-sub code { font-family: var(--font-mono); font-size: 11px; }
+.models-progress { display: flex; align-items: center; gap: 8px; margin-top: 4px; font-size: 11px; }
+.models-progress-bar { flex: 1; height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
+.models-progress-fill { height: 100%; background: var(--accent); transition: width 120ms linear; }
 
 /* --- names the Console system introduced ---------------------------------
  *

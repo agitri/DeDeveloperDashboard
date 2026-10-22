@@ -233,7 +233,17 @@ export interface AppearanceSettings {
   launchCommand: string;
   defaultRefreshSeconds: number;
   showShortcutHints: boolean;
+  /** Browser zoom for the whole window, 0.8..1.5. Default 1. */
+  uiScale?: number;
+  /** Size of the ⌘-key badges and the ⌘-hold cheat sheet. Default medium. */
+  hintSize?: HintSize;
+  /** A fixed accent colour (#rrggbb), or null to follow the environment's colour. */
+  accent?: string | null;
+  /** A preset palette id from lib/appearance.ts. "default" leaves the look's own. */
+  scheme?: string;
 }
+
+export type HintSize = "small" | "medium" | "large";
 
 export interface Settings {
   version: number;
@@ -600,3 +610,38 @@ export interface MediaState {
  *  `"playpause"` toggle) fails to compile at the `ipc.mediaCommand` boundary
  *  instead of silently falling through to the volume branch. */
 export type MediaAction = "playpause" | "next" | "previous" | "setVolume";
+
+// --- local models widget: renderer twin of core/models/scan.ts + move.ts ---
+
+export type ModelRuntime = "ollama" | "huggingface" | "lmstudio" | "llamacpp" | "jan" | "gpt4all";
+
+export interface LocalModel {
+  /** `${runtime}:${name}` — what `ipc.modelsMove` is given. */
+  id: string;
+  runtime: ModelRuntime;
+  name: string;
+  path: string;
+  bytes: number;
+}
+
+export interface ModelStore {
+  runtime: ModelRuntime;
+  label: string;
+  root: string;
+  present: boolean;
+  models: LocalModel[];
+  bytes: number;
+}
+
+export interface ModelScan {
+  stores: ModelStore[];
+  totalBytes: number;
+}
+
+export interface ModelMoveProgress {
+  id: string;
+  phase: "copy" | "remove" | "done" | "error";
+  bytesDone: number;
+  bytesTotal: number;
+  error?: string;
+}

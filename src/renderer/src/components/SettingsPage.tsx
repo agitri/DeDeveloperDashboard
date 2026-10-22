@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import { Kbd } from "./Kbd";
 import { DEFAULT_KEYMAP, buildActions, findConflicts } from "../keyboard/actions";
 import { eventToBinding, formatBinding } from "../keyboard/keys";
 import { ipc, DEFAULT_SETTINGS } from "../lib/ipc";
+import { SCALE_MAX, SCALE_MIN, SCHEMES, clampScale, hintAttr } from "../lib/appearance";
 import { useStore } from "../state/store";
 import { ENV_COLORS } from "../lib/palette";
 import { useUi } from "../state/ui";
@@ -1315,9 +1317,12 @@ function AppearancePanel() {
   const saveAppearance = useStore((s) => s.saveAppearance);
 
   // Appearance is global, so this patches `global.json` rather than the
-  // environment you happen to be looking at.
+  // environment you happen to be looking at. The draft is taken from the
+  // store, not from this render's `appearance`: two controls changed before
+  // the first save's round trip re-rendered the panel would otherwise each
+  // clone the same stale value and the second would undo the first.
   const patch = (update: (draft: AppearanceSettings) => AppearanceSettings) =>
-    void saveAppearance(update(structuredClone(appearance)));
+    void saveAppearance(update(structuredClone(useStore.getState().appearance())));
 
   return (
     <>
@@ -1363,6 +1368,116 @@ function AppearancePanel() {
               <option value="system">Match system</option>
               <option value="light">Light</option>
               <option value="dark">Dark</option>
+            </select>
+          </Row>
+          <Row
+            label="Colour scheme"
+            desc="A preset palette for backgrounds, text and status colours, in light and dark. Default is the look's own."
+          >
+            <select
+              className="field"
+              style={{ width: 160 }}
+              value={appearance.scheme ?? "default"}
+              onChange={(e) =>
+                patch((d) => {
+                  d.scheme = e.target.value;
+                  return d;
+                })
+              }
+            >
+              {SCHEMES.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </Row>
+          <Row
+            label="Accent"
+            desc="Focus rings, the active tab and primary buttons. By default this is the colour of the environment you are looking at; pick one here to fix it everywhere."
+          >
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+              <input
+                type="color"
+                value={appearance.accent ?? "#2f6ae8"}
+                onChange={(e) =>
+                  patch((d) => {
+                    d.accent = e.target.value;
+                    return d;
+                  })
+                }
+              />
+              {appearance.accent ? (
+                <button
+                  className="btn sm"
+                  onClick={() =>
+                    patch((d) => {
+                      d.accent = null;
+                      return d;
+                    })
+                  }
+                >
+                  Follow environment
+                </button>
+              ) : (
+                <span className="ink-3">follows the environment</span>
+              )}
+            </span>
+          </Row>
+          <Row
+            label="UI scale"
+            desc="Zooms the whole window — text, badges, widgets and the grid together. 100% is the designed size; 80–150%."
+          >
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+              <input
+                className="field"
+                style={{ width: 90 }}
+                type="number"
+                min={SCALE_MIN * 100}
+                max={SCALE_MAX * 100}
+                step={1}
+                value={Math.round(clampScale(appearance.uiScale ?? 1) * 100)}
+                onChange={(e) => {
+                  if (e.target.value === "") return;
+                  const n = Number(e.target.value);
+                  if (!Number.isFinite(n)) return;
+                  patch((d) => {
+                    d.uiScale = clampScale(n / 100);
+                    return d;
+                  });
+                }}
+              />
+              <span className="ink-3">%</span>
+              {(appearance.uiScale ?? 1) !== 1 && (
+                <button
+                  className="btn sm"
+                  onClick={() =>
+                    patch((d) => {
+                      d.uiScale = 1;
+                      return d;
+                    })
+                  }
+                >
+                  Reset
+                </button>
+              )}
+            </span>
+          </Row>
+          <Row label="Shortcut badge size" desc="The ⌘-key badges on tabs and buttons, and the ⌘-hold cheat sheet.">
+            <select
+              className="field"
+              style={{ width: 160 }}
+              value={hintAttr(appearance.hintSize)}
+              onChange={(e) =>
+                patch((d) => {
+                  d.hintSize = hintAttr(e.target.value);
+                  return d;
+                })
+              }
+            >
+              <option value="small">Small</option>
+              <option value="medium">Medium</option>
+              <option value="large">Large</option>
             </select>
           </Row>
           <Row
@@ -1529,9 +1644,7 @@ function KeyboardPanel({ keymap, envId }: { keymap: Record<string, string[]>; en
             return (
               <Row key={action.id} label={action.title} desc={action.group}>
                 {bindings.map((b) => (
-                  <kbd className="kbd" key={b}>
-                    {formatBinding(b)}
-                  </kbd>
+                  <Kbd binding={b} key={b} />
                 ))}
                 {bindings.length === 0 && <span className="mono-label">unbound</span>}
                 <button

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Kbd } from "./components/Kbd";
 import { Canvas } from "./components/Canvas";
 import { ConsoleRail } from "./components/ConsoleRail";
 import { CommandPalette } from "./components/CommandPalette";
@@ -14,6 +15,7 @@ import { Wizard } from "./components/Wizard";
 import { IS_MAC, formatBinding } from "./keyboard/keys";
 import { useGlobalKeys, useKeymap } from "./keyboard/useKeyboard";
 import { ipc } from "./lib/ipc";
+import { SCHEME_PROPERTIES, clampScale, hintAttr, schemeVars } from "./lib/appearance";
 import { isConsole, rememberLook } from "./lib/look";
 import { useWizard } from "./onboarding/useWizard";
 import { useStore } from "./state/store";
@@ -28,6 +30,10 @@ export default function App() {
   const overviewEnvId = useStore((s) => s.overviewEnvId);
   const environments = useStore((s) => s.environments());
   const theme = useStore((s) => (s.ready ? s.appearance().theme : "system"));
+  const scheme = useStore((s) => (s.ready ? (s.appearance().scheme ?? "default") : "default"));
+  const accentOverride = useStore((s) => (s.ready ? (s.appearance().accent ?? null) : null));
+  const hintSize = useStore((s) => (s.ready ? s.appearance().hintSize : undefined));
+  const uiScale = useStore((s) => (s.ready ? (s.appearance().uiScale ?? 1) : undefined));
   const hintsEnabled = useStore((s) => (s.ready ? s.appearance().showShortcutHints : true));
   const toast = useUi((s) => s.toast);
   const togglePalette = useUi((s) => s.togglePalette);
@@ -59,17 +65,37 @@ export default function App() {
     useWizard.getState().start(wizard?.step ?? 0);
   }, [ready]);
 
-  // Theme. `system` follows the OS live rather than only at startup.
+  // Theme. `system` follows the OS live rather than only at startup. The
+  // colour scheme rides along: its palette depends on the resolved theme, and
+  // it is applied as inline custom properties on <html>, which beat any
+  // stylesheet rule in either look. "default" clears them.
   useEffect(() => {
     const media = window.matchMedia("(prefers-color-scheme: dark)");
     const apply = () => {
       const resolved = theme === "system" ? (media.matches ? "dark" : "light") : theme;
       document.documentElement.dataset.theme = resolved;
+      const style = document.documentElement.style;
+      for (const prop of SCHEME_PROPERTIES) style.removeProperty(prop);
+      for (const [prop, value] of Object.entries(schemeVars(scheme, resolved, isConsole ? "console" : "classic"))) {
+        style.setProperty(prop, value);
+      }
     };
     apply();
     media.addEventListener("change", apply);
     return () => media.removeEventListener("change", apply);
-  }, [theme]);
+  }, [theme, scheme]);
+
+  // ⌘-badge size, read by the .kbd rules of both looks.
+  useEffect(() => {
+    document.documentElement.dataset.hints = hintAttr(hintSize);
+  }, [hintSize]);
+
+  // UI scale is browser zoom: the window applies the saved value on load, and
+  // this keeps it live while the slider moves.
+  useEffect(() => {
+    if (uiScale === undefined) return;
+    void ipc.windowSetZoom(clampScale(uiScale));
+  }, [uiScale]);
 
   // The look is decided before React mounts, from a localStorage cache, because
   // settings arrive over async IPC. Keep the cache in step with the setting so
@@ -84,14 +110,15 @@ export default function App() {
   // currently looking at. Focus rings, active markers and selections all read it.
   useEffect(() => {
     const env = environments.find((e) => e.id === activeTab?.environmentId);
-    const color = activeTab?.color ?? env?.color;
+    // A fixed accent from Appearance wins; otherwise the environment colours.
+    const color = accentOverride ?? activeTab?.color ?? env?.color;
     if (!color) return;
     document.documentElement.style.setProperty("--accent", color);
     // The Console system names the same idea `--env`, and reads it for focus
     // rings, active tiles and the tint under the board. Set both so a look
     // change is only ever a stylesheet swap.
     document.documentElement.style.setProperty("--env", color);
-  }, [activeTab?.color, activeTab?.environmentId, environments]);
+  }, [accentOverride, activeTab?.color, activeTab?.environmentId, environments]);
 
   if (!ready) {
     return (
@@ -178,7 +205,7 @@ export default function App() {
         <div className="rail-spacer" />
         <button className="palette-hint" onClick={() => togglePalette(true)}>
           <span>Search actions, tabs, projects</span>
-          {paletteBinding && <kbd className="kbd">{formatBinding(paletteBinding)}</kbd>}
+          {paletteBinding && <Kbd binding={paletteBinding} />}
         </button>
         <button
           className="icon-btn"

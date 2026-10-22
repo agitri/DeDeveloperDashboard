@@ -6,6 +6,7 @@
  */
 import { BrowserWindow, dialog, ipcMain, shell, type IpcMainInvokeEvent } from "electron";
 import { DddError } from "../core/error";
+import { clampUiScale } from "../core/settings";
 import type { Handler } from "./commands";
 import { dispatch, type HostHandler } from "./dispatch";
 import { bootLook } from "./look";
@@ -43,6 +44,11 @@ const host: Record<string, HostHandler> = {
   /** Show a folder in the OS file manager. A directory on disk, never a URL. */
   reveal_path({ path }) {
     shell.showItemInFolder(String(path));
+  },
+  /** Browser zoom for the calling window — the Appearance "UI scale" slider.
+   *  Clamped the same way core clamps the saved value. */
+  window_set_zoom({ factor }, event) {
+    owner(event)?.webContents.setZoomFactor(clampUiScale(Number(factor)));
   },
 };
 

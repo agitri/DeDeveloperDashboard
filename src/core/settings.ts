@@ -21,8 +21,26 @@ export function defaultAppearance(): AppearanceSettings {
     launchCommand: "claude",
     defaultRefreshSeconds: 300,
     showShortcutHints: true,
+    uiScale: 1,
+    hintSize: "medium",
+    accent: null,
+    scheme: "default",
   };
 }
+
+export const UI_SCALE_MIN = 0.8;
+export const UI_SCALE_MAX = 1.5;
+
+/** 0.8..1.5 in whole percents; anything unusable is 1. */
+export function clampUiScale(n: number): number {
+  if (!Number.isFinite(n)) return 1;
+  const stepped = Math.round(n * 100) / 100;
+  return Math.min(UI_SCALE_MAX, Math.max(UI_SCALE_MIN, stepped));
+}
+
+const HINT_SIZES = ["small", "medium", "large"] as const;
+const isHintSize = (v: unknown): v is AppearanceSettings["hintSize"] => typeof v === "string" && (HINT_SIZES as readonly string[]).includes(v);
+const isHexColor = (v: unknown): v is string => typeof v === "string" && /^#[0-9a-fA-F]{6}$/.test(v);
 
 export function defaultAiSettings(): Settings["ai"] {
   return {
@@ -82,6 +100,12 @@ export function appearanceRequired(raw: unknown): AppearanceSettings {
     launchCommand: optional(o, "launchCommand", isString, "claude"),
     defaultRefreshSeconds: required(o, "defaultRefreshSeconds", isNumber),
     showShortcutHints: optional(o, "showShortcutHints", isBoolean, false),
+    // The additions below are lenient on purpose: a stray value here should
+    // never discard the whole block the way a wrong-typed legacy field does.
+    uiScale: clampUiScale(optional(o, "uiScale", isNumber, 1)),
+    hintSize: isHintSize(o.hintSize) ? o.hintSize : "medium",
+    accent: isHexColor(o.accent) ? o.accent.toLowerCase() : null,
+    scheme: isString(o.scheme) && o.scheme !== "" ? o.scheme : "default",
   };
 }
 

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Kbd } from "./Kbd";
 import { formatBinding } from "../keyboard/keys";
 import { ENV_COLORS } from "../lib/palette";
 import { runsOf } from "../state/tabOrder";
@@ -77,7 +78,7 @@ export function TabStrip({ keymap }: { keymap: Record<string, string[]> }) {
       </button>
       {hintsVisible && keymap["tab.new"]?.[0] && (
         <span style={{ display: "flex", alignItems: "center" }}>
-          <kbd className="kbd">{formatBinding(keymap["tab.new"][0])}</kbd>
+          <Kbd binding={keymap["tab.new"][0]} />
         </span>
       )}
     </div>
@@ -512,7 +513,7 @@ function TabButton({
         ) : (
           <span>{tab.name}</span>
         )}
-        {hintsVisible && binding && <kbd className="kbd">{formatBinding(binding)}</kbd>}
+        {hintsVisible && binding && <Kbd binding={binding} />}
       </button>
     </>
   );

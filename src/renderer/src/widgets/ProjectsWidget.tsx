@@ -279,41 +279,39 @@ function ProjectCard({
         </button>
         {/* Deliberately not disabled by `exists`: a project whose folder is
             gone is exactly the one you most need to be able to remove. */}
-        {confirmingRemove ? (
-          <>
-            <button
-              className="btn danger"
-              onClick={(e) => {
-                e.stopPropagation();
-                onRemove();
-              }}
-            >
-              Unregister
-            </button>
-            <button
-              className="btn"
-              onClick={(e) => {
-                e.stopPropagation();
-                onCancelRemove();
-              }}
-            >
-              Cancel
-            </button>
-          </>
-        ) : (
-          <button
-            className="btn"
-            title="Removes it from this list only — the folder on disk is untouched"
-            onClick={(e) => {
-              e.stopPropagation();
-              onAskRemove();
-            }}
-          >
-            Remove…
-          </button>
-        )}
+        <button
+          className="btn"
+          title="Removes it from this list only — the folder on disk is untouched"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (confirmingRemove) onCancelRemove();
+            else onAskRemove();
+          }}
+        >
+          Remove…
+        </button>
         <span className="mono-label">{expanded ? "▾" : "▸"}</span>
       </div>
+
+      {/* The confirmation gets its own strip rather than swapping wider
+          buttons into the header: the header cannot wrap and the card clips
+          overflow, so on a narrow widget "Unregister"/"Cancel" ended up cut
+          off and clicking Remove… looked like it did nothing. */}
+      {confirmingRemove && (
+        <div className="project-confirm">
+          <span>
+            Remove <b>{project.name}</b> from this list? The folder on disk is untouched.
+          </span>
+          <span className="project-confirm-actions">
+            <button className="btn danger" onClick={onRemove}>
+              Unregister
+            </button>
+            <button className="btn" onClick={onCancelRemove}>
+              Cancel
+            </button>
+          </span>
+        </div>
+      )}
 
       {/* The status line: everything you need to answer "where was I?" */}
       <div className="project-meta">

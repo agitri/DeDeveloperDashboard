@@ -24,6 +24,8 @@ import type {
   McpReport,
   MediaAction,
   MediaState,
+  ModelMoveProgress,
+  ModelScan,
   LocalEvent,
   Occurrence,
   PathsInfo,
@@ -955,5 +957,30 @@ export const ipc = {
   mediaCommand(player: string, action: MediaAction, value?: number): Promise<void> {
     if (!isNative) return Promise.resolve();
     return call("media_command", { player, action, value });
+  },
+
+  /** Browser zoom for this window; a no-op in the browser preview. */
+  windowSetZoom(factor: number): Promise<void> {
+    if (!isNative) return Promise.resolve();
+    return call("window_set_zoom", { factor });
+  },
+
+  /** Every local-model store and what is in it. Browser preview has no disk
+   *  to read, so it reports every store absent. */
+  modelsScan(): Promise<ModelScan> {
+    if (!isNative) return Promise.resolve({ stores: [], totalBytes: 0 });
+    return call("models_scan");
+  },
+
+  /** Physically move one model into `dest`; resolves with where it landed. */
+  modelsMove(id: string, dest: string): Promise<{ destination: string }> {
+    if (!isNative) return Promise.reject(new Error("Moving models needs the desktop app"));
+    return call("models_move", { id, dest });
+  },
+
+  /** Byte progress of a running move. Same no-op fallback as `onRepoProgress`. */
+  async onModelsProgress(handler: (p: ModelMoveProgress) => void): Promise<() => void> {
+    if (!bridge) return () => {};
+    return bridge.on("ddd://models-progress", (payload) => handler(payload as ModelMoveProgress));
   },
 };

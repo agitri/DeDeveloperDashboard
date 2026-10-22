@@ -1,4 +1,4 @@
-import { formatBinding } from "../keyboard/keys";
+import { Kbd } from "./Kbd";
 import { useUi } from "../state/ui";
 
 /**
@@ -112,7 +112,7 @@ export function HintOverlay({ keymap }: { keymap: Record<string, string[]> }) {
                 }}
               >
                 <span>{label}</span>
-                <kbd className="kbd">{formatBinding(binding)}</kbd>
+                <Kbd binding={binding} />
               </div>
             );
           })}

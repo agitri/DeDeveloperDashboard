@@ -15,6 +15,13 @@ export function WidgetPicker() {
   const tabName = useStore((s) => s.activeTab()?.name);
   const [query, setQuery] = useState("");
   const [cursor, setCursor] = useState(0);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  // Keep the highlighted row on screen: arrowing past the bottom of the list
+  // moved the cursor but not the scroll, so the selection went off-screen.
+  useEffect(() => {
+    listRef.current?.querySelector(".panel-row.active")?.scrollIntoView({ block: "nearest" });
+  }, [cursor]);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -67,7 +74,7 @@ export function WidgetPicker() {
             }
           }}
         />
-        <div className="panel-list">
+        <div className="panel-list" ref={listRef}>
           {results.map((def, index) => (
             <button
               key={def.id}

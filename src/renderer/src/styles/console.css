@@ -179,7 +179,7 @@
 [data-look="console"] .rail-bd b { color: var(--c); font-weight: 600; }
 [data-look="console"] .rail-spacer { flex: 1; }
 /* Un-collapsed rail: blocks and tiles become bars carrying their full names. */
-[data-look="console"] .rail-toggle { width: 28px; height: 20px; border: 0; background: transparent; color: var(--text-3); font: 500 12px / 1 var(--font-mono); cursor: pointer; border-radius: 2px; }
+[data-look="console"] .rail-toggle { min-width: 28px; height: auto; min-height: 20px; padding: 0 2px; border: 0; background: transparent; color: var(--text-3); font: 500 12px / 1 var(--font-mono); cursor: pointer; border-radius: 2px; }
 [data-look="console"] .rail-toggle:hover { color: var(--text); background: color-mix(in srgb, var(--text) 8%, transparent); }
 [data-look="console"] .rail-name, [data-look="console"] .rail-tile-name { display: none; }
 [data-look="console"] .rail-wide .chrome-rail { align-items: stretch; padding: var(--sp-3) var(--sp-3); }

@@ -18,6 +18,7 @@ import { ClockWidget } from "./ClockWidget";
 import { ItemsWidget } from "./ItemsWidget";
 import { LauncherWidget } from "./LauncherWidget";
 import { MediaWidget } from "./MediaWidget";
+import { ModelsWidget } from "./ModelsWidget";
 import { NotesWidget, notesMenuItems } from "./NotesWidget";
 import { ProjectsWidget } from "./ProjectsWidget";
 import { RepoWidget } from "./RepoWidget";
@@ -196,6 +197,15 @@ export const WIDGETS: WidgetDefinition[] = [
     flush: true,
     View: MediaWidget,
   },
+  {
+    kind: "models",
+    name: "Local models",
+    description: "Every model Ollama, Hugging Face (MLX/vLLM), LM Studio and friends downloaded — and a Move on each.",
+    source: "local",
+    needsConnection: false,
+    flush: true,
+    View: ModelsWidget,
+  },
 ];
 
 export function widgetDef(kind: string): WidgetDefinition | undefined {
@@ -249,7 +259,9 @@ export type WidgetPreset =
         | "launcher"
         | "devservers"
         | "products"
-        | "eol";
+        | "eol"
+        | "media"
+        | "models";
       filter?: undefined;
     });
 
@@ -430,5 +442,17 @@ export const PRESETS: WidgetPreset[] = [
     name: "Calendar",
     description: "Your own events, plus any .ics calendar you subscribe to.",
     kind: "calendar",
+  },
+  {
+    id: "media",
+    name: "Media",
+    description: "Now playing: control Spotify or Apple Music (and MPRIS players on Linux).",
+    kind: "media",
+  },
+  {
+    id: "models",
+    name: "Local models",
+    description: "What Ollama, Hugging Face (MLX/vLLM), LM Studio and friends downloaded, with a Move per model.",
+    kind: "models",
   },
 ];

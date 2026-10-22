@@ -159,6 +159,10 @@ describe("the .ddd contract through the commands", { retry: 2 }, () => {
   it(
     "project_register's watch notices a real todos.json write, end to end",
     async () => {
+      // DDD_HOME is process-global and only set by tests that call scratchEnv.
+      // Run on its own (`-t`, watch mode) this test used to inherit the real
+      // ~/.ddd and register its temp folder in the developer's own registry.
+      scratchEnv("cmd-e2e");
       const dir = realpathSync(mkdtempSync(join(tmpdir(), "ddd-cmd-e2e-")));
       mkdirSync(join(dir, ".ddd"));
       const card = (await commands.project_register!({ env: "default", path: dir })) as { id: string };
@@ -1186,5 +1190,44 @@ describe("products commands", () => {
       await waitUntil(async () => ((await commands.product_log!({ env: "default", key: talk.key })) as string).includes("hello-from-the-product")),
     ).toBe(true);
     await commands.product_stop!({ env: "default", key: talk.key });
+  });
+});
+
+describe("models_scan / models_move", () => {
+  const modelRoots = () => {
+    const base = mkdtempSync(join(tmpdir(), "ddd-cmd-models-"));
+    const roots = { ollama: join(base, "ollama"), huggingface: join(base, "hf"), lmstudio: join(base, "lms"), llamacpp: join(base, "lc"), jan: join(base, "jan"), gpt4all: join(base, "g4a") };
+    mkdirSync(roots.llamacpp, { recursive: true });
+    writeFileSync(join(roots.llamacpp, "tiny.gguf"), "z".repeat(40));
+    return { base, roots };
+  };
+
+  it("scans the stores it is pointed at", async () => {
+    const { roots } = modelRoots();
+    const cmds = createCommands({ emit: emitter, watcher, scheduler, sync, modelRoots: roots });
+    const result = (await cmds.models_scan!({})) as { stores: Array<{ runtime: string; present: boolean; models: Array<{ id: string }> }>; totalBytes: number };
+    expect(result.totalBytes).toBe(40);
+    expect(result.stores.find((s) => s.runtime === "llamacpp")!.models.map((m) => m.id)).toEqual(["llamacpp:tiny.gguf"]);
+    expect(result.stores.find((s) => s.runtime === "ollama")!.present).toBe(false);
+  });
+
+  it("moves a model by id, reporting progress on ddd://models-progress", async () => {
+    const { base, roots } = modelRoots();
+    const cmds = createCommands({ emit: emitter, watcher, scheduler, sync, modelRoots: roots });
+    const dest = join(base, "dest");
+    const before = emitter.events.length;
+
+    const out = (await cmds.models_move!({ id: "llamacpp:tiny.gguf", dest })) as { destination: string };
+
+    expect(out.destination).toBe(join(dest, "llamacpp", "tiny.gguf"));
+    expect(existsSync(join(roots.llamacpp, "tiny.gguf"))).toBe(false);
+    const progress = emitter.events.slice(before).filter((e) => e.name === "ddd://models-progress");
+    expect(progress.at(-1)?.payload).toMatchObject({ id: "llamacpp:tiny.gguf", phase: "done", bytesTotal: 40 });
+  });
+
+  it("rejects an id the scan does not know", async () => {
+    const { base, roots } = modelRoots();
+    const cmds = createCommands({ emit: emitter, watcher, scheduler, sync, modelRoots: roots });
+    await expect(cmds.models_move!({ id: "ollama:nope:latest", dest: join(base, "dest") })).rejects.toThrow(/no model/);
   });
 });

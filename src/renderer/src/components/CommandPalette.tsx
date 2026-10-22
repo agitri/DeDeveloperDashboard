@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Kbd } from "./Kbd";
 import { buildActions, type Action } from "../keyboard/actions";
-import { formatBinding } from "../keyboard/keys";
 import { fuzzyScore } from "../lib/fuzzy";
 import { useUi } from "../state/ui";
 
@@ -14,6 +14,13 @@ export function CommandPalette({ keymap }: { keymap: Record<string, string[]> })
   const togglePalette = useUi((s) => s.togglePalette);
   const [query, setQuery] = useState("");
   const [cursor, setCursor] = useState(0);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  // Keep the highlighted row on screen: arrowing past the bottom of the list
+  // moved the cursor but not the scroll, so the selection went off-screen.
+  useEffect(() => {
+    listRef.current?.querySelector(".panel-row.active")?.scrollIntoView({ block: "nearest" });
+  }, [cursor]);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Snapshot the registry when the palette opens: actions close over live store
@@ -78,7 +85,7 @@ export function CommandPalette({ keymap }: { keymap: Record<string, string[]> })
           }}
         />
 
-        <div className="panel-list">
+        <div className="panel-list" ref={listRef}>
           {results.length === 0 && <div className="panel-empty">Nothing matches “{query}”.</div>}
           {results.map((action, index) => {
             const binding = keymap[action.id]?.[0];
@@ -96,7 +103,7 @@ export function CommandPalette({ keymap }: { keymap: Record<string, string[]> })
                   <span>{action.title}</span>
                   {action.hint && <span className="sub"> · {action.hint}</span>}
                 </span>
-                {binding && <kbd className="kbd">{formatBinding(binding)}</kbd>}
+                {binding && <Kbd binding={binding} />}
               </button>
             );
           })}

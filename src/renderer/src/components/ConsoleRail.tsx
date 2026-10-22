@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Kbd } from "./Kbd";
 import { formatBinding } from "../keyboard/keys";
 import { tabCode } from "../lib/look";
 import { ENV_COLORS } from "../lib/palette";
@@ -129,7 +130,7 @@ export function ConsoleRail({
         aria-label="Search actions, tabs, projects"
         onClick={() => togglePalette(true)}
       >
-        {paletteBinding ? <kbd className="kbd">{formatBinding(paletteBinding)}</kbd> : "⌘K"}
+        {paletteBinding ? <Kbd binding={paletteBinding} /> : "⌘K"}
       </button>
       <RailClock />
     </div>
@@ -379,7 +380,7 @@ function RailEnvironment({
         <span className="rail-letter">{env.name.slice(0, 1).toUpperCase()}</span>
         <span className="rail-name">{env.name}</span>
         {envHint ? (
-          <kbd className="kbd rail-env-hint">{formatBinding(envHint)}</kbd>
+          <Kbd binding={envHint} className="rail-env-hint" />
         ) : (
           <span className="rail-env-count" title={`${tabs.length} tab${tabs.length === 1 ? "" : "s"}`}>
             {tabs.length}
@@ -457,7 +458,7 @@ function RailEnvironment({
           >
             <span className="rail-tile-code">+</span>
             <span className="rail-tile-name">New tab</span>
-            {hintsVisible && newTabBinding && <kbd className="kbd">{formatBinding(newTabBinding)}</kbd>}
+            {hintsVisible && newTabBinding && <Kbd binding={newTabBinding} />}
           </button>
         </div>
       ) : null}
@@ -556,7 +557,7 @@ function RailTile({
         <span className="rail-tile-name">{tab.name}</span>
         {/* Only when the rail is wide: collapsed, the tile *is* the number, and
             a chip beside it in 44px would be the same fact twice, illegibly. */}
-        {hint && <kbd className="kbd rail-hint">{formatBinding(hint)}</kbd>}
+        {hint && <Kbd binding={hint} className="rail-hint" />}
       </div>
     </>
   );

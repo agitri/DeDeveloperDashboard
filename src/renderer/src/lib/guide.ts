@@ -88,6 +88,11 @@ const WIDGET_GUIDE: Record<string, { what: string; how: string; needs: string }>
     how: "Add it; play/pause, skip, or drag the volume — pin a specific player if you like.",
     needs: "macOS (Spotify/Apple Music) or Linux with playerctl.",
   },
+  models: {
+    what: "Every model your local runtimes downloaded — Ollama, the Hugging Face hub (MLX, vLLM, transformers), LM Studio, llama.cpp, Jan, GPT4All — grouped by runtime with sizes and a total. Each row has a Move that takes the model physically out of the runtime's store into a folder of your choosing, one folder per model, so you can archive or delete it in Finder. Ollama models are exported as a GGUF plus a Modelfile (re-import with ollama create) and removed from Ollama.",
+    how: "Add it; pick a destination with Choose…, then Move a row or Move all. Big moves to another disk show byte progress.",
+    needs: "Nothing — it reads the runtimes' folders (honouring OLLAMA_MODELS and HF_HOME).",
+  },
 };
 
 export interface GuideStatic {
@@ -178,6 +183,13 @@ export const GUIDE_CONCEPTS: GuideStatic[] = [
     what: "Why starting a product needs a one-time consent. A checkout can declare a command, but DDD never runs it until you approve that exact command and directory — so a cloned repo can't execute anything on first open.",
     how: "Approve the exact command and directory once, from the Products widget.",
     needs: "Your explicit approval of the exact command + directory.",
+  },
+  {
+    id: "concept:appearance",
+    title: "Scale, scheme & accent",
+    what: "Settings → Appearance sizes and colours the whole app: a UI scale percentage (80–150%, real browser zoom so everything grows together), a shortcut-badge size, six colour schemes in light and dark, and an accent that follows your environment colour unless you fix one.",
+    how: "Open Settings → Appearance; every change applies live, no reload.",
+    needs: "Nothing — it is saved in global.json for every environment.",
   },
   {
     id: "concept:tour",

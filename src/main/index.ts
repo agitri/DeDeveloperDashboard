@@ -6,6 +6,8 @@ import { bootstrap } from "../core/bootstrap";
 import { defaultGlobal } from "../core/models";
 import { writeJson } from "../core/store";
 import type { Emitter } from "../core/emitter";
+import { globalLoad } from "../core/global";
+import { clampUiScale } from "../core/settings";
 import { ProjectWatcher } from "../core/watcher";
 import * as secrets from "../core/secrets";
 import type { SyncDeps } from "../core/sync/adapter";
@@ -99,6 +101,17 @@ function createWindow(): BrowserWindow {
   // everything else is refused. See navigation.ts.
   win.webContents.on("will-navigate", (e, url) => {
     if (!allowNavigation(win.webContents.getURL(), url)) e.preventDefault();
+  });
+
+  // The saved UI scale is browser zoom, which is per-window state rather than
+  // stylesheet state, so it is applied here on every load (a look change is a
+  // reload) rather than left to the renderer's first render.
+  win.webContents.on("did-finish-load", () => {
+    try {
+      win.webContents.setZoomFactor(clampUiScale(globalLoad().appearance.uiScale ?? 1));
+    } catch {
+      /* an unreadable global.json already fails louder elsewhere */
+    }
   });
 
   if (DEV_URL) void win.loadURL(DEV_URL);

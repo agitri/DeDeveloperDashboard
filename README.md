@@ -78,6 +78,21 @@ Renderer-only additions, none present in the Rust app:
   drives any MPRIS player (Spotify, browsers, VLC, …) through `playerctl`. No
   login required. Windows is not supported. Album art is inlined by the main
   process so the content-security policy does not block it.
+- **Appearance: scale, scheme, accent** — Settings → Appearance has a UI
+  scale percentage (80–150%, applied as browser zoom so text, badges, widgets and
+  the grid grow together), a shortcut-badge size, six colour schemes (Nord,
+  Solarized, Gruvbox, Warm paper, Mono, Default) for light and dark in both
+  looks, and an accent colour that follows the active environment unless you
+  fix one. All live, no reload.
+- **Local models** — every model the local runtimes downloaded (Ollama, the
+  Hugging Face hub cache that MLX/vLLM/transformers share, LM Studio,
+  llama.cpp, Jan, GPT4All), grouped by runtime with sizes. Each row has a
+  Move that physically relocates the model into a folder of your choosing,
+  one folder per model, so it can be archived or deleted in Finder; Move all
+  walks every row. Same-volume moves are a rename; cross-volume moves copy,
+  verify the byte count, then remove the source, with progress. Ollama models
+  are exported as a GGUF plus a Modelfile (`ollama create <name> -f Modelfile`
+  re-imports one) and removed from Ollama, blobs shared with other models kept.
 
 These are the first renderer features to intentionally diverge from the DDD
 renderer, rather than port it.
