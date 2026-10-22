@@ -9,7 +9,7 @@ import { dirname } from "node:path";
 import { DddError, isNotFound } from "./error";
 
 /** The file's JSON value, or null when the file is missing or blank. */
-export function readJsonOpt(path: string): unknown | null {
+export function readJsonOpt(path: string): unknown {
   let text: string;
   try {
     text = readFileSync(path, "utf8");

@@ -110,8 +110,7 @@ export function validateEndpoint(url: string): string {
 
 /** Which binding, and everything needed to open it. */
 export type Transport =
-  | { kind: "stdio"; argv: string[]; env: Record<string, string> }
-  | { kind: "http"; endpoint: string; token: string | null };
+  { kind: "stdio"; argv: string[]; env: Record<string, string> } | { kind: "http"; endpoint: string; token: string | null };
 
 /**
  * Build the SDK transport. **Consent is the caller's job and must already have
@@ -156,14 +155,14 @@ export function openTransport(t: Transport): SdkTransport {
  */
 function reportHttpStatus(transport: StreamableHTTPClientTransport): StreamableHTTPClientTransport {
   const inner = transport.send.bind(transport);
-  transport.send = (async (...args: Parameters<StreamableHTTPClientTransport["send"]>) => {
+  transport.send = async (...args: Parameters<StreamableHTTPClientTransport["send"]>) => {
     try {
       return await inner(...args);
     } catch (e) {
       if (e instanceof StreamableHTTPError) throw DddError.config(`the server answered ${e.code}: ${e.message}`);
       throw e;
     }
-  }) as StreamableHTTPClientTransport["send"];
+  };
   return transport;
 }
 

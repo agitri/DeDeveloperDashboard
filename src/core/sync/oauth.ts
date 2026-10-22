@@ -36,7 +36,10 @@ export function providerFor(provider: string): OauthProvider | null {
         tokenUrl: "https://oauth2.googleapis.com/token",
         scopes: "https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/calendar.readonly",
         // Google returns a refresh token only on the first consent unless you insist.
-        extraAuthParams: [["access_type", "offline"], ["prompt", "consent"]],
+        extraAuthParams: [
+          ["access_type", "offline"],
+          ["prompt", "consent"],
+        ],
       };
     case "slack":
       return {
@@ -122,20 +125,28 @@ async function postForm(fetch: typeof globalThis.fetch, url: string, form: [stri
   const body = form.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join("&");
   let response: Response;
   try {
-    response = await fetch(url, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body, signal: AbortSignal.timeout(30_000) });
+    response = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body,
+      signal: AbortSignal.timeout(30_000),
+    });
   } catch (e) {
     throw DddError.config(`token request failed: ${e instanceof Error ? e.message : String(e)}`);
   }
   const text = await response.text().catch(() => "");
   let parsed: Record<string, unknown> = {};
   try {
-    const j = JSON.parse(text);
+    const j: unknown = JSON.parse(text);
     if (typeof j === "object" && j !== null) parsed = j as Record<string, unknown>;
   } catch {
     /* not JSON */
   }
   if (!response.ok) {
-    const detail = (typeof parsed.error_description === "string" && parsed.error_description) || (typeof parsed.error === "string" && parsed.error) || text;
+    const detail =
+      (typeof parsed.error_description === "string" && parsed.error_description) ||
+      (typeof parsed.error === "string" && parsed.error) ||
+      text;
     throw DddError.config(`oauth ${statusLabel(response)}: ${detail}`);
   }
   // Slack answers 200 with `ok: false`, so status alone proves nothing.
@@ -147,7 +158,10 @@ async function postForm(fetch: typeof globalThis.fetch, url: string, form: [stri
 
 function storeTokens(env: EnvRoot, connection: Connection, tokens: Record<string, unknown>, secrets: SecretStore): void {
   // Slack nests the user token; Google returns it flat.
-  const nested = typeof tokens.authed_user === "object" && tokens.authed_user !== null ? (tokens.authed_user as Record<string, unknown>).access_token : undefined;
+  const nested =
+    typeof tokens.authed_user === "object" && tokens.authed_user !== null
+      ? (tokens.authed_user as Record<string, unknown>).access_token
+      : undefined;
   const access = typeof tokens.access_token === "string" ? tokens.access_token : typeof nested === "string" ? nested : null;
   if (access === null) throw DddError.config("no access token in the response");
   secrets.set(env, connection.id, access);
@@ -172,7 +186,9 @@ export async function connect(env: EnvRoot, connection: Connection, deps: SyncDe
   if (!provider) throw DddError.config(`${connection.provider} does not use OAuth`);
   const clientId = connection.config.clientId;
   if (!clientId) {
-    throw DddError.config('This connection needs a client ID. Create an OAuth client of type "Desktop app" in the provider\'s console and paste it here.');
+    throw DddError.config(
+      'This connection needs a client ID. Create an OAuth client of type "Desktop app" in the provider\'s console and paste it here.',
+    );
   }
   const clientSecret = connection.config.clientSecret ?? "";
 
@@ -205,8 +221,12 @@ export async function connect(env: EnvRoot, connection: Connection, deps: SyncDe
   const code = await redirect;
 
   const tokens = await postForm(deps.fetch, provider.tokenUrl, [
-    ["grant_type", "authorization_code"], ["code", code], ["redirect_uri", redirectUri],
-    ["client_id", clientId], ["client_secret", clientSecret], ["code_verifier", verifier],
+    ["grant_type", "authorization_code"],
+    ["code", code],
+    ["redirect_uri", redirectUri],
+    ["client_id", clientId],
+    ["client_secret", clientSecret],
+    ["code_verifier", verifier],
   ]);
   storeTokens(env, connection, tokens, deps.secrets);
 }
@@ -225,8 +245,10 @@ export async function accessToken(env: EnvRoot, connection: Connection, deps: Sy
   // long-lived tokens (Slack). Use what we have.
   if (refresh === null) return stored();
   const tokens = await postForm(deps.fetch, provider.tokenUrl, [
-    ["grant_type", "refresh_token"], ["refresh_token", refresh],
-    ["client_id", connection.config.clientId ?? ""], ["client_secret", connection.config.clientSecret ?? ""],
+    ["grant_type", "refresh_token"],
+    ["refresh_token", refresh],
+    ["client_id", connection.config.clientId ?? ""],
+    ["client_secret", connection.config.clientSecret ?? ""],
   ]);
   storeTokens(env, connection, tokens, deps.secrets);
   return stored();

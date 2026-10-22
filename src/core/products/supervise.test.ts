@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { scratchEnv } from "../testing";
@@ -34,9 +34,9 @@ describe("supervise", () => {
     // been written — otherwise this only asserts that `touch` is slow.
     approve(env, "proj/evil", run, dir);
     await start(env, "proj/evil", run, dir);
-    expect(await waitUntil(() => require("node:fs").existsSync(witness))).toBe(true);
+    expect(await waitUntil(() => existsSync(witness))).toBe(true);
     try {
-      require("node:fs").rmSync(witness);
+      rmSync(witness);
     } catch {
       /* best effort */
     }
@@ -157,7 +157,7 @@ describe("reading", () => {
     const config = configOf(dir);
     expect(config.products.length).toBe(1);
     expect(config.products[0]!.run).toBe("npm run dev");
-    expect(require("node:fs").existsSync(join(dir, ".git"))).toBe(false);
+    expect(existsSync(join(dir, ".git"))).toBe(false);
   });
 
   it("a project with no config declares nothing rather than failing", () => {

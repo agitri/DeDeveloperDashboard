@@ -39,7 +39,8 @@ export function clampUiScale(n: number): number {
 }
 
 const HINT_SIZES = ["small", "medium", "large"] as const;
-const isHintSize = (v: unknown): v is AppearanceSettings["hintSize"] => typeof v === "string" && (HINT_SIZES as readonly string[]).includes(v);
+const isHintSize = (v: unknown): v is AppearanceSettings["hintSize"] =>
+  typeof v === "string" && (HINT_SIZES as readonly string[]).includes(v);
 const isHexColor = (v: unknown): v is string => typeof v === "string" && /^#[0-9a-fA-F]{6}$/.test(v);
 
 export function defaultAiSettings(): Settings["ai"] {
@@ -178,7 +179,7 @@ function statusFromJson(o: Record<string, unknown>): ConnectionStatus {
   if (v === undefined) throw DddError.json("missing field `status`");
   if (!isConnectionStatus(v)) {
     const variants = CONNECTION_STATUSES.map((s) => `\`${s}\``).join(", ");
-    throw DddError.json(`unknown variant \`${String(v)}\`, expected one of ${variants}`);
+    throw DddError.json(`unknown variant \`${JSON.stringify(v)}\`, expected one of ${variants}`);
   }
   return v;
 }

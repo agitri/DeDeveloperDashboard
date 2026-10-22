@@ -56,7 +56,7 @@ describe("state (linux)", () => {
     const runner: Runner = async (file) => (file === "playerctl" ? ok(line + "\n") : fail());
     const s = await state(runner, "linux");
     expect(s.supported).toBe(true);
-    const p = s.players[0];
+    const p = s.players[0]!;
     expect(p.player).toBe("spotify");
     expect(p.playing).toBe(true);
     expect(p.volume).toBe(50); // 0.5 → 50
@@ -82,7 +82,7 @@ describe("command", () => {
   it("darwin play/pause targets the app via osascript", async () => {
     const runner = vi.fn<Runner>(async () => ok(""));
     await command("spotify", "playpause", undefined, runner, "darwin");
-    const [file, args] = runner.mock.calls[0];
+    const [file, args] = runner.mock.calls[0]!;
     expect(file).toBe("osascript");
     expect(args.join(" ")).toContain("Spotify");
     expect(args.join(" ")).toContain("playpause");
@@ -91,13 +91,13 @@ describe("command", () => {
   it("darwin setVolume passes 0-100 through", async () => {
     const runner = vi.fn<Runner>(async () => ok(""));
     await command("music", "setVolume", 40, runner, "darwin");
-    expect(runner.mock.calls[0][1].join(" ")).toContain("set sound volume to 40");
+    expect(runner.mock.calls[0]![1].join(" ")).toContain("set sound volume to 40");
   });
 
   it("linux setVolume converts 0-100 to 0-1 for playerctl", async () => {
     const runner = vi.fn<Runner>(async () => ok(""));
     await command("spotify", "setVolume", 50, runner, "linux");
-    const [file, args] = runner.mock.calls[0];
+    const [file, args] = runner.mock.calls[0]!;
     expect(file).toBe("playerctl");
     expect(args).toEqual(["-p", "spotify", "volume", "0.5"]);
   });
@@ -105,21 +105,21 @@ describe("command", () => {
   it("clamps setVolume above 100 on both backends", async () => {
     const macRunner = vi.fn<Runner>(async () => ok(""));
     await command("music", "setVolume", 150, macRunner, "darwin");
-    expect(macRunner.mock.calls[0][1].join(" ")).toContain("set sound volume to 100");
+    expect(macRunner.mock.calls[0]![1].join(" ")).toContain("set sound volume to 100");
 
     const linuxRunner = vi.fn<Runner>(async () => ok(""));
     await command("spotify", "setVolume", 150, linuxRunner, "linux");
-    expect(linuxRunner.mock.calls[0][1]).toEqual(["-p", "spotify", "volume", "1"]);
+    expect(linuxRunner.mock.calls[0]![1]).toEqual(["-p", "spotify", "volume", "1"]);
   });
 
   it("clamps setVolume below 0 on both backends", async () => {
     const macRunner = vi.fn<Runner>(async () => ok(""));
     await command("music", "setVolume", -20, macRunner, "darwin");
-    expect(macRunner.mock.calls[0][1].join(" ")).toContain("set sound volume to 0");
+    expect(macRunner.mock.calls[0]![1].join(" ")).toContain("set sound volume to 0");
 
     const linuxRunner = vi.fn<Runner>(async () => ok(""));
     await command("spotify", "setVolume", -20, linuxRunner, "linux");
-    expect(linuxRunner.mock.calls[0][1]).toEqual(["-p", "spotify", "volume", "0"]);
+    expect(linuxRunner.mock.calls[0]![1]).toEqual(["-p", "spotify", "volume", "0"]);
   });
 
   it("darwin next/previous send the matching track-transport argv", async () => {

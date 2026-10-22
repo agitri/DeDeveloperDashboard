@@ -25,17 +25,13 @@ type Filter = Record<string, unknown>;
  * key in `current` is treated as a control. That is the safe direction: the
  * widget keeps behaving exactly as it did.
  */
-export function resolveFilter(
-  current: Filter,
-  presetFilter: Filter | undefined,
-  compiled: Filter | undefined,
-): Filter {
+export function resolveFilter(current: Filter, presetFilter: Filter | undefined, compiled: Filter | undefined): Filter {
   if (!compiled) return current;
 
   const controls: Filter = {};
   for (const [key, value] of Object.entries(current)) {
     const seeded = presetFilter && key in presetFilter;
-    if (!seeded || JSON.stringify(presetFilter![key]) !== JSON.stringify(value)) {
+    if (!seeded || JSON.stringify(presetFilter[key]) !== JSON.stringify(value)) {
       controls[key] = value;
     }
   }
@@ -80,7 +76,7 @@ function kindName(kind: string): string {
  */
 export function describe(filter: Filter): string[] {
   const lines: string[] = [];
-  const s = (key: string) => (typeof filter[key] === "string" ? (filter[key] as string) : null);
+  const s = (key: string) => (typeof filter[key] === "string" ? filter[key] : null);
 
   if (s("source")) lines.push(`From ${s("source")}.`);
   if (s("kind")) lines.push(`Only ${kindName(s("kind")!)}.`);

@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { join } from "node:path";
 import { scratchEnv } from "../testing";
@@ -37,9 +38,7 @@ describe("consent (pure)", () => {
 
   it("each refusal is a sentence a widget can show", () => {
     expect(missingMessage("never")).toBe("not approved to run in this environment yet");
-    expect(missingMessage("changed")).toBe(
-      "the command changed since you approved it — read it again and approve the new one",
-    );
+    expect(missingMessage("changed")).toBe("the command changed since you approved it — read it again and approve the new one");
   });
 });
 
@@ -55,7 +54,7 @@ describe("consent (on disk)", () => {
     approve(file, "p/b", token("echo b", DIR));
     approve(file, "p/a", token("echo a", DIR));
     // BTreeMap on the Rust side: the file's keys are sorted.
-    const raw = require("node:fs").readFileSync(file, "utf8") as string;
+    const raw = readFileSync(file, "utf8");
     expect(Object.keys(JSON.parse(raw))).toEqual(["p/a", "p/b"]);
 
     expect(check(load(file), "p/a", "echo a", DIR)).toBeNull();

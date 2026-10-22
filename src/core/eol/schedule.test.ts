@@ -44,7 +44,18 @@ describe("support schedules and the cache in front of them", () => {
     // And the URL is built, never taken.
     expect(urlFor("php")).toBe("https://endoflife.date/api/php.json");
     expect(PRODUCTS).toEqual([
-      "php", "nodejs", "symfony", "laravel", "python", "django", "ruby", "rails", "go", "rust", "nextjs", "dotnet",
+      "php",
+      "nodejs",
+      "symfony",
+      "laravel",
+      "python",
+      "django",
+      "ruby",
+      "rails",
+      "go",
+      "rust",
+      "nextjs",
+      "dotnet",
     ]);
     expect(isKnownProduct("dotnet")).toBe(true);
     expect(isKnownProduct("cobol")).toBe(false);
@@ -83,8 +94,8 @@ describe("support schedules and the cache in front of them", () => {
 
     expect(failed).toEqual(["php"]); // the failure is reported, not swallowed
     // Six-year-old dates beat no dates — a schedule does not rot that fast.
-    expect(cache.products["php"]!.cycles).toHaveLength(1);
-    expect(cache.products["php"]!.fetchedAt).toBe("2020-01-01T00:00:00Z");
+    expect(cache.products["php"].cycles).toHaveLength(1);
+    expect(cache.products["php"].fetchedAt).toBe("2020-01-01T00:00:00Z");
   });
 
   it("a fresh entry is not fetched at all", async () => {
@@ -127,10 +138,7 @@ describe("support schedules and the cache in front of them", () => {
       fetchedAt: NOW,
       cycles: [{ cycle: "8.4", support: { kind: "date", date: "2026-12-31" }, eol: { kind: "pending" }, latest: "8.4.3" }],
     });
-    expect(calls.map((c) => c.url)).toEqual([
-      "https://endoflife.date/api/php.json",
-      "https://endoflife.date/api/go.json",
-    ]);
+    expect(calls.map((c) => c.url)).toEqual(["https://endoflife.date/api/php.json", "https://endoflife.date/api/go.json"]);
   });
 
   it("fetchOne names itself, asks for JSON, and says exactly what went wrong", async () => {
@@ -143,9 +151,7 @@ describe("support schedules and the cache in front of them", () => {
     expect(ok.calls[0]!.headers["accept"]).toBe("application/json");
 
     const missing = fakeFetch(() => new Response("", { status: 404, statusText: "Not Found" }));
-    await expect(fetchOne(missing.fetch, "https://endoflife.date/api/go.json")).rejects.toThrow(
-      "endoflife.date answered 404 Not Found",
-    );
+    await expect(fetchOne(missing.fetch, "https://endoflife.date/api/go.json")).rejects.toThrow("endoflife.date answered 404 Not Found");
 
     const offline = fakeFetch(() => {
       throw new TypeError("fetch failed");
@@ -158,9 +164,7 @@ describe("support schedules and the cache in front of them", () => {
     await expect(fetchOne(junk.fetch, "https://endoflife.date/api/go.json")).rejects.toThrow(/^unreadable schedule: /);
 
     const wrongShape = fakeFetch(() => new Response('{"cycles": []}', { status: 200 }));
-    await expect(fetchOne(wrongShape.fetch, "https://endoflife.date/api/go.json")).rejects.toThrow(
-      /^unreadable schedule: /,
-    );
+    await expect(fetchOne(wrongShape.fetch, "https://endoflife.date/api/go.json")).rejects.toThrow(/^unreadable schedule: /);
   });
 
   it("the cache file is written with sorted keys and read back with its milestones intact", () => {
@@ -171,9 +175,7 @@ describe("support schedules and the cache in front of them", () => {
       products: {
         symfony: {
           fetchedAt: "2026-09-04T09:00:00Z",
-          cycles: [
-            { cycle: "8.0", support: { kind: "date", date: "2026-07-31" }, eol: { kind: "reached" }, latest: "8.0.16" },
-          ],
+          cycles: [{ cycle: "8.0", support: { kind: "date", date: "2026-07-31" }, eol: { kind: "reached" }, latest: "8.0.16" }],
         },
         nodejs: { fetchedAt: "2026-09-04T09:00:00Z", cycles: [] },
       },

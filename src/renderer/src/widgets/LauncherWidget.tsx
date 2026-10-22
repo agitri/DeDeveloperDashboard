@@ -36,12 +36,14 @@ export function targetsOf(widget: Widget): LaunchTarget[] {
     if (!id || !path || seen.has(id)) return [];
     if (t.open !== "terminal" && t.open !== "ide") return [];
     seen.add(id);
-    return [{
-      id,
-      label: typeof t.label === "string" && t.label ? t.label : leafOf(path),
-      path,
-      open: t.open,
-    }];
+    return [
+      {
+        id,
+        label: typeof t.label === "string" && t.label ? t.label : leafOf(path),
+        path,
+        open: t.open,
+      },
+    ];
   });
 }
 
@@ -58,18 +60,17 @@ export function LauncherWidget({ widget }: WidgetViewProps) {
   // A target whose folder is gone is shown disabled with the reason, never
   // dropped — the same rule the repos widget uses for a missing checkout.
   const checkPaths = useCallback(async () => {
-    const results = await Promise.all(
-      targets.map(async (t) => [t.id, !(await ipc.pathExists(t.path))] as const),
-    );
+    const results = await Promise.all(targets.map(async (t) => [t.id, !(await ipc.pathExists(t.path))] as const));
     setMissing(Object.fromEntries(results));
   }, [targets]);
 
+  const targetKey = targets.map((t) => `${t.id}:${t.path}`).join("|");
   useEffect(() => {
     void checkPaths();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- targets is derived
-    // from widget.config and would re-run this on every render if depended on
-    // directly; the id list is what actually matters.
-  }, [targets.map((t) => `${t.id}:${t.path}`).join("|")]);
+    // targets is derived from widget.config and would re-run this on every
+    // render if depended on directly; the id list is what actually matters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [targetKey]);
 
   function setTargets(next: LaunchTarget[]) {
     updateWidget(widget.id, { config: { ...widget.config, targets: next } });
@@ -78,10 +79,7 @@ export function LauncherWidget({ widget }: WidgetViewProps) {
   async function add(open: "terminal" | "ide") {
     const dir = await ipc.pickDirectory();
     if (!dir) return;
-    setTargets([
-      ...targets,
-      { id: `t-${Date.now().toString(36)}`, label: leafOf(dir), path: dir, open },
-    ]);
+    setTargets([...targets, { id: `t-${Date.now().toString(36)}`, label: leafOf(dir), path: dir, open }]);
   }
 
   async function run(target: LaunchTarget) {
@@ -127,8 +125,7 @@ export function LauncherWidget({ widget }: WidgetViewProps) {
                 {/* The glyph is the kind: `>_` is a prompt, `{ }` is a file.
                     Bolded, it takes the environment colour. */}
                 <span className="kindmark launch-kind">
-                  <b>{target.open === "ide" ? "{ }" : ">_"}</b>{" "}
-                  {target.open === "ide" ? "editor" : "terminal"}
+                  <b>{target.open === "ide" ? "{ }" : ">_"}</b> {target.open === "ide" ? "editor" : "terminal"}
                 </span>
                 <span className="label launch-name">{target.label}</span>
                 {missing[target.id] && <span className="gone">missing</span>}

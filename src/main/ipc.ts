@@ -18,7 +18,7 @@ const owner = (event: unknown) => BrowserWindow.fromWebContents((event as IpcMai
 /** The commands that were Tauri plugins: dialogs pick paths, the shell opens things. */
 const host: Record<string, HostHandler> = {
   async dialog_save({ suggestedName }, event) {
-    const r = await dialog.showSaveDialog(owner(event)!, { defaultPath: suggestedName, filters: LAYOUT_FILTER });
+    const r = await dialog.showSaveDialog(owner(event)!, { defaultPath: String(suggestedName), filters: LAYOUT_FILTER });
     return r.canceled || !r.filePath ? null : r.filePath;
   },
   async dialog_open_file(_args, event) {

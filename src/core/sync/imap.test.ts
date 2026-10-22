@@ -103,10 +103,7 @@ describe("toItem", () => {
     );
     expect((await map(bulk)).kind).toBe("mail_bulk");
 
-    const person = raw(
-      "From: Marjolein <marjolein@example.com>\r\nTo: rene@example.dev\r\nSubject: Invoice question",
-      "Could you check?",
-    );
+    const person = raw("From: Marjolein <marjolein@example.com>\r\nTo: rene@example.dev\r\nSubject: Invoice question", "Could you check?");
     expect((await map(person)).kind).toBe("mail");
   });
 
@@ -351,7 +348,12 @@ describe("hostnames", () => {
 
 // --- the adapter ---------------------------------------------------------------
 
-const connection = { id: "conn-1", provider: "mail.imap", label: "Work mail", config: { host: "imap.example.dev", username: "rene@example.dev" } };
+const connection = {
+  id: "conn-1",
+  provider: "mail.imap",
+  label: "Work mail",
+  config: { host: "imap.example.dev", username: "rene@example.dev" },
+};
 
 describe("ImapAdapter", () => {
   it("names the connection in every configuration failure, verbatim", async () => {
@@ -360,17 +362,15 @@ describe("ImapAdapter", () => {
     };
     const adapter = new ImapAdapter(never);
 
-    await expect(
-      adapter.fetch(fetchContext({ connection: { ...connection, config: { username: "rene@example.dev" } } })),
-    ).rejects.toThrow("host is not set for Work mail");
-
-    await expect(
-      adapter.fetch(fetchContext({ connection: { ...connection, config: { host: "imap.example.dev" } } })),
-    ).rejects.toThrow("username is not set for Work mail");
-
-    await expect(adapter.fetch(fetchContext({ connection, token: "" }))).rejects.toThrow(
-      "Work mail has no app password set",
+    await expect(adapter.fetch(fetchContext({ connection: { ...connection, config: { username: "rene@example.dev" } } }))).rejects.toThrow(
+      "host is not set for Work mail",
     );
+
+    await expect(adapter.fetch(fetchContext({ connection: { ...connection, config: { host: "imap.example.dev" } } }))).rejects.toThrow(
+      "username is not set for Work mail",
+    );
+
+    await expect(adapter.fetch(fetchContext({ connection, token: "" }))).rejects.toThrow("Work mail has no app password set");
   });
 
   it("reads port, folder and limit from the connection, with the Rust's defaults", async () => {
@@ -408,7 +408,11 @@ describe("ImapAdapter", () => {
 
   it("maps what the session returns", async () => {
     const session = fakeSession(2, [
-      fetched(1, "From: newsletter@shop.example\r\nTo: rene@example.dev\r\nSubject: 20% off\r\nList-Unsubscribe: <https://shop.example/u>", "deals"),
+      fetched(
+        1,
+        "From: newsletter@shop.example\r\nTo: rene@example.dev\r\nSubject: 20% off\r\nList-Unsubscribe: <https://shop.example/u>",
+        "deals",
+      ),
       fetched(2, "From: Marjolein <marjolein@example.com>\r\nTo: rene@example.dev\r\nSubject: Invoice question", "Could you check?"),
     ]);
     const items = await new ImapAdapter(async () => session).fetch(fetchContext({ environmentId: "default", connection }));
@@ -418,7 +422,7 @@ describe("ImapAdapter", () => {
   });
 
   it("refuses every outbound action: read-only means absent, not broken", async () => {
-    const item = (await map(raw("From: a@example.com\r\nSubject: Hi", "x"))) as Item;
+    const item = await map(raw("From: a@example.com\r\nSubject: Hi", "x"));
     await expect(new ImapAdapter().perform(fetchContext({ connection }), { action: "archive", item, input: null })).rejects.toThrow(
       "mail.imap cannot archive",
     );
@@ -454,14 +458,14 @@ function ambiguous(score: number, overrides: Partial<Item> = {}): Item {
 /** Ollama's `/api/chat` shape, answering with whatever the test wants. */
 function ollama(answer: string): { fetch: typeof globalThis.fetch; calls: string[] } {
   const calls: string[] = [];
-  const fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+  const fetch = async (url: string | URL | Request, init?: RequestInit) => {
     calls.push(String(url));
     void init;
     return new Response(JSON.stringify({ message: { content: answer }, prompt_eval_count: 1, eval_count: 1 }), {
       status: 200,
       headers: { "content-type": "application/json" },
     });
-  }) as unknown as typeof globalThis.fetch;
+  };
   return { fetch, calls };
 }
 

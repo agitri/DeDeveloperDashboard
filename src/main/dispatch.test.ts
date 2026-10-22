@@ -33,7 +33,7 @@ describe("dispatch", () => {
   it("stringifies a thrown non-Error", async () => {
     const commands: Record<string, Handler> = {
       fail: () => {
-        // eslint-disable-next-line @typescript-eslint/no-throw-literal
+        // eslint-disable-next-line @typescript-eslint/only-throw-error -- the envelope must survive a non-Error throw
         throw "oops";
       },
     };

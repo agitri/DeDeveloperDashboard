@@ -35,7 +35,7 @@ export async function dispatch(
   if (!handler) return { ok: false, error: `unknown command ${name}` };
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const value = await (handler as HostHandler)((args as Record<string, any>) ?? {}, event);
+    const value = await handler((args as Record<string, any>) ?? {}, event);
     return { ok: true, value: value === undefined ? null : value };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };

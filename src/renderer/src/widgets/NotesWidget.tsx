@@ -1,12 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { parse, type Block, type Inline } from "../lib/markdown";
-import {
-  DEFAULT_TOOLBAR,
-  TOOLBAR_BUTTONS,
-  applyButton,
-  buttonById,
-  toggleTask,
-} from "../lib/toolbar";
+import { DEFAULT_TOOLBAR, TOOLBAR_BUTTONS, applyButton, buttonById, toggleTask } from "../lib/toolbar";
 import { useStore } from "../state/store";
 import { useUi } from "../state/ui";
 import type { MenuItem } from "../components/ContextMenu";
@@ -25,7 +19,7 @@ export function NotesWidget({ widget, focused }: WidgetViewProps) {
   const updateWidget = useStore((s) => s.updateWidget);
   const editingNoteId = useUi((s) => s.editingNoteId);
   const editNote = useUi((s) => s.editNote);
-  const [text, setText] = useState(() => String(widget.config.text ?? ""));
+  const [text, setText] = useState(() => (typeof widget.config.text === "string" ? widget.config.text : ""));
   const editing = editingNoteId === widget.id;
 
   // Debounced so a paragraph of typing is one layout write, not eighty.
@@ -45,14 +39,7 @@ export function NotesWidget({ widget, focused }: WidgetViewProps) {
   }, [widget.id]);
 
   if (editing) {
-    return (
-      <Editor
-        widget={widget}
-        text={text}
-        setText={setText}
-        onDone={() => editNote(null)}
-      />
-    );
+    return <Editor widget={widget} text={text} setText={setText} onDone={() => editNote(null)} />;
   }
 
   return (
@@ -88,9 +75,7 @@ export function notesMenuItems(widget: Widget): MenuItem[] {
                 ...widget.config,
                 // Store the whole list, not a diff: the catalog can grow, and
                 // a stored diff would silently change meaning when it does.
-                toolbar: on
-                  ? current.filter((id) => id !== button.id)
-                  : [...current, button.id],
+                toolbar: on ? current.filter((id) => id !== button.id) : [...current, button.id],
               },
             }),
         };
@@ -104,17 +89,7 @@ function toolbarOf(widget: Widget): string[] {
   return Array.isArray(stored) ? (stored as string[]) : DEFAULT_TOOLBAR;
 }
 
-function Editor({
-  widget,
-  text,
-  setText,
-  onDone,
-}: {
-  widget: Widget;
-  text: string;
-  setText: (v: string) => void;
-  onDone: () => void;
-}) {
+function Editor({ widget, text, setText, onDone }: { widget: Widget; text: string; setText: (v: string) => void; onDone: () => void }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
     ref.current?.focus();
@@ -203,11 +178,7 @@ function Rendered({
   }
 
   return (
-    <div
-      className={`note-view prose${focused ? " focused" : ""}`}
-      onDoubleClick={onEdit}
-      title="Double-click to edit (⌘E while focused)"
-    >
+    <div className={`note-view prose${focused ? " focused" : ""}`} onDoubleClick={onEdit} title="Double-click to edit (⌘E while focused)">
       {blocks.map((block, i) => (
         <BlockView key={i} block={block} onToggleTask={onToggleTask} />
       ))}
@@ -215,13 +186,7 @@ function Rendered({
   );
 }
 
-function BlockView({
-  block,
-  onToggleTask,
-}: {
-  block: Block;
-  onToggleTask: (line: number) => void;
-}): ReactNode {
+function BlockView({ block, onToggleTask }: { block: Block; onToggleTask: (line: number) => void }): ReactNode {
   switch (block.t) {
     case "heading": {
       const Tag = `h${block.level}` as "h1";

@@ -24,7 +24,12 @@ import { normalize } from "../core/repos/remote";
 import { consentToken, parseArgv } from "../core/sync/mcp/transport";
 
 const emitter = recordingEmitter();
-const sync = { fetch: (async () => new Response("{}", { status: 500 })) as typeof globalThis.fetch, secrets: memorySecrets(), openUrl: async () => {}, emit: emitter };
+const sync = {
+  fetch: (async () => new Response("{}", { status: 500 })) as typeof globalThis.fetch,
+  secrets: memorySecrets(),
+  openUrl: async () => {},
+  emit: emitter,
+};
 const scheduler = new Scheduler(sync);
 const watcher = new ProjectWatcher(emitter);
 const commands = createCommands({ emit: emitter, watcher, scheduler, sync });
@@ -51,20 +56,15 @@ const NOT_YET_PORTED = new Set<string>([]);
 
 describe("the command registry", () => {
   it.skipIf(tauriHandlers() === null)("only registers names the Tauri app has, so the frontend contract holds", () => {
-    const known = new Set(tauriHandlers()!);
+    const known = new Set(tauriHandlers());
     const invented = Object.keys(commands).filter((name) => !known.has(name) && !HOST_COMMANDS.includes(name));
     expect(invented).toEqual([]);
   });
 
-  it.skipIf(tauriHandlers() === null)(
-    "every Tauri command is either registered or acknowledged as not yet ported",
-    () => {
-      const unaccountedFor = tauriHandlers()!.filter(
-        (name) => !(name in commands) && !NOT_YET_PORTED.has(name),
-      );
-      expect(unaccountedFor).toEqual([]);
-    },
-  );
+  it.skipIf(tauriHandlers() === null)("every Tauri command is either registered or acknowledged as not yet ported", () => {
+    const unaccountedFor = tauriHandlers()!.filter((name) => !(name in commands) && !NOT_YET_PORTED.has(name));
+    expect(unaccountedFor).toEqual([]);
+  });
 
   it("dispatches with the Tauri argument keys", async () => {
     const { home } = scratchEnv("registry");
@@ -82,9 +82,7 @@ describe("the command registry", () => {
 
   it("validates layout_save's input instead of writing it as-is", async () => {
     const { home } = scratchEnv("registry-layout-validate");
-    expect(() =>
-      commands.layout_save!({ env: "default", layout: { tabs: [{ id: "t" }] } }),
-    ).toThrow(/missing field `name`/);
+    expect(() => commands.layout_save!({ env: "default", layout: { tabs: [{ id: "t" }] } })).toThrow(/missing field `name`/);
 
     await commands.layout_save!({ env: "default", layout: { tabs: [{ id: "t", name: "T" }] } });
     const onDisk = JSON.parse(readFileSync(`${home}/environments/default/layout.json`, "utf8"));
@@ -156,36 +154,41 @@ const until = async (pred: () => boolean, ms = 8000) => {
 // re-runs the whole test with a fresh temp dir and the same strict
 // assertions, so a genuinely broken end-to-end path still fails every time.
 describe("the .ddd contract through the commands", { retry: 2 }, () => {
-  it(
-    "project_register's watch notices a real todos.json write, end to end",
-    async () => {
-      // DDD_HOME is process-global and only set by tests that call scratchEnv.
-      // Run on its own (`-t`, watch mode) this test used to inherit the real
-      // ~/.ddd and register its temp folder in the developer's own registry.
-      scratchEnv("cmd-e2e");
-      const dir = realpathSync(mkdtempSync(join(tmpdir(), "ddd-cmd-e2e-")));
-      mkdirSync(join(dir, ".ddd"));
-      const card = (await commands.project_register!({ env: "default", path: dir })) as { id: string };
-      await new Promise((r) => setTimeout(r, 500));
-      writeFileSync(join(dir, ".ddd", "todos.json"), '{"todos":[]}');
-      // Filtered to this test's own project: earlier tests in this file leave
-      // their (already-populated) .ddd folders under the same, never-closed
-      // watcher, and re-registering rebuilds every watch wholesale — a fresh
-      // recursive watch on a directory that already has content can itself
-      // replay one startup event for that content, same family of FSEvents
-      // quirk as watcher.ts's isSelfNamedReplay, just for a different project.
-      const isOurs = (e: { name: string; payload: unknown }) =>
-        e.name === "ddd://project-changed" && (e.payload as ProjectChanged).projectId === card.id;
-      await until(() => emitter.events.some(isOurs), 8000);
-      const event = emitter.events.find(isOurs)!;
-      expect(event.payload).toEqual({ environmentId: "default", projectId: card.id });
-    },
-    15000,
-  );
+  it("project_register's watch notices a real todos.json write, end to end", async () => {
+    // DDD_HOME is process-global and only set by tests that call scratchEnv.
+    // Run on its own (`-t`, watch mode) this test used to inherit the real
+    // ~/.ddd and register its temp folder in the developer's own registry.
+    scratchEnv("cmd-e2e");
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), "ddd-cmd-e2e-")));
+    mkdirSync(join(dir, ".ddd"));
+    const card = (await commands.project_register!({ env: "default", path: dir })) as { id: string };
+    await new Promise((r) => setTimeout(r, 500));
+    writeFileSync(join(dir, ".ddd", "todos.json"), '{"todos":[]}');
+    // Filtered to this test's own project: earlier tests in this file leave
+    // their (already-populated) .ddd folders under the same, never-closed
+    // watcher, and re-registering rebuilds every watch wholesale — a fresh
+    // recursive watch on a directory that already has content can itself
+    // replay one startup event for that content, same family of FSEvents
+    // quirk as watcher.ts's isSelfNamedReplay, just for a different project.
+    const isOurs = (e: { name: string; payload: unknown }) =>
+      e.name === "ddd://project-changed" && (e.payload as ProjectChanged).projectId === card.id;
+    await until(() => emitter.events.some(isOurs), 8000);
+    const event = emitter.events.find(isOurs)!;
+    expect(event.payload).toEqual({ environmentId: "default", projectId: card.id });
+  }, 15000);
 });
 
 describe("sync commands", () => {
-  const mock = (): Connection => ({ id: "mock-1", provider: "mock", label: "Mock", status: "disconnected", scopes: [], config: {}, lastSyncAt: null, error: null });
+  const mock = (): Connection => ({
+    id: "mock-1",
+    provider: "mock",
+    label: "Mock",
+    status: "disconnected",
+    scopes: [],
+    config: {},
+    lastSyncAt: null,
+    error: null,
+  });
 
   it("sync_now fills the cache, items_query reads it, cache_clear empties it", async () => {
     scratchEnv("cmd-sync");
@@ -212,7 +215,11 @@ describe("sync commands", () => {
     const [first] = (await commands.items_query!({ env: "default", filter: { kind: "pull_request" } })) as { id: string; title: string }[];
     const out = await commands.item_action!({ env: "default", itemId: first!.id, action: "comment", input: "hi" });
     expect(out).toBe(`mock: comment on ${first!.title} (hi)`);
-    const rows = (await commands.events_query!({ env: "default", kindPrefix: "item." })) as { kind: string; source: string; project: string }[];
+    const rows = (await commands.events_query!({ env: "default", kindPrefix: "item." })) as {
+      kind: string;
+      source: string;
+      project: string;
+    }[];
     expect(rows[0]).toMatchObject({ kind: "item.comment", source: "mock", project: "ddd" });
     expect(scheduler.due("mock-1", 1_000_000)).toBe(true);
     await expect(commands.item_action!({ env: "default", itemId: "nope", action: "comment" })).rejects.toThrow('item "nope"');
@@ -243,16 +250,34 @@ function aiFetch(answers: { anthropic?: unknown; ollama?: unknown; status?: numb
 function aiCommands(answers: Parameters<typeof aiFetch>[0]) {
   const { fetch, calls } = aiFetch(answers);
   const aiSync = { ...sync, fetch, secrets: memorySecrets() };
-  return { commands: createCommands({ emit: emitter, watcher, scheduler: new Scheduler(aiSync), sync: aiSync }), calls, secrets: aiSync.secrets };
+  return {
+    commands: createCommands({ emit: emitter, watcher, scheduler: new Scheduler(aiSync), sync: aiSync }),
+    calls,
+    secrets: aiSync.secrets,
+  };
 }
 
 async function seedMock(name: string): Promise<{ id: string; kind: string; title: string; project: string | null }[]> {
   scratchEnv(name);
   const s = defaultSettings();
-  s.connections.push({ id: "mock-1", provider: "mock", label: "Mock", status: "disconnected", scopes: [], config: {}, lastSyncAt: null, error: null });
+  s.connections.push({
+    id: "mock-1",
+    provider: "mock",
+    label: "Mock",
+    status: "disconnected",
+    scopes: [],
+    config: {},
+    lastSyncAt: null,
+    error: null,
+  });
   settingsSave(EnvRoot.open("default"), s);
   await commands.sync_now!({ env: "default" });
-  return (await commands.items_query!({ env: "default", filter: {} })) as { id: string; kind: string; title: string; project: string | null }[];
+  return (await commands.items_query!({ env: "default", filter: {} })) as {
+    id: string;
+    kind: string;
+    title: string;
+    project: string | null;
+  }[];
 }
 
 describe("AI commands", () => {
@@ -260,7 +285,10 @@ describe("AI commands", () => {
     const items = await seedMock("cmd-ai-actions");
     const pr = items.find((i) => i.kind === "pull_request")!;
     const mail = items.find((i) => i.kind === "mail")!;
-    expect(((await commands.ai_actions_for!({ env: "default", itemId: pr.id })) as { id: string }[]).map((a) => a.id)).toEqual(["thread.summarize", "issue.tasks"]);
+    expect(((await commands.ai_actions_for!({ env: "default", itemId: pr.id })) as { id: string }[]).map((a) => a.id)).toEqual([
+      "thread.summarize",
+      "issue.tasks",
+    ]);
     expect((await commands.ai_actions_for!({ env: "default", itemId: mail.id })) as unknown[]).toEqual([
       { id: "mail.draft", label: "Draft a reply", target: "composer" },
       { id: "thread.summarize", label: "Summarize", target: "panel" },
@@ -279,7 +307,10 @@ describe("AI commands", () => {
     mkdirSync(join(dir, ".ddd", "icm"), { recursive: true });
     writeFileSync(join(dir, ".ddd", "icm", "conventions.md"), "tabs");
     register(EnvRoot.open("default"), dir);
-    const ctx = (await commands.ai_context_for!({ env: "default", itemId: pr.id })) as { project: string; plan: { files: { name: string }[]; missing: boolean } };
+    const ctx = (await commands.ai_context_for!({ env: "default", itemId: pr.id })) as {
+      project: string;
+      plan: { files: { name: string }[]; missing: boolean };
+    };
     expect(ctx.project).toBe("ddd");
     expect(ctx.plan.missing).toBe(false);
     expect(ctx.plan.files.map((f) => f.name)).toEqual(["conventions.md"]);
@@ -289,12 +320,38 @@ describe("AI commands", () => {
   it("ai_draft routes local by default, returns the proposal, and logs tokens and cost", async () => {
     const items = await seedMock("cmd-ai-draft");
     const pr = items.find((i) => i.kind === "pull_request")!;
-    const { commands: ai, calls } = aiCommands({ ollama: { message: { content: "TLDR: merge it." }, prompt_eval_count: 30, eval_count: 5 } });
+    const { commands: ai, calls } = aiCommands({
+      ollama: { message: { content: "TLDR: merge it." }, prompt_eval_count: 30, eval_count: 5 },
+    });
     const draft = await ai.ai_draft!({ env: "default", itemId: pr.id, action: "thread.summarize" });
-    expect(draft).toEqual({ text: "TLDR: merge it.", model: "llama3.1:8b", target: "panel", inputTokens: 30, outputTokens: 5, costMicros: 0, refusal: null, usedProjectContext: false });
+    expect(draft).toEqual({
+      text: "TLDR: merge it.",
+      model: "llama3.1:8b",
+      target: "panel",
+      inputTokens: 30,
+      outputTokens: 5,
+      costMicros: 0,
+      refusal: null,
+      usedProjectContext: false,
+    });
     expect(calls).toEqual(["http://localhost:11434/api/chat"]);
-    const rows = (await ai.events_query!({ env: "default", kindPrefix: "ai." })) as { kind: string; source: string; project: string; tokensIn: number; tokensOut: number; costMicros: number; meta: unknown }[];
-    expect(rows[0]).toMatchObject({ kind: "ai.thread.summarize", source: "local", project: pr.project, tokensIn: 30, tokensOut: 5, costMicros: 0 });
+    const rows = (await ai.events_query!({ env: "default", kindPrefix: "ai." })) as {
+      kind: string;
+      source: string;
+      project: string;
+      tokensIn: number;
+      tokensOut: number;
+      costMicros: number;
+      meta: unknown;
+    }[];
+    expect(rows[0]).toMatchObject({
+      kind: "ai.thread.summarize",
+      source: "local",
+      project: pr.project,
+      tokensIn: 30,
+      tokensOut: 5,
+      costMicros: 0,
+    });
     expect(rows[0]!.meta).toEqual({ model: "llama3.1:8b", usedProjectContext: false, refused: false });
   });
 
@@ -302,11 +359,24 @@ describe("AI commands", () => {
     const items = await seedMock("cmd-ai-anthropic");
     const mail = items.find((i) => i.kind === "mail")!;
     const { commands: ai, secrets } = aiCommands({
-      anthropic: { model: "claude-opus-5", stop_reason: "refusal", stop_details: { explanation: "Not this." }, usage: { input_tokens: 1000, output_tokens: 0 }, content: [] },
+      anthropic: {
+        model: "claude-opus-5",
+        stop_reason: "refusal",
+        stop_details: { explanation: "Not this." },
+        usage: { input_tokens: 1000, output_tokens: 0 },
+        content: [],
+      },
     });
-    await expect(ai.ai_draft!({ env: "default", itemId: mail.id, action: "mail.draft" })).rejects.toThrow("No Anthropic API key. Add one in Settings → AI.");
+    await expect(ai.ai_draft!({ env: "default", itemId: mail.id, action: "mail.draft" })).rejects.toThrow(
+      "No Anthropic API key. Add one in Settings → AI.",
+    );
     secrets.set(EnvRoot.open("default"), "ai:anthropic", "sk-test");
-    const draft = (await ai.ai_draft!({ env: "default", itemId: mail.id, action: "mail.draft" })) as { refusal: string; costMicros: number; target: string; text: string };
+    const draft = (await ai.ai_draft!({ env: "default", itemId: mail.id, action: "mail.draft" })) as {
+      refusal: string;
+      costMicros: number;
+      target: string;
+      text: string;
+    };
     expect(draft).toMatchObject({ refusal: "Not this.", costMicros: 5000, target: "composer", text: "" });
     const rows = (await ai.events_query!({ env: "default", kindPrefix: "ai.mail" })) as { source: string; meta: { refused: boolean } }[];
     expect(rows[0]!.source).toBe("anthropic");
@@ -322,9 +392,15 @@ describe("widget instruction commands", () => {
     expect(await commands.widget_instructions_template!({ kind: "repos" })).toContain("recent repositories");
     const before = (await commands.widget_instructions_load!({ env: "default", widgetId: "w-1" })) as { exists: boolean };
     expect(before.exists).toBe(false);
-    const saved = (await commands.widget_instructions_save!({ env: "default", widgetId: "w-1", text: "Only mail from people." })) as { hash: string; exists: boolean };
+    const saved = (await commands.widget_instructions_save!({ env: "default", widgetId: "w-1", text: "Only mail from people." })) as {
+      hash: string;
+      exists: boolean;
+    };
     expect(saved.exists).toBe(true);
-    expect((await commands.widget_instructions_load!({ env: "default", widgetId: "w-1" })) as object).toMatchObject({ text: "Only mail from people.", hash: saved.hash });
+    expect((await commands.widget_instructions_load!({ env: "default", widgetId: "w-1" })) as object).toMatchObject({
+      text: "Only mail from people.",
+      hash: saved.hash,
+    });
     await commands.widget_instructions_clear!({ env: "default", widgetId: "w-1" });
     expect(((await commands.widget_instructions_load!({ env: "default", widgetId: "w-1" })) as { exists: boolean }).exists).toBe(false);
     await expect(commands.widget_instructions_load!({ env: "default", widgetId: "../x" })).rejects.toThrow('not a widget id: "../x"');
@@ -333,20 +409,41 @@ describe("widget instruction commands", () => {
   it("compile: nothing written is an error; a fenced local answer becomes a narrowed record and an event", async () => {
     scratchEnv("cmd-compile");
     settingsSave(EnvRoot.open("default"), defaultSettings());
-    const { commands: ai } = aiCommands({ ollama: { message: { content: 'Sure:\n```json\n{"filter": {"kind": "mail", "limit": 10, "mood": "calm"}, "unmet": ["only nice ones"]}\n```' }, prompt_eval_count: 200, eval_count: 40 } });
-    await expect(ai.widget_instructions_compile!({ env: "default", widgetId: "w-2", kind: "items" })).rejects.toThrow("there is nothing written to compile");
+    const { commands: ai } = aiCommands({
+      ollama: {
+        message: { content: 'Sure:\n```json\n{"filter": {"kind": "mail", "limit": 10, "mood": "calm"}, "unmet": ["only nice ones"]}\n```' },
+        prompt_eval_count: 200,
+        eval_count: 40,
+      },
+    });
+    await expect(ai.widget_instructions_compile!({ env: "default", widgetId: "w-2", kind: "items" })).rejects.toThrow(
+      "there is nothing written to compile",
+    );
     await ai.widget_instructions_save!({ env: "default", widgetId: "w-2", text: "Only nice mail, latest 10." });
-    const compiled = (await ai.widget_instructions_compile!({ env: "default", widgetId: "w-2", kind: "items" })) as { sourceHash: string; filter: unknown; unmet: string[]; model: string; compiledAt: string };
+    const compiled = (await ai.widget_instructions_compile!({ env: "default", widgetId: "w-2", kind: "items" })) as {
+      sourceHash: string;
+      filter: unknown;
+      unmet: string[];
+      model: string;
+      compiledAt: string;
+    };
     const loaded = (await ai.widget_instructions_load!({ env: "default", widgetId: "w-2" })) as { hash: string };
     expect(compiled.sourceHash).toBe(loaded.hash);
     expect(compiled.filter).toEqual({ kind: "mail", limit: 10 });
     expect(compiled.unmet).toEqual(["only nice ones", "mood is not something this widget can filter on"]);
     expect(compiled.model).toBe("llama3.1:8b");
     expect(Number.isNaN(Date.parse(compiled.compiledAt))).toBe(false);
-    const rows = (await ai.events_query!({ env: "default", kindPrefix: "ai.widget" })) as { kind: string; source: string; tokensIn: number; meta: unknown }[];
+    const rows = (await ai.events_query!({ env: "default", kindPrefix: "ai.widget" })) as {
+      kind: string;
+      source: string;
+      tokensIn: number;
+      meta: unknown;
+    }[];
     expect(rows[0]).toMatchObject({ kind: "ai.widget.instructions", source: "local", tokensIn: 200 });
     expect(rows[0]!.meta).toEqual({ widgetKind: "items", unmet: 2 });
-    await expect(ai.widget_instructions_compile!({ env: "default", widgetId: "w-2", kind: "clock" })).rejects.toThrow("clock widgets cannot be given instructions");
+    await expect(ai.widget_instructions_compile!({ env: "default", widgetId: "w-2", kind: "clock" })).rejects.toThrow(
+      "clock widgets cannot be given instructions",
+    );
   });
 
   it("compile passes a refusal and a non-JSON answer through as errors, keeping the last good filter the caller's business", async () => {
@@ -354,7 +451,9 @@ describe("widget instruction commands", () => {
     settingsSave(EnvRoot.open("default"), defaultSettings());
     const { commands: ai } = aiCommands({ ollama: { message: { content: "I would rather not." } } });
     await ai.widget_instructions_save!({ env: "default", widgetId: "w-3", text: "something" });
-    await expect(ai.widget_instructions_compile!({ env: "default", widgetId: "w-3", kind: "items" })).rejects.toThrow("the model did not answer with JSON");
+    await expect(ai.widget_instructions_compile!({ env: "default", widgetId: "w-3", kind: "items" })).rejects.toThrow(
+      "the model did not answer with JSON",
+    );
   });
 });
 
@@ -411,7 +510,7 @@ describe("calendar commands", () => {
       config: { color: "#ff8800" },
       lastSyncAt: null,
       error: null,
-    } as Connection);
+    });
     settingsSave(env, settings);
     replaceForConnection(env, "conn-1", icsItems("conn-1"));
     await commands.calendar_event_save!({ env: "default", event: mine });
@@ -447,12 +546,12 @@ describe("calendar commands", () => {
 
   it("makes a bad window an error, not an empty calendar", async () => {
     scratchEnv("cmd-calendar-bad-window");
-    await expect(
-      commands.calendar_list!({ env: "default", from: "yesterday", to: "2026-08-31T00:00:00Z" }),
-    ).rejects.toThrow("from is not an RFC 3339 timestamp");
-    await expect(
-      commands.calendar_list!({ env: "default", from: "2026-08-01T00:00:00Z", to: "soon" }),
-    ).rejects.toThrow("to is not an RFC 3339 timestamp");
+    await expect(commands.calendar_list!({ env: "default", from: "yesterday", to: "2026-08-31T00:00:00Z" })).rejects.toThrow(
+      "from is not an RFC 3339 timestamp",
+    );
+    await expect(commands.calendar_list!({ env: "default", from: "2026-08-01T00:00:00Z", to: "soon" })).rejects.toThrow(
+      "to is not an RFC 3339 timestamp",
+    );
   });
 
   it("mints an id when one is saved without it, and deletes by id", async () => {
@@ -524,7 +623,18 @@ function repoItem(name: string, url: string, sshUrl: string, pushedAt: string): 
 const daysAgo = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
 interface RepoListing {
-  rows: { nameWithOwner: string; url: string; remote: string; cloneUrl: string; facts: string; pushedAt: string; localPath: string | null; matchConfidence: string | null; missing: boolean; projectId: string | null }[];
+  rows: {
+    nameWithOwner: string;
+    url: string;
+    remote: string;
+    cloneUrl: string;
+    facts: string;
+    pushedAt: string;
+    localPath: string | null;
+    matchConfidence: string | null;
+    missing: boolean;
+    projectId: string | null;
+  }[];
   localOnly: { path: string; name: string; origin: string | null; originHost: string | null; missing: boolean; projectId: string | null }[];
   capped: boolean;
   total: number;
@@ -587,9 +697,7 @@ describe("repos_list", () => {
     expect(recent.rows[2]!.cloneUrl).toBe("https://github.com/agitri/undated");
 
     // Everything DDD knows is a checkout, minus what the rows took.
-    expect(recent.localOnly).toEqual([
-      { path: loose, name: "loose", origin: null, originHost: null, missing: false, projectId: null },
-    ]);
+    expect(recent.localOnly).toEqual([{ path: loose, name: "loose", origin: null, originHost: null, missing: false, projectId: null }]);
 
     const all = (await commands.repos_list!({ env: "default", filter: { scope: "all" } })) as RepoListing;
     expect(all.rows.map((r) => r.nameWithOwner)).toEqual(["agitri/ddd", "agitri/forked", "agitri/ancient", "agitri/undated"]);
@@ -612,7 +720,14 @@ describe("repos_list", () => {
     });
     const listing = (await commands.repos_list!({ env: "default", filter: {} })) as RepoListing;
     expect(listing.rows).toEqual([]);
-    expect(listing.localOnly[0]).toEqual({ path: "/p/thing", name: "thing", origin: "gitlab.com/agitri/thing", originHost: "gitlab.com", missing: true, projectId: null });
+    expect(listing.localOnly[0]).toEqual({
+      path: "/p/thing",
+      name: "thing",
+      origin: "gitlab.com/agitri/thing",
+      originHost: "gitlab.com",
+      missing: true,
+      projectId: null,
+    });
   });
 });
 
@@ -636,7 +751,9 @@ describe("repo_scan, repo_link, repo_unlink, repo_add_local, repo_forget", () =>
       ].sort(),
     );
 
-    await expect(commands.repo_scan!({ env: "default", rootDir: join(root, "nope") })).rejects.toThrow(`${join(root, "nope")} is not a directory`);
+    await expect(commands.repo_scan!({ env: "default", rootDir: join(root, "nope") })).rejects.toThrow(
+      `${join(root, "nope")} is not a directory`,
+    );
     rmSync(root, { recursive: true, force: true });
   });
 
@@ -673,7 +790,9 @@ describe("repo_scan, repo_link, repo_unlink, repo_add_local, repo_forget", () =>
     expect(await commands.repo_scan!({ env: "default", rootDir: root })).toBe(0);
     expect(links.find(links.load(env), "github.com/agitri/ddd")!.source).toBe("manual");
 
-    await expect(commands.repo_link!({ env: "default", remote: "github.com/a/b", path: join(root, "nope") })).rejects.toThrow(`${join(root, "nope")} is not a directory`);
+    await expect(commands.repo_link!({ env: "default", remote: "github.com/a/b", path: join(root, "nope") })).rejects.toThrow(
+      `${join(root, "nope")} is not a directory`,
+    );
     rmSync(root, { recursive: true, force: true });
   });
 
@@ -710,50 +829,48 @@ describe("repo_scan, repo_link, repo_unlink, repo_add_local, repo_forget", () =>
 });
 
 describe("repo_clone", () => {
-  it(
-    "returns the target at once and pushes progress to ddd://repo-progress until done",
-    async () => {
-      const { env } = scratchEnv("cmd-clone");
-      const root = repoTemp("clone");
-      const seed = join(root, "seed");
-      mkdirSync(seed);
-      git(seed, ["init", "-q"]);
-      git(seed, ["config", "user.email", "test@example.dev"]);
-      git(seed, ["config", "user.name", "Test"]);
-      writeFileSync(join(seed, "README.md"), "hello\n");
-      git(seed, ["add", "."]);
-      git(seed, ["commit", "-q", "-m", "first"]);
-      const origin = join(root, "origin.git");
-      // A `file://` URL forces a real clone over git's transport layer, which
-      // is what makes it emit the progress stream at all — no network.
-      execFileSync("git", ["clone", "--bare", "-q", seed, origin], { stdio: "ignore" });
-      const parent = join(root, "into");
-      mkdirSync(parent);
+  it("returns the target at once and pushes progress to ddd://repo-progress until done", async () => {
+    const { env } = scratchEnv("cmd-clone");
+    const root = repoTemp("clone");
+    const seed = join(root, "seed");
+    mkdirSync(seed);
+    git(seed, ["init", "-q"]);
+    git(seed, ["config", "user.email", "test@example.dev"]);
+    git(seed, ["config", "user.name", "Test"]);
+    writeFileSync(join(seed, "README.md"), "hello\n");
+    git(seed, ["add", "."]);
+    git(seed, ["commit", "-q", "-m", "first"]);
+    const origin = join(root, "origin.git");
+    // A `file://` URL forces a real clone over git's transport layer, which
+    // is what makes it emit the progress stream at all — no network.
+    execFileSync("git", ["clone", "--bare", "-q", seed, origin], { stdio: "ignore" });
+    const parent = join(root, "into");
+    mkdirSync(parent);
 
-      const before = emitter.events.length;
-      const remote = "github.com/agitri/origin";
-      const target = await commands.repo_clone!({ env: "default", remote, cloneUrl: `file://${origin}`, parentDir: parent });
-      expect(target).toBe(join(parent, "origin"));
+    const before = emitter.events.length;
+    const remote = "github.com/agitri/origin";
+    const target = await commands.repo_clone!({ env: "default", remote, cloneUrl: `file://${origin}`, parentDir: parent });
+    expect(target).toBe(join(parent, "origin"));
 
-      // The command returns its target before any progress tick reaches the
-      // emitter — the clone body is deferred, not fired synchronously inside
-      // the command handler.
-      const ours = () => emitter.events.slice(before).filter((e) => e.name === "ddd://repo-progress");
-      expect(ours()).toEqual([]);
-      await until(() => ours().some((e) => (e.payload as { done: boolean }).done), 20000);
-      const payloads = ours().map((e) => e.payload as { remote: string; phase: string; percent: number; done: boolean; error: string | null });
-      expect(payloads[0]).toEqual({ remote, phase: "Starting", percent: 0, done: false, error: null });
-      expect(payloads[payloads.length - 1]).toEqual({ remote, phase: "Done", percent: 100, done: true, error: null });
-      expect(payloads.every((p) => p.remote === remote)).toBe(true);
+    // The command returns its target before any progress tick reaches the
+    // emitter — the clone body is deferred, not fired synchronously inside
+    // the command handler.
+    const ours = () => emitter.events.slice(before).filter((e) => e.name === "ddd://repo-progress");
+    expect(ours()).toEqual([]);
+    await until(() => ours().some((e) => (e.payload as { done: boolean }).done), 20000);
+    const payloads = ours().map(
+      (e) => e.payload as { remote: string; phase: string; percent: number; done: boolean; error: string | null },
+    );
+    expect(payloads[0]).toEqual({ remote, phase: "Starting", percent: 0, done: false, error: null });
+    expect(payloads[payloads.length - 1]).toEqual({ remote, phase: "Done", percent: 100, done: true, error: null });
+    expect(payloads.every((p) => p.remote === remote)).toBe(true);
 
-      expect(existsSync(join(target as string, "README.md"))).toBe(true);
-      expect(links.find(links.load(env), remote)!.path).toBe(realpathSync(target as string));
-      expect(registry(env).projects.some((p) => p.path === realpathSync(target as string))).toBe(true);
+    expect(existsSync(join(target as string, "README.md"))).toBe(true);
+    expect(links.find(links.load(env), remote)!.path).toBe(realpathSync(target as string));
+    expect(registry(env).projects.some((p) => p.path === realpathSync(target as string))).toBe(true);
 
-      rmSync(root, { recursive: true, force: true });
-    },
-    30000,
-  );
+    rmSync(root, { recursive: true, force: true });
+  }, 30000);
 
   it("refuses before detaching when the parent is missing or the target is occupied", async () => {
     scratchEnv("cmd-clone-refuse");
@@ -842,9 +959,7 @@ describe("dev server commands", () => {
         throw new Error("lsof exploded");
       },
     });
-    await expect(failing.dev_servers_list!({ env: "default", filter: {} })).rejects.toThrow(
-      "dev server scan failed: lsof exploded",
-    );
+    await expect(failing.dev_servers_list!({ env: "default", filter: {} })).rejects.toThrow("dev server scan failed: lsof exploded");
   });
 
   it("wraps a probe failure as a probe failure", async () => {
@@ -865,14 +980,14 @@ describe("dev server commands", () => {
     scratchEnv("cmd-dev-stop");
     // Port 1 is privileged, so nothing in the suite can be on it: the guard
     // sees an empty socket and declines rather than signalling pid 999999.
-    await expect(
-      commands.dev_server_stop!({ env: "default", key: "tcp:127.0.0.1:1", pid: 999_999, process: "node" }),
-    ).rejects.toThrow("it already exited — nothing is on that port now");
+    await expect(commands.dev_server_stop!({ env: "default", key: "tcp:127.0.0.1:1", pid: 999_999, process: "node" })).rejects.toThrow(
+      "it already exited — nothing is on that port now",
+    );
 
     // And with nothing to compare against, the guard cannot run at all.
-    await expect(
-      commands.dev_server_stop!({ env: "default", key: "tcp:127.0.0.1:1", pid: 999_999, process: "" }),
-    ).rejects.toThrow("no process name to verify against, so the reuse guard cannot run");
+    await expect(commands.dev_server_stop!({ env: "default", key: "tcp:127.0.0.1:1", pid: 999_999, process: "" })).rejects.toThrow(
+      "no process name to verify against, so the reuse guard cannot run",
+    );
   }, 30_000);
 });
 
@@ -1041,12 +1156,8 @@ describe("mcp commands", () => {
       "the command must be a JSON array, not a single string",
     );
     await expect(commands.mcp_consent!({ command: "[]" })).rejects.toThrow("the command is empty");
-    await expect(commands.mcp_consent!({ command: `["npx", 42]` })).rejects.toThrow(
-      "every part of the command must be a string",
-    );
-    await expect(commands.mcp_consent!({ command: `["npx", ""]` })).rejects.toThrow(
-      "a command cannot contain an empty argument",
-    );
+    await expect(commands.mcp_consent!({ command: `["npx", 42]` })).rejects.toThrow("every part of the command must be a string");
+    await expect(commands.mcp_consent!({ command: `["npx", ""]` })).rejects.toThrow("a command cannot contain an empty argument");
   });
 
   it("probes a consented server and reports what it offers", async () => {
@@ -1187,7 +1298,9 @@ describe("products commands", () => {
     await commands.product_start!({ env: "default", key: talk.key, run: talk.run, dir: talk.dir });
 
     expect(
-      await waitUntil(async () => ((await commands.product_log!({ env: "default", key: talk.key })) as string).includes("hello-from-the-product")),
+      await waitUntil(async () =>
+        ((await commands.product_log!({ env: "default", key: talk.key })) as string).includes("hello-from-the-product"),
+      ),
     ).toBe(true);
     await commands.product_stop!({ env: "default", key: talk.key });
   });
@@ -1196,7 +1309,14 @@ describe("products commands", () => {
 describe("models_scan / models_move", () => {
   const modelRoots = () => {
     const base = mkdtempSync(join(tmpdir(), "ddd-cmd-models-"));
-    const roots = { ollama: join(base, "ollama"), huggingface: join(base, "hf"), lmstudio: join(base, "lms"), llamacpp: join(base, "lc"), jan: join(base, "jan"), gpt4all: join(base, "g4a") };
+    const roots = {
+      ollama: join(base, "ollama"),
+      huggingface: join(base, "hf"),
+      lmstudio: join(base, "lms"),
+      llamacpp: join(base, "lc"),
+      jan: join(base, "jan"),
+      gpt4all: join(base, "g4a"),
+    };
     mkdirSync(roots.llamacpp, { recursive: true });
     writeFileSync(join(roots.llamacpp, "tiny.gguf"), "z".repeat(40));
     return { base, roots };
@@ -1205,7 +1325,10 @@ describe("models_scan / models_move", () => {
   it("scans the stores it is pointed at", async () => {
     const { roots } = modelRoots();
     const cmds = createCommands({ emit: emitter, watcher, scheduler, sync, modelRoots: roots });
-    const result = (await cmds.models_scan!({})) as { stores: Array<{ runtime: string; present: boolean; models: Array<{ id: string }> }>; totalBytes: number };
+    const result = (await cmds.models_scan!({})) as {
+      stores: Array<{ runtime: string; present: boolean; models: Array<{ id: string }> }>;
+      totalBytes: number;
+    };
     expect(result.totalBytes).toBe(40);
     expect(result.stores.find((s) => s.runtime === "llamacpp")!.models.map((m) => m.id)).toEqual(["llamacpp:tiny.gguf"]);
     expect(result.stores.find((s) => s.runtime === "ollama")!.present).toBe(false);

@@ -29,7 +29,7 @@ const isDir = (path: string): boolean => {
 /** The lookup itself, taking the already-lowercased key. */
 export function resolveProjectDir(env: EnvRoot, wanted: string): string | null {
   // Fact first: a repo whose remote we have actually read.
-  let stored: links.RepoLinks | null = null;
+  let stored: links.RepoLinks | null;
   try {
     stored = links.load(env);
   } catch {

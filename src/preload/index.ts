@@ -8,6 +8,7 @@ const bridge: DddBridge = {
     const reply = (await ipcRenderer.invoke("ddd:invoke", cmd, args ?? {})) as Envelope;
     if (reply.ok) return reply.value as never;
     // Tauri rejected with the error's text as a bare string; so does this.
+    // eslint-disable-next-line @typescript-eslint/only-throw-error
     throw reply.error;
   },
   on(event, handler) {

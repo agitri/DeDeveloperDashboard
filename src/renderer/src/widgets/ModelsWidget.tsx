@@ -32,7 +32,7 @@ export function ModelsWidget({ widget }: WidgetViewProps) {
   const [scan, setScan] = useRemembered<ModelScan>(`models:${widget.id}`, EMPTY);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [confirming, setConfirming] = useState<string | "all" | null>(null);
+  const [confirming, setConfirming] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [progress, setProgress] = useState<ModelMoveProgress | null>(null);
   const [rowError, setRowError] = useState<{ id: string; text: string } | null>(null);
@@ -69,26 +69,23 @@ export function ModelsWidget({ widget }: WidgetViewProps) {
     return chosen;
   }, [updateWidget, widget.id, widget.config]);
 
-  const moveOne = useCallback(
-    async (m: LocalModel, to: string): Promise<boolean> => {
-      setBusy(m.id);
-      setProgress({ id: m.id, phase: "copy", bytesDone: 0, bytesTotal: m.bytes });
-      setRowError(null);
-      try {
-        const out = await ipc.modelsMove(m.id, to);
-        movedIds.current.add(m.id);
-        setMoved((list) => [{ name: m.name, destination: out.destination }, ...list].slice(0, 8));
-        return true;
-      } catch (e) {
-        setRowError({ id: m.id, text: String(e) });
-        return false;
-      } finally {
-        setBusy(null);
-        setProgress(null);
-      }
-    },
-    [],
-  );
+  const moveOne = useCallback(async (m: LocalModel, to: string): Promise<boolean> => {
+    setBusy(m.id);
+    setProgress({ id: m.id, phase: "copy", bytesDone: 0, bytesTotal: m.bytes });
+    setRowError(null);
+    try {
+      const out = await ipc.modelsMove(m.id, to);
+      movedIds.current.add(m.id);
+      setMoved((list) => [{ name: m.name, destination: out.destination }, ...list].slice(0, 8));
+      return true;
+    } catch (e) {
+      setRowError({ id: m.id, text: String(e) });
+      return false;
+    } finally {
+      setBusy(null);
+      setProgress(null);
+    }
+  }, []);
 
   const runOne = useCallback(
     async (m: LocalModel) => {
@@ -152,11 +149,7 @@ export function ModelsWidget({ widget }: WidgetViewProps) {
               Stop after this one
             </button>
           ) : (
-            <button
-              className="btn xs primary"
-              disabled={queue.length === 0 || busy !== null}
-              onClick={() => setConfirming("all")}
-            >
+            <button className="btn xs primary" disabled={queue.length === 0 || busy !== null} onClick={() => setConfirming("all")}>
               Move all
             </button>
           )}
@@ -169,9 +162,7 @@ export function ModelsWidget({ widget }: WidgetViewProps) {
             Move {queue.length} model{queue.length === 1 ? "" : "s"} ({fmtBytes(scan.totalBytes)}) to{" "}
             <code>{shortDest || "a folder you pick next"}</code>, one folder per model?
             {present.some((s) => s.runtime === "ollama" && s.models.length > 0) && (
-              <div className="ink-3">
-                Ollama models are exported as a GGUF plus a Modelfile and removed from Ollama.
-              </div>
+              <div className="ink-3">Ollama models are exported as a GGUF plus a Modelfile and removed from Ollama.</div>
             )}
           </div>
           <div className="models-confirm-actions">

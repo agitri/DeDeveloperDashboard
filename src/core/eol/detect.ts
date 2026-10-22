@@ -88,11 +88,8 @@ export function parseConstraint(raw: string, product: string): { cycle: string; 
   const token = text.split(/[|,\s]/).find((t) => /[0-9]/.test(t));
   if (token === undefined) return null;
 
-  const confidence: Confidence = token.startsWith(">=") || token.startsWith(">")
-    ? "floor"
-    : token.startsWith("^") || token.startsWith("~")
-      ? "range"
-      : "exact";
+  const confidence: Confidence =
+    token.startsWith(">=") || token.startsWith(">") ? "floor" : token.startsWith("^") || token.startsWith("~") ? "range" : "exact";
 
   // Rust's `trim_start_matches(['>', '=', '<', '^', '~', 'v', 'V'])`.
   const digits = token.replace(/^[>=<^~vV]+/, "");
@@ -119,7 +116,7 @@ export function cycleFrom(version: string, product: string): string | null {
 }
 
 /** `serde_json::from_str::<Value>` — `undefined` where the Rust gets an `Err`. */
-function parseValue(text: string): unknown | undefined {
+function parseValue(text: string): unknown {
   try {
     return JSON.parse(text) as unknown;
   } catch {
@@ -314,9 +311,7 @@ export function parseTomlLike(name: string, text: string): Declaration[] {
     if (value === null) continue;
     const parsed = parseConstraint(value, product);
     if (parsed === null) continue;
-    return [
-      { also: [], product, cycle: parsed.cycle, source: name, confidence: parsed.confidence, raw: `${key}: ${value}` },
-    ];
+    return [{ also: [], product, cycle: parsed.cycle, source: name, confidence: parsed.confidence, raw: `${key}: ${value}` }];
   }
   return [];
 }
@@ -361,16 +356,13 @@ export function forDir(dir: string): Declaration[] {
     if (name === "composer.json") out.push(...parseComposerJson(text));
     else if (name === "package.json") out.push(...parsePackageJson(text));
     else if (name === "Dockerfile") out.push(...parseDockerfile(text));
-    else if (name === ".nvmrc" || name === ".python-version" || name === ".ruby-version")
-      out.push(...parseVersionFile(name, text));
+    else if (name === ".nvmrc" || name === ".python-version" || name === ".ruby-version") out.push(...parseVersionFile(name, text));
     else out.push(...parseTomlLike(name, text));
   }
   // `Array.prototype.sort` is stable, as Rust's `sort_by` is.
   out.sort(
     (a, b) =>
-      byteCompare(a.product, b.product) ||
-      CONFIDENCE_RANK[b.confidence] - CONFIDENCE_RANK[a.confidence] ||
-      byteCompare(a.source, b.source),
+      byteCompare(a.product, b.product) || CONFIDENCE_RANK[b.confidence] - CONFIDENCE_RANK[a.confidence] || byteCompare(a.source, b.source),
   );
   return collapseAgreement(out);
 }

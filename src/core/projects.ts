@@ -26,6 +26,7 @@ import {
   type ProjectConfig,
   type ProjectRef,
   type ProjectRegistry,
+  type Todo,
 } from "./models";
 
 export function registry(env: EnvRoot): ProjectRegistry {
@@ -75,9 +76,7 @@ export function unregister(env: EnvRoot, id: string): void {
  * UTF-8 bytes, in u64, masked to 24 bits — ids must match across the two apps.
  */
 export function slug(path: string): string {
-  const base = (basename(path) || "project")
-    .toLowerCase()
-    .replace(/[^a-z0-9]/gu, "-");
+  const base = (basename(path) || "project").toLowerCase().replace(/[^a-z0-9]/gu, "-");
   let h = 5381n;
   for (const b of Buffer.from(path, "utf8")) {
     h = ((h * 33n) & 0xffffffffffffffffn) ^ BigInt(b);
@@ -180,8 +179,8 @@ export async function load(id: string, path: string): Promise<Project> {
     if (raw !== null) config = projectConfigFromJson(raw);
   }
 
-  let recap: string | null = null;
-  let recapUpdatedAt: string | null = null;
+  let recap: string | null;
+  let recapUpdatedAt: string | null;
   try {
     recap = readFileSync(ddd.recap(), "utf8");
     // The Rust writes chrono's RFC 3339 (`+00:00`, nanoseconds); this is the
@@ -192,14 +191,14 @@ export async function load(id: string, path: string): Promise<Project> {
     recapUpdatedAt = null;
   }
 
-  let todos = defaultTodoFile().todos;
+  let todos: Todo[];
   try {
     todos = readJson(ddd.todos(), todoFileFromJson, defaultTodoFile).todos;
   } catch {
     todos = [];
   }
 
-  let icmFiles: string[] = [];
+  let icmFiles: string[];
   try {
     icmFiles = readdirSync(ddd.icm())
       .filter((n) => !n.startsWith("."))

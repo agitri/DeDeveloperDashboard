@@ -59,8 +59,12 @@ export function defaultRoots(
     huggingface: env.HF_HUB_CACHE && env.HF_HUB_CACHE !== "" ? env.HF_HUB_CACHE : join(hfHome, "hub"),
     lmstudio: join(home, ".lmstudio", "models"),
     llamacpp: mac ? join(home, "Library", "Caches", "llama.cpp") : join(home, ".cache", "llama.cpp"),
-    jan: mac ? join(home, "Library", "Application Support", "Jan", "data", "models") : join(home, ".local", "share", "Jan", "data", "models"),
-    gpt4all: mac ? join(home, "Library", "Application Support", "nomic.ai", "GPT4All") : join(home, ".local", "share", "nomic.ai", "GPT4All"),
+    jan: mac
+      ? join(home, "Library", "Application Support", "Jan", "data", "models")
+      : join(home, ".local", "share", "Jan", "data", "models"),
+    gpt4all: mac
+      ? join(home, "Library", "Application Support", "nomic.ai", "GPT4All")
+      : join(home, ".local", "share", "nomic.ai", "GPT4All"),
   };
 }
 
@@ -124,7 +128,7 @@ export function readManifest(path: string): OllamaLayer[] {
   }
   const layers = (parsed as { layers?: unknown }).layers;
   const config = (parsed as { config?: unknown }).config;
-  const all = [...(Array.isArray(layers) ? layers : []), ...(config ? [config] : [])];
+  const all: unknown[] = [...(Array.isArray(layers) ? (layers as unknown[]) : []), ...(config ? [config] : [])];
   return all
     .filter((l): l is OllamaLayer => typeof l === "object" && l !== null && typeof (l as OllamaLayer).digest === "string")
     .map((l) => ({ mediaType: String(l.mediaType ?? ""), digest: l.digest, size: Number(l.size ?? 0) || 0 }));
@@ -155,7 +159,9 @@ function scanOllama(root: string): LocalModel[] {
           if (layers.length === 0) continue;
           // The config blob is a few hundred bytes of metadata; the model is
           // its layers. Summing only layers is what `ollama list` shows.
-          const bytes = layers.filter((l) => l.mediaType !== "application/vnd.docker.container.image.v1+json").reduce((n, l) => n + l.size, 0);
+          const bytes = layers
+            .filter((l) => l.mediaType !== "application/vnd.docker.container.image.v1+json")
+            .reduce((n, l) => n + l.size, 0);
           found.push(model("ollama", ollamaName(namespace, repo, tag), path, bytes));
         }
       }

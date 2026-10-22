@@ -126,7 +126,7 @@ export function fetchContext(partial: {
       lastSyncAt: null,
       error: null,
       ...partial.connection,
-    } as Connection,
+    },
     token: partial.token ?? "t",
     fetch: partial.fetch ?? (() => Promise.reject(new Error("no network in tests"))),
   };

@@ -16,9 +16,7 @@ import {
 describe("global.json", () => {
   it("defaults to one Default environment with the shipped blue", () => {
     const g = defaultGlobal();
-    expect(g.environments).toEqual([
-      { id: "default", name: "Default", color: "#2f6ae8", hidden: false, collapsed: false },
-    ]);
+    expect(g.environments).toEqual([{ id: "default", name: "Default", color: "#2f6ae8", hidden: false, collapsed: false }]);
     expect(g.activeEnvironmentId).toBe("default");
     expect(g.appearance?.theme).toBe("system");
     // A fresh install has not started the onboarding tour.
@@ -98,9 +96,9 @@ describe("global.json", () => {
   });
 
   it("errors on an appearance block missing a required field, unlike the legacy migration reader", () => {
-    expect(() =>
-      globalFromJson({ environments: [], activeEnvironmentId: "default", appearance: { theme: "dark" } }),
-    ).toThrow(/missing field `defaultRefreshSeconds`/);
+    expect(() => globalFromJson({ environments: [], activeEnvironmentId: "default", appearance: { theme: "dark" } })).toThrow(
+      /missing field `defaultRefreshSeconds`/,
+    );
   });
 });
 
@@ -204,7 +202,7 @@ describe("project files", () => {
 
   it("defaults a product's port when omitted", () => {
     const c = projectConfigFromJson({ products: [{ id: "a", run: "r" }] });
-    expect(c.products[0].port).toBeNull();
+    expect(c.products[0]!.port).toBeNull();
   });
 
   it("rejects a non-u16 product port", () => {
@@ -221,8 +219,30 @@ import { itemFilterFromJson, itemFromJson } from "./models";
 
 describe("items", () => {
   it("normalizes an item with defaults in Rust field order", () => {
-    const i = itemFromJson({ id: "c:1", environmentId: "e", connectionId: "c", source: "mock", kind: "issue", title: "t", updatedAt: "2026-01-01T00:00:00Z" });
-    expect(Object.keys(i)).toEqual(["id", "environmentId", "connectionId", "source", "kind", "project", "title", "body", "url", "refs", "actions", "updatedAt", "unread"]);
+    const i = itemFromJson({
+      id: "c:1",
+      environmentId: "e",
+      connectionId: "c",
+      source: "mock",
+      kind: "issue",
+      title: "t",
+      updatedAt: "2026-01-01T00:00:00Z",
+    });
+    expect(Object.keys(i)).toEqual([
+      "id",
+      "environmentId",
+      "connectionId",
+      "source",
+      "kind",
+      "project",
+      "title",
+      "body",
+      "url",
+      "refs",
+      "actions",
+      "updatedAt",
+      "unread",
+    ]);
     expect(i.refs).toEqual([]);
     expect(i.actions).toEqual([]);
     expect(i.unread).toBe(false);
@@ -231,7 +251,11 @@ describe("items", () => {
 
   it("normalizes a filter, keeping only what was given", () => {
     expect(itemFilterFromJson({})).toEqual({});
-    expect(itemFilterFromJson({ kind: "mail", limit: 5, excludeKinds: ["repo"] })).toEqual({ kind: "mail", limit: 5, excludeKinds: ["repo"] });
+    expect(itemFilterFromJson({ kind: "mail", limit: 5, excludeKinds: ["repo"] })).toEqual({
+      kind: "mail",
+      limit: 5,
+      excludeKinds: ["repo"],
+    });
     expect(itemFilterFromJson({ kind: "mail", source: null })).toEqual({ kind: "mail" });
     expect(() => itemFilterFromJson({ limit: "5" })).toThrow(/^json: /);
     expect(() => itemFilterFromJson({ excludeKinds: [1] })).toThrow(/^json: /);

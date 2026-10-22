@@ -53,7 +53,7 @@ export class AnthropicProvider implements LLMProvider {
     }
 
     const text = await response.text().catch(() => "");
-    let parsed: unknown = null;
+    let parsed: unknown;
     try {
       parsed = JSON.parse(text);
     } catch {

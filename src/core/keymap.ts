@@ -7,14 +7,14 @@ import { EnvRoot, globalKeymapFile } from "./paths";
 import { readJsonOpt, writeJson } from "./store";
 import { globalLoad } from "./global";
 
-export function keymapLoad(): unknown | null {
+export function keymapLoad(): unknown {
   const path = globalKeymapFile();
   const found = readJsonOpt(path);
   if (found !== null) return found;
   // Adopt whatever the active environment had, once, so a customised keymap
   // survives the move.
   const active = globalLoad().activeEnvironmentId;
-  let legacy: unknown | null = null;
+  let legacy: unknown;
   try {
     legacy = readJsonOpt(EnvRoot.open(active).keymapFile());
   } catch {

@@ -58,7 +58,7 @@ const FALLBACK_WINDOW_MS = 30 * 86_400_000;
  * InstructionsPanel already follows for its own model call.
  */
 export function SitrepWidget({ widget, environmentId }: WidgetViewProps) {
-  const projectId = String(widget.config.projectId ?? "");
+  const projectId = typeof widget.config.projectId === "string" ? widget.config.projectId : "";
   const awayDays = Number(widget.config.awayDays ?? 14);
 
   const updateWidgetIn = useStore((s) => s.updateWidgetIn);
@@ -114,9 +114,7 @@ export function SitrepWidget({ widget, environmentId }: WidgetViewProps) {
 
   const { project, products, events, changes } = data;
   const away = awayInfo(lastVisitedAt, Date.now(), awayDays);
-  const delta = project
-    ? extractDelta({ projectName: project.name, projectId, awayDays: away.days, products, events, changes })
-    : null;
+  const delta = project ? extractDelta({ projectName: project.name, projectId, awayDays: away.days, products, events, changes }) : null;
 
   // `newestRelevantTs` deliberately excludes the widget's own `ai.tab.sitrep`
   // event — see its doc comment. Using a plain "newest of all events" here

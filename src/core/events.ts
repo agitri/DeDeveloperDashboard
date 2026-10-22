@@ -59,7 +59,16 @@ export function log(env: EnvRoot, event: EventInput): number {
         `INSERT INTO events (ts, kind, source, project, tokens_in, tokens_out, cost_micros, meta)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       )
-      .run(ts, event.kind, orNull(event.source), orNull(event.project), orNull(event.tokensIn), orNull(event.tokensOut), orNull(event.costMicros), meta);
+      .run(
+        ts,
+        event.kind,
+        orNull(event.source),
+        orNull(event.project),
+        orNull(event.tokensIn),
+        orNull(event.tokensOut),
+        orNull(event.costMicros),
+        meta,
+      );
     return Number(result.lastInsertRowid);
   });
 }
@@ -130,7 +139,7 @@ export function clear(env: EnvRoot): void {
 /** The `event_log` command. Opting out of stats has to actually stop the
  *  writing, not just the charts. */
 export function eventLog(env: EnvRoot, event: EventInput): void {
-  let enabled = true;
+  let enabled: boolean;
   try {
     enabled = settingsLoad(env).data.statsLoggingEnabled;
   } catch {

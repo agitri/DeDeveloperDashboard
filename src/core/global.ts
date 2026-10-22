@@ -6,14 +6,7 @@ import { existsSync, rmSync } from "node:fs";
 import { DddError } from "./error";
 import { EnvRoot, globalFile } from "./paths";
 import { readJson, readJsonOpt, writeJson } from "./store";
-import {
-  defaultGlobal,
-  globalFromJson,
-  type AppearanceSettings,
-  type Global,
-  type StoredGlobal,
-  type WizardState,
-} from "./models";
+import { defaultGlobal, globalFromJson, type AppearanceSettings, type Global, type StoredGlobal, type WizardState } from "./models";
 import { appearanceFromJson, settingsLoad } from "./settings";
 import * as secrets from "./secrets";
 
@@ -49,7 +42,7 @@ function migrateAppearance(activeEnv: string): AppearanceSettings {
   } catch {
     return appearanceFromJson(null);
   }
-  let raw: unknown = null;
+  let raw: unknown;
   try {
     raw = readJsonOpt(root.settingsFile());
   } catch {

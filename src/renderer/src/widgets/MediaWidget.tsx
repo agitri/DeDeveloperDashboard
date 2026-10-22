@@ -42,7 +42,7 @@ export function MediaWidget({ widget }: WidgetViewProps) {
     return () => clearInterval(timer);
   }, [refresh, widget.refreshSeconds]);
 
-  const pinned = String(widget.config.player ?? "auto");
+  const pinned = typeof widget.config.player === "string" ? widget.config.player : "auto";
   const shown = pickActive(state.players, pinned);
   // The picker's <select> must always resolve to one of its own options —
   // fall back to "auto" once the pinned player is no longer live, rather
@@ -84,11 +84,7 @@ export function MediaWidget({ widget }: WidgetViewProps) {
     <div className="media-widget">
       {state.players.length > 1 && (
         <div className="media-picker">
-          <select
-            className="field"
-            value={pinnedIsLive ? pinned : "auto"}
-            onChange={(e) => setPinned(e.target.value)}
-          >
+          <select className="field" value={pinnedIsLive ? pinned : "auto"} onChange={(e) => setPinned(e.target.value)}>
             <option value="auto">Auto</option>
             {state.players.map((p) => (
               <option key={p.player} value={p.player}>
@@ -104,11 +100,7 @@ export function MediaWidget({ widget }: WidgetViewProps) {
       ) : (
         <div className="media-body">
           <div className="media-art">
-            {shown.track?.artUrl ? (
-              <img src={shown.track.artUrl} alt="" />
-            ) : (
-              <div className="media-art-fallback">♪</div>
-            )}
+            {shown.track?.artUrl ? <img src={shown.track.artUrl} alt="" /> : <div className="media-art-fallback">♪</div>}
           </div>
 
           <div className="media-info">
@@ -126,11 +118,7 @@ export function MediaWidget({ widget }: WidgetViewProps) {
             <button className="btn sm" title="Previous" onClick={() => void command("previous")}>
               ⏮
             </button>
-            <button
-              className="btn sm"
-              title={shown.playing ? "Pause" : "Play"}
-              onClick={() => void command(toggleAction())}
-            >
+            <button className="btn sm" title={shown.playing ? "Pause" : "Play"} onClick={() => void command(toggleAction())}>
               {shown.playing ? "⏸" : "▶"}
             </button>
             <button className="btn sm" title="Next" onClick={() => void command("next")}>

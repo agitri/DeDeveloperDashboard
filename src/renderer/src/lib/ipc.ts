@@ -140,9 +140,7 @@ const MOCK_GLOBAL: Global = {
     defaultRefreshSeconds: 300,
     showShortcutHints: true,
   },
-  environments: [
-    { id: "default", name: "Default", color: "#2f6ae8", hidden: false },
-  ],
+  environments: [{ id: "default", name: "Default", color: "#2f6ae8", hidden: false }],
   activeEnvironmentId: "default",
 };
 
@@ -218,10 +216,7 @@ function mockLayout(): Layout {
         name: "Board",
         color: "#2f6ae8",
         groupId: null,
-        widgets: [
-          w("w-clock", "clock", 0, 0, 3, 4),
-          w("w-notes", "notes", 3, 0, 5, 8),
-        ],
+        widgets: [w("w-clock", "clock", 0, 0, 3, 4), w("w-notes", "notes", 3, 0, 5, 8)],
       },
       {
         id: "tab-projects",
@@ -403,10 +398,7 @@ export const ipc = {
     return call("environment_create", { id, name, color });
   },
 
-  environmentUpdate(
-    id: string,
-    patch: { name?: string; color?: string; hidden?: boolean; collapsed?: boolean },
-  ): Promise<Global> {
+  environmentUpdate(id: string, patch: { name?: string; color?: string; hidden?: boolean; collapsed?: boolean }): Promise<Global> {
     if (!isNative) {
       const g = mem.read("global", MOCK_GLOBAL);
       const e = g.environments.find((x) => x.id === id);
@@ -550,13 +542,9 @@ export const ipc = {
    * the SessionEnd hook writes, so a capture made inside Claude Code shows up
    * on the board without anyone refreshing anything.
    */
-  async onProjectChanged(
-    handler: (payload: { environmentId: string; projectId: string }) => void,
-  ): Promise<() => void> {
+  async onProjectChanged(handler: (payload: { environmentId: string; projectId: string }) => void): Promise<() => void> {
     if (!bridge) return () => {};
-    return bridge.on("ddd://project-changed", (payload) =>
-      handler(payload as { environmentId: string; projectId: string }),
-    );
+    return bridge.on("ddd://project-changed", (payload) => handler(payload as { environmentId: string; projectId: string }));
   },
 
   /**
@@ -568,10 +556,7 @@ export const ipc = {
     void call("event_log", { env, event }).catch(() => {});
   },
 
-  eventsQuery(
-    env: string,
-    opts: { since?: string; kindPrefix?: string; limit?: number } = {},
-  ): Promise<EventRow[]> {
+  eventsQuery(env: string, opts: { since?: string; kindPrefix?: string; limit?: number } = {}): Promise<EventRow[]> {
     if (!isNative) return Promise.resolve(mockEvents());
     return shared("events_query", { env, ...opts });
   },
@@ -607,9 +592,7 @@ export const ipc = {
 
   async onItemsChanged(handler: (payload: { environmentId: string }) => void): Promise<() => void> {
     if (!bridge) return () => {};
-    return bridge.on("ddd://items-changed", (payload) =>
-      handler(payload as { environmentId: string }),
-    );
+    return bridge.on("ddd://items-changed", (payload) => handler(payload as { environmentId: string }));
   },
 
   async openExternal(url: string): Promise<void> {
@@ -649,10 +632,7 @@ export const ipc = {
   aiActionsFor(env: string, itemId: string): Promise<AiActionInfo[]> {
     // The stand-in offers one, so the AI row — and the provenance control
     // beside it — can be built without a Tauri window.
-    if (!isNative)
-      return Promise.resolve([
-        { id: "thread.summarize", label: "Summarize", target: "panel" } as AiActionInfo,
-      ]);
+    if (!isNative) return Promise.resolve([{ id: "thread.summarize", label: "Summarize", target: "panel" }]);
     return call("ai_actions_for", { env, itemId });
   },
 
@@ -877,8 +857,7 @@ export const ipc = {
   },
 
   devServerProbe(address: string, port: number, http: boolean): Promise<DevProbe> {
-    if (!isNative)
-      return Promise.resolve({ health: "unknown", latencyMs: null, checkedAt: "" });
+    if (!isNative) return Promise.resolve({ health: "unknown", latencyMs: null, checkedAt: "" });
     return call("dev_server_probe", { address, port, http });
   },
 
@@ -927,9 +906,7 @@ export const ipc = {
   ): Promise<() => void> {
     if (!bridge) return () => {};
     return bridge.on("ddd://repo-progress", (payload) =>
-      handler(
-        payload as { remote: string; phase: string; percent: number; done: boolean; error?: string | null },
-      ),
+      handler(payload as { remote: string; phase: string; percent: number; done: boolean; error?: string | null }),
     );
   },
 

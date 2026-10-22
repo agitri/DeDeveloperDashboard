@@ -181,7 +181,7 @@ export function run(
         take(buffer);
         buffer = "";
         if (spawnError !== null) {
-          onProgress(failed(`could not start git: ${(spawnError as Error).message}`));
+          onProgress(failed(`could not start git: ${spawnError.message}`));
           return resolve();
         }
         if (code === 0) {

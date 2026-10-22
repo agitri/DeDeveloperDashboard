@@ -38,9 +38,7 @@ export function RepoWidget({ widget, environmentId, focused, itemIndex }: Widget
   // lives in the widget's own filter rather than touching the cache or the
   // link store. Two repo widgets can therefore show different subsets, which
   // is the point of "same source, many widgets".
-  const hidden: string[] = Array.isArray(widget.filter.hidden)
-    ? (widget.filter.hidden as string[])
-    : [];
+  const hidden: string[] = Array.isArray(widget.filter.hidden) ? (widget.filter.hidden as string[]) : [];
   const [showHidden, setShowHidden] = useState(false);
 
   // What is actually on screen, hoisted out of the JSX so the row cursor and
@@ -87,7 +85,7 @@ export function RepoWidget({ widget, environmentId, focused, itemIndex }: Widget
     } catch (e) {
       showToast(String(e));
     }
-  }, [environmentId, scope, query, showToast]);
+  }, [environmentId, scope, query, showToast, setRows]);
 
   useEffect(() => {
     void load();
@@ -140,11 +138,7 @@ export function RepoWidget({ widget, environmentId, focused, itemIndex }: Widget
             // (non-zero exit, or a checkout that finished but couldn't be
             // canonicalized) leaves a real folder behind, worth mentioning.
             const neverStarted = p.error.startsWith("could not start git:");
-            showToast(
-              neverStarted
-                ? "Clone failed — nothing was checked out"
-                : "Clone failed — the partial checkout was left in place",
-            );
+            showToast(neverStarted ? "Clone failed — nothing was checked out" : "Clone failed — the partial checkout was left in place");
           }
         }
       })
@@ -153,7 +147,8 @@ export function RepoWidget({ widget, environmentId, focused, itemIndex }: Widget
       cancelled = true;
       dispose?.();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- see loadRef comment above.
+    // See the loadRef comment above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [environmentId]);
 
   // Rows come from the cache, and the scheduler is what refreshes the
@@ -171,7 +166,6 @@ export function RepoWidget({ widget, environmentId, focused, itemIndex }: Widget
       cancelled = true;
       dispose?.();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- see loadRef comment above.
   }, [environmentId]);
 
   function setFilter(patch: Record<string, unknown>) {
@@ -317,38 +311,21 @@ export function RepoWidget({ widget, environmentId, focused, itemIndex }: Widget
     <div>
       <div className="filter-bar">
         {(["recent", "all"] as const).map((option) => (
-          <button
-            key={option}
-            className={`btn sm${scope === option ? " primary" : ""}`}
-            onClick={() => setFilter({ scope: option })}
-          >
+          <button key={option} className={`btn sm${scope === option ? " primary" : ""}`} onClick={() => setFilter({ scope: option })}>
             {option === "recent" ? "Recent" : "All"}
           </button>
         ))}
-        <input
-          className="field grow"
-          placeholder="Filter…"
-          value={queryInput}
-          onChange={(e) => setQueryInput(e.target.value)}
-        />
+        <input className="field grow" placeholder="Filter…" value={queryInput} onChange={(e) => setQueryInput(e.target.value)} />
         <button className="btn sm" onClick={() => void scan()}>
           Scan folder…
         </button>
-        <button
-          className="btn sm"
-          title="Add one checkout DDD has not found, and register it as a project"
-          onClick={() => void addLocal()}
-        >
+        <button className="btn sm" title="Add one checkout DDD has not found, and register it as a project" onClick={() => void addLocal()}>
           Add local repo…
         </button>
         {hidden.length > 0 && (
           <button
             className={`btn sm${showHidden ? " primary" : ""}`}
-            title={
-              showHidden
-                ? "Stop showing hidden repositories"
-                : "Show the repositories you have hidden, so you can bring one back"
-            }
+            title={showHidden ? "Stop showing hidden repositories" : "Show the repositories you have hidden, so you can bring one back"}
             onClick={() => setShowHidden((v) => !v)}
           >
             {hidden.length} hidden
@@ -356,167 +333,129 @@ export function RepoWidget({ widget, environmentId, focused, itemIndex }: Widget
         )}
       </div>
 
-      {capped && (
-        <div className="mono-label widget-note">
-          showing the {total} most recently pushed — there may be more
-        </div>
-      )}
+      {capped && <div className="mono-label widget-note">showing the {total} most recently pushed — there may be more</div>}
 
       <div className="rows">
-        {visible
-          .map((row, index) => {
-            const isHidden = hidden.includes(row.remote);
-            return (
-          <div
-            key={row.remote || row.nameWithOwner}
-            className={`row${isHidden ? " dimmed" : ""}${focused && index === itemIndex ? " selected" : ""}`}
-          >
-            <div className="row-main">
-              <div className="row-title">{row.nameWithOwner}</div>
-              <div className="row-sub">
-                {row.facts}
-                {row.pushedAt && (
-                  <span className="meta ink-3" title={row.pushedAt}>
-                    pushed {relative(row.pushedAt)}
-                  </span>
-                )}
-                {row.localPath && (
-                  // `path` truncates from the left: the end of a checkout path
-                  // is the part you read, and `/Users/you/Projects` is not.
-                  <span
-                    className={`meta path ${row.missing ? "tone-warn" : "tone-ok"}`}
-                    title={row.localPath}
-                  >
-                    {row.missing ? "missing · " : ""}
-                    <bdi>{row.localPath}</bdi>
-                  </span>
-                )}
-                {row.matchConfidence === "fallback" && (
-                  <span
-                    title="Matched on owner/repo only — this cannot tell one host from another"
-                    className="meta tone-warn help"
-                  >
-                    guessed
-                  </span>
-                )}
-                {progress[row.remote] && (
-                  <span className="meta ink-2">{progress[row.remote]}</span>
-                )}
+        {visible.map((row, index) => {
+          const isHidden = hidden.includes(row.remote);
+          return (
+            <div
+              key={row.remote || row.nameWithOwner}
+              className={`row${isHidden ? " dimmed" : ""}${focused && index === itemIndex ? " selected" : ""}`}
+            >
+              <div className="row-main">
+                <div className="row-title">{row.nameWithOwner}</div>
+                <div className="row-sub">
+                  {row.facts}
+                  {row.pushedAt && (
+                    <span className="meta ink-3" title={row.pushedAt}>
+                      pushed {relative(row.pushedAt)}
+                    </span>
+                  )}
+                  {row.localPath && (
+                    // `path` truncates from the left: the end of a checkout path
+                    // is the part you read, and `/Users/you/Projects` is not.
+                    <span className={`meta path ${row.missing ? "tone-warn" : "tone-ok"}`} title={row.localPath}>
+                      {row.missing ? "missing · " : ""}
+                      <bdi>{row.localPath}</bdi>
+                    </span>
+                  )}
+                  {row.matchConfidence === "fallback" && (
+                    <span title="Matched on owner/repo only — this cannot tell one host from another" className="meta tone-warn help">
+                      guessed
+                    </span>
+                  )}
+                  {progress[row.remote] && <span className="meta ink-2">{progress[row.remote]}</span>}
+                </div>
               </div>
-            </div>
-            <div className="row-actions">
-              {!row.localPath && (
-                <>
-                  <button className="btn sm" onClick={() => void map(row)}>
-                    → Map…
-                  </button>
-                  <button className="btn sm" onClick={() => void clone(row)}>
-                    ↓ Clone…
-                  </button>
-                </>
-              )}
-              {row.localPath && !row.missing && (
-                <>
-                  <button
-                    className="btn glyph sm"
-                    title="Open a terminal here and run the launch command"
-                    onClick={() => void launchIn(row.localPath!)}
-                  >
-                    {">_"}
-                  </button>
-                  <button
-                    className="btn sm"
-                    title="Open this checkout in your editor"
-                    onClick={() => void openIn(row.localPath!)}
-                  >
-                    IDE
-                  </button>
-                  <button
-                    className="btn sm"
-                    title="Watch this checkout for runtimes going out of support"
-                    onClick={() => void watch(row.localPath!, row.nameWithOwner)}
-                  >
-                    Watch
-                  </button>
-                </>
-              )}
-              {row.localPath && !row.projectId && !row.missing && (
-                <button
-                  className="btn sm"
-                  title="Register this checkout as a project"
-                  onClick={() => void registerMapped(row)}
-                >
-                  + Project
-                </button>
-              )}
-              <button
-                className="btn sm"
-                disabled={!row.localPath || row.missing}
-                title={
-                  row.localPath && !row.missing
-                    ? "Build a tab pre-filled for this repo"
-                    : "check out or add a local path first"
-                }
-                onClick={() =>
-                  row.localPath &&
-                  !row.missing &&
-                  void promote(row.localPath, row.nameWithOwner.split("/").pop() || row.nameWithOwner, row.remote)
-                }
-              >
-                Promote to tab
-              </button>
-              {row.localPath &&
-                (confirmUnlink === row.remote ? (
+              <div className="row-actions">
+                {!row.localPath && (
+                  <>
+                    <button className="btn sm" onClick={() => void map(row)}>
+                      → Map…
+                    </button>
+                    <button className="btn sm" onClick={() => void clone(row)}>
+                      ↓ Clone…
+                    </button>
+                  </>
+                )}
+                {row.localPath && !row.missing && (
                   <>
                     <button
-                      className="btn danger sm"
-                      onClick={() => void unlink(row)}
+                      className="btn glyph sm"
+                      title="Open a terminal here and run the launch command"
+                      onClick={() => void launchIn(row.localPath!)}
                     >
-                      Remove mapping
+                      {">_"}
+                    </button>
+                    <button className="btn sm" title="Open this checkout in your editor" onClick={() => void openIn(row.localPath!)}>
+                      IDE
                     </button>
                     <button
                       className="btn sm"
-                      onClick={() => setConfirmUnlink(null)}
+                      title="Watch this checkout for runtimes going out of support"
+                      onClick={() => void watch(row.localPath!, row.nameWithOwner)}
                     >
-                      Cancel
+                      Watch
                     </button>
                   </>
+                )}
+                {row.localPath && !row.projectId && !row.missing && (
+                  <button className="btn sm" title="Register this checkout as a project" onClick={() => void registerMapped(row)}>
+                    + Project
+                  </button>
+                )}
+                <button
+                  className="btn sm"
+                  disabled={!row.localPath || row.missing}
+                  title={row.localPath && !row.missing ? "Build a tab pre-filled for this repo" : "check out or add a local path first"}
+                  onClick={() =>
+                    row.localPath &&
+                    !row.missing &&
+                    void promote(row.localPath, row.nameWithOwner.split("/").pop() || row.nameWithOwner, row.remote)
+                  }
+                >
+                  Promote to tab
+                </button>
+                {row.localPath &&
+                  (confirmUnlink === row.remote ? (
+                    <>
+                      <button className="btn danger sm" onClick={() => void unlink(row)}>
+                        Remove mapping
+                      </button>
+                      <button className="btn sm" onClick={() => setConfirmUnlink(null)}>
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      className="btn sm"
+                      title="Removes the mapping only — the folder on disk is untouched"
+                      onClick={() => setConfirmUnlink(row.remote)}
+                    >
+                      Unlink…
+                    </button>
+                  ))}
+                {isHidden ? (
+                  <button className="btn sm" title="Show this repository in the list again" onClick={() => unhide(row.remote)}>
+                    Unhide
+                  </button>
                 ) : (
                   <button
                     className="btn sm"
-                    title="Removes the mapping only — the folder on disk is untouched"
-                    onClick={() => setConfirmUnlink(row.remote)}
+                    title="Remove from this list only — nothing is unlinked, deleted or unsynced"
+                    onClick={() => hide(row.remote)}
                   >
-                    Unlink…
+                    Hide
                   </button>
-                ))}
-              {isHidden ? (
-                <button
-                  className="btn sm"
-                  title="Show this repository in the list again"
-                  onClick={() => unhide(row.remote)}
-                >
-                  Unhide
+                )}
+                <button className="btn sm" onClick={() => void ipc.openExternal(row.url)}>
+                  Open
                 </button>
-              ) : (
-                <button
-                  className="btn sm"
-                  title="Remove from this list only — nothing is unlinked, deleted or unsynced"
-                  onClick={() => hide(row.remote)}
-                >
-                  Hide
-                </button>
-              )}
-              <button
-                className="btn sm"
-                onClick={() => void ipc.openExternal(row.url)}
-              >
-                Open
-              </button>
+              </div>
             </div>
-          </div>
-            );
-          })}
+          );
+        })}
       </div>
 
       {localOnly.length > 0 && (
@@ -524,17 +463,11 @@ export function RepoWidget({ widget, environmentId, focused, itemIndex }: Widget
           <div className="mono-label section-head">Local only — {localOnly.length}</div>
           <div className="rows">
             {localOnly.map((row, index) => (
-              <div
-                key={row.path}
-                className={`row${focused && visible.length + index === itemIndex ? " selected" : ""}`}
-              >
+              <div key={row.path} className={`row${focused && visible.length + index === itemIndex ? " selected" : ""}`}>
                 <div className="row-main">
                   <div className="row-title">{row.name}</div>
                   <div className="row-sub">
-                    <span
-                      className="mono-label"
-                      title={row.origin ?? "this checkout has no origin remote"}
-                    >
+                    <span className="mono-label" title={row.origin ?? "this checkout has no origin remote"}>
                       {row.originHost ?? "no remote"}
                     </span>
                     <span className={`meta ${row.missing ? "tone-warn" : "ink-3"}`}>
@@ -546,10 +479,7 @@ export function RepoWidget({ widget, environmentId, focused, itemIndex }: Widget
                 <div className="row-actions">
                   {/* No Clone — it is already here. No Map — it already is. */}
                   {!row.projectId && !row.missing && (
-                    <button
-                      className="btn sm"
-                      onClick={() => void registerLocal(row)}
-                    >
+                    <button className="btn sm" onClick={() => void registerLocal(row)}>
                       + Project
                     </button>
                   )}
@@ -571,33 +501,20 @@ export function RepoWidget({ widget, environmentId, focused, itemIndex }: Widget
                       >
                         {">_"}
                       </button>
-                      <button
-                        className="btn sm"
-                        title="Open this checkout in your editor"
-                        onClick={() => void openIn(row.path)}
-                      >
+                      <button className="btn sm" title="Open this checkout in your editor" onClick={() => void openIn(row.path)}>
                         IDE
                       </button>
-                      <button
-                        className="btn sm"
-                        onClick={() => void revealItem(row.path)}
-                      >
+                      <button className="btn sm" onClick={() => void revealItem(row.path)}>
                         Reveal
                       </button>
                     </>
                   )}
                   {confirmForget === row.path ? (
                     <>
-                      <button
-                        className="btn danger sm"
-                        onClick={() => void forget(row)}
-                      >
+                      <button className="btn danger sm" onClick={() => void forget(row)}>
                         Forget
                       </button>
-                      <button
-                        className="btn sm"
-                        onClick={() => setConfirmForget(null)}
-                      >
+                      <button className="btn sm" onClick={() => setConfirmForget(null)}>
                         Cancel
                       </button>
                     </>
@@ -622,8 +539,8 @@ export function RepoWidget({ widget, environmentId, focused, itemIndex }: Widget
           title="No repositories yet."
           body={
             <>
-              Use <b>Scan folder…</b> or <b>Add local repo…</b> to list what you already have on
-              disk — neither needs an account. Connect GitHub in Settings to see the rest.
+              Use <b>Scan folder…</b> or <b>Add local repo…</b> to list what you already have on disk — neither needs an account. Connect
+              GitHub in Settings to see the rest.
             </>
           }
         />

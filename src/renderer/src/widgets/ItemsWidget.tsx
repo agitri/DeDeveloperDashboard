@@ -31,10 +31,7 @@ export function ItemsWidget({ widget, environmentId, focused, itemIndex }: Widge
 
   // The widget's own filter, with any compiled instructions merged under it.
   // Precedence and the reasoning behind it live in one place: lib/instructions.
-  const filter = useMemo(
-    () => resolveFilter(widget.filter, presetFilterOf(widget), compiledFilterOf(widget)) as ItemFilter,
-    [widget],
-  );
+  const filter = useMemo(() => resolveFilter(widget.filter, presetFilterOf(widget), compiledFilterOf(widget)) as ItemFilter, [widget]);
 
   const load = useCallback(async () => {
     try {
@@ -47,16 +44,13 @@ export function ItemsWidget({ widget, environmentId, focused, itemIndex }: Widge
       // suddenly fills up with. Applied only to the query sent, not written
       // back into `widget.filter` — a widget explicitly scoped to `kind:
       // "repo"` (or one with its own `excludeKinds`) must not be touched.
-      const effective =
-        filter.kind == null && filter.excludeKinds == null
-          ? { ...filter, excludeKinds: ["repo"] }
-          : filter;
+      const effective = filter.kind == null && filter.excludeKinds == null ? { ...filter, excludeKinds: ["repo"] } : filter;
       setItems(await firstLoad("items", () => ipc.itemsQuery(environmentId, effective)));
       setError(null);
     } catch (e) {
       setError(String(e));
     }
-  }, [environmentId, filter]);
+  }, [environmentId, filter, setItems]);
 
   useEffect(() => {
     void load();
@@ -286,21 +280,14 @@ function ItemRow({
               onClick={() =>
                 // Outbound actions open a composer to be approved; read-only
                 // ones just happen.
-                action.outbound && action.id !== "mark_read"
-                  ? onCompose(action.id)
-                  : onPerform(action.id)
+                action.outbound && action.id !== "mark_read" ? onCompose(action.id) : onPerform(action.id)
               }
             />
           ))}
         </div>
       </div>
 
-      {showContext && (
-        <IcmPanel
-          context={context}
-          onClose={() => setShowContext(false)}
-        />
-      )}
+      {showContext && <IcmPanel context={context} onClose={() => setShowContext(false)} />}
 
       {panel && (
         <div className="item-detail">
@@ -323,11 +310,7 @@ function ItemRow({
           action={composing}
           onCancel={onCancel}
           onSubmit={(text) => onPerform(composing, text)}
-          onDraft={
-            aiActions.some((a) => a.target === "composer")
-              ? () => ipc.aiDraft(environmentId, item.id, "mail.draft")
-              : undefined
-          }
+          onDraft={aiActions.some((a) => a.target === "composer") ? () => ipc.aiDraft(environmentId, item.id, "mail.draft") : undefined}
         />
       )}
     </div>
@@ -354,15 +337,13 @@ function IcmPanel({ context, onClose }: { context: AiContext | null; onClose: ()
 
       {!plan ? (
         <div className="ink-2">
-          This item is not matched to a project on disk, so an action gets the item and
-          nothing else. Map its repository to a checkout and its <code>.ddd/icm/</code> is
-          read from then on.
+          This item is not matched to a project on disk, so an action gets the item and nothing else. Map its repository to a checkout and
+          its <code>.ddd/icm/</code> is read from then on.
         </div>
       ) : plan.missing ? (
         <div className="ink-2">
-          <b>{context.project}</b> has no <code>.ddd/icm/</code> folder, so an action gets the
-          item and nothing else. Anything you write there — conventions, architecture, what you
-          are in the middle of — is read on every action.
+          <b>{context.project}</b> has no <code>.ddd/icm/</code> folder, so an action gets the item and nothing else. Anything you write
+          there — conventions, architecture, what you are in the middle of — is read on every action.
         </div>
       ) : plan.files.length === 0 ? (
         <div className="ink-2">
@@ -374,20 +355,13 @@ function IcmPanel({ context, onClose }: { context: AiContext | null; onClose: ()
             <div key={file.path} className="row-sub">
               <span className="ink-2 finding-name">{file.name}</span>
               <span className="meta ink-3">
-                {file.truncated
-                  ? `${format(file.used)} of ${format(file.bytes)} — clipped`
-                  : format(file.bytes)}
+                {file.truncated ? `${format(file.used)} of ${format(file.bytes)} — clipped` : format(file.bytes)}
               </span>
             </div>
           ))}
-          {plan.skipped.length > 0 && (
-            <div className="tone-warn">
-              past the budget, not read: {plan.skipped.join(", ")}
-            </div>
-          )}
+          {plan.skipped.length > 0 && <div className="tone-warn">past the budget, not read: {plan.skipped.join(", ")}</div>}
           <div className="mono-label">
-            {format(plan.totalUsed)} of {format(plan.budget)} budget · sent with every action on
-            this item
+            {format(plan.totalUsed)} of {format(plan.budget)} budget · sent with every action on this item
           </div>
         </>
       )}
@@ -519,11 +493,7 @@ function Composer({
         }}
       />
       <div className="button-row">
-        <button
-          className="btn primary"
-          disabled={needsText && !text.trim()}
-          onClick={() => onSubmit(text)}
-        >
+        <button className="btn primary" disabled={needsText && !text.trim()} onClick={() => onSubmit(text)}>
           Send {action}
         </button>
         <button className="btn" onClick={onCancel}>
@@ -534,9 +504,7 @@ function Composer({
             {drafting ? "Drafting…" : "Draft with AI"}
           </button>
         )}
-        <span className="mono-label">
-          {provenance ?? "⌘↩ to send · esc to cancel"}
-        </span>
+        <span className="mono-label">{provenance ?? "⌘↩ to send · esc to cancel"}</span>
       </div>
     </div>
   );

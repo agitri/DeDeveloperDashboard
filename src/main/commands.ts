@@ -71,7 +71,10 @@ import * as modelScan from "../core/models/scan";
 import * as modelMove from "../core/models/move";
 import type { Item, ItemFilter, Product, Settings } from "../core/models";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// Arguments arrive over IPC untyped and every handler coerces what it reads
+// (`String(id)`, `Number(value)`), so the `any` is the honest type here and
+// the unsafe-* rules are silenced for this file rather than at each site.
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-assignment */
 export type Handler = (args: Record<string, any>) => unknown;
 
 /** What the stateful commands need from the host. Main builds one of these;
@@ -217,8 +220,7 @@ function specFromItem(item: Item, settings: Settings): EventSpec | null {
     for (const r of item.refs) if (r.startsWith(prefix)) return r.slice(prefix.length);
     return null;
   };
-  const all = (prefix: string): string[] =>
-    item.refs.filter((r) => r.startsWith(prefix)).map((r) => r.slice(prefix.length));
+  const all = (prefix: string): string[] => item.refs.filter((r) => r.startsWith(prefix)).map((r) => r.slice(prefix.length));
 
   const connection = settings.connections.find((c) => c.id === item.connectionId);
 
@@ -395,8 +397,7 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
     global_appearance_save: ({ appearance }) => globalAppearanceSave(appearanceRequired(appearance)),
     global_wizard_save: ({ completed, step }) => globalWizardSave(Boolean(completed), Number(step ?? 0)),
     environment_create: ({ id, name, color }) => environmentCreate(id, name, color),
-    environment_update: ({ id, name, color, hidden, collapsed }) =>
-      environmentUpdate(id, { name, color, hidden, collapsed }),
+    environment_update: ({ id, name, color, hidden, collapsed }) => environmentUpdate(id, { name, color, hidden, collapsed }),
     environment_set_active: ({ id }) => environmentSetActive(id),
     environment_delete: ({ id }) => environmentDelete(id),
 
@@ -412,8 +413,7 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
 
     // --- events ---
     event_log: ({ env, event }) => events.eventLog(root(env), event),
-    events_query: ({ env, since, kindPrefix, limit }) =>
-      events.query(root(env), { since, kindPrefix, limit: limit ?? 500 }),
+    events_query: ({ env, since, kindPrefix, limit }) => events.query(root(env), { since, kindPrefix, limit: limit ?? 500 }),
     events_clear: ({ env }) => events.clear(root(env)),
 
     // --- secrets: set, status, delete. Never get. ---
@@ -705,8 +705,7 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
     calendar_event_save: async ({ env, event }) => {
       const r = root(env);
       const parsed = calendar.localEventFromJson(event);
-      const withId =
-        parsed.id.trim() === "" ? { ...parsed, id: `ev-${uuidIsh()}` } : parsed;
+      const withId = parsed.id.trim() === "" ? { ...parsed, id: `ev-${uuidIsh()}` } : parsed;
       return calendar.upsert(r, withId);
     },
 
@@ -851,7 +850,8 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
         // evicted the next time the scan walked past the original checkout.
         // Remote alone is not enough either, since a remote-less checkout has no
         // remote to check by.
-        if (stored.links.some((l) => l.source === "manual" && (l.path === canonical || (normalized !== null && l.remote === normalized)))) continue;
+        if (stored.links.some((l) => l.source === "manual" && (l.path === canonical || (normalized !== null && l.remote === normalized))))
+          continue;
         // Hold both store invariants inline: one record per path, one per
         // non-null remote.
         stored.links = stored.links.filter((l) => l.path !== canonical && !(normalized !== null && l.remote === normalized));
@@ -931,7 +931,13 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
       const target = clone.prepare(String(parentDir), String(remote));
       void clone
         .run(r, String(remote), String(cloneUrl), target, (p: clone.Progress) => {
-          deps.emit.emit("ddd://repo-progress", { remote: String(remote), phase: p.phase, percent: p.percent, done: p.done, error: p.error });
+          deps.emit.emit("ddd://repo-progress", {
+            remote: String(remote),
+            phase: p.phase,
+            percent: p.percent,
+            done: p.done,
+            error: p.error,
+          });
         })
         .catch(() => {
           // `run` reports its own failures as a final tick; this only catches a
@@ -1083,8 +1089,7 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
 
     /** Approve exactly what the caller is looking at — the command and directory
      *  passed, not a re-read of a file that may have changed since the render. */
-    product_approve: ({ env, key, run, dir }) =>
-      supervise.approve(root(env), String(key), String(run), String(dir)),
+    product_approve: ({ env, key, run, dir }) => supervise.approve(root(env), String(key), String(run), String(dir)),
     product_revoke: ({ env, key }) => supervise.revoke(root(env), String(key)),
 
     /** Start a product. Refuses unless this exact command has been approved. */
@@ -1176,11 +1181,7 @@ export function createCommands(deps: CommandDeps): Record<string, Handler> {
     /** Play/pause, skip, or set volume on one player. nodeDDD-only: there is
      *  no Rust counterpart. */
     media_command: async ({ player, action, value }) => {
-      await mediaControl.command(
-        String(player),
-        action as mediaControl.MediaAction,
-        value === undefined ? undefined : Number(value),
-      );
+      await mediaControl.command(String(player), action as mediaControl.MediaAction, value === undefined ? undefined : Number(value));
     },
 
     // --- local models: what the runtimes downloaded, and moving one out ---

@@ -16,7 +16,7 @@ function fakeFetch(reply: (url: string, init?: RequestInit) => Response | Promis
 
 function timeoutError(): Error {
   // What `AbortSignal.timeout(ms)` aborts with, and what `check` looks for.
-  return new DOMException("The operation was aborted due to timeout", "TimeoutError") as unknown as Error;
+  return new DOMException("The operation was aborted due to timeout", "TimeoutError");
 }
 
 describe("is the thing at that URL still answering", () => {
@@ -84,9 +84,7 @@ describe("is the thing at that URL still answering", () => {
     expect(short("plain")).toBe("plain");
     // A reqwest-shaped message is not special-cased any more: it truncates at
     // its own first colon, same as anything else.
-    expect(short(new Error("error sending request for url (https://x): connection refused"))).toBe(
-      "error sending request for url (https",
-    );
+    expect(short(new Error("error sending request for url (https://x): connection refused"))).toBe("error sending request for url (https");
   });
 
   it("a real socket answers and a dead port does not", async () => {

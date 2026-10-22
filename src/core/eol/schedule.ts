@@ -32,8 +32,18 @@ export const TTL_SECONDS = 7 * 24 * 60 * 60;
  * arbitrary URLs.
  */
 export const PRODUCTS: readonly string[] = [
-  "php", "nodejs", "symfony", "laravel", "python", "django", "ruby", "rails", "go", "rust",
-  "nextjs", "dotnet",
+  "php",
+  "nodejs",
+  "symfony",
+  "laravel",
+  "python",
+  "django",
+  "ruby",
+  "rails",
+  "go",
+  "rust",
+  "nextjs",
+  "dotnet",
 ];
 
 export function isKnownProduct(product: string): boolean {
@@ -82,10 +92,10 @@ export function entryFromJson(raw: unknown): Entry {
 export function cacheFromJson(raw: unknown): Cache {
   const o = record(raw, "an eol cache");
   const products: Record<string, Entry> = {};
-  for (const [product, value] of Object.entries(optional(o, "products", isPlainRecord, {} as Record<string, unknown>))) {
+  for (const [product, value] of Object.entries(optional(o, "products", isPlainRecord, {}))) {
     products[product] = entryFromJson(value);
   }
-  return { products, live: checksFromJson(optional(o, "live", isPlainRecord, {} as Record<string, unknown>)) };
+  return { products, live: checksFromJson(optional(o, "live", isPlainRecord, {})) };
 }
 
 export function load(env: EnvRoot): Cache {
@@ -149,12 +159,7 @@ export function ageDays(entry: Entry, now: string): number | null {
  * **A failed fetch never empties an entry.** Offline with week-old dates is a
  * working widget; offline with no dates is a broken one.
  */
-export async function refresh(
-  fetch: typeof globalThis.fetch,
-  cache: Cache,
-  wanted: string[],
-  now: string,
-): Promise<string[]> {
+export async function refresh(fetch: typeof globalThis.fetch, cache: Cache, wanted: string[], now: string): Promise<string[]> {
   return refreshFrom(API, fetch, cache, wanted, now);
 }
 
@@ -172,7 +177,7 @@ export async function refreshFrom(
     if (existing !== undefined && isFresh(existing, now)) continue;
     const url = urlForBase(base, product);
     if (url === null) continue;
-    let cycles: Cycle[] | null = null;
+    let cycles: Cycle[] | null;
     try {
       cycles = await fetchOne(fetch, url);
     } catch {

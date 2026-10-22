@@ -71,7 +71,7 @@ export function EolWidget({ widget, environmentId, focused, itemIndex }: WidgetV
     } catch (e) {
       setError(String(e));
     }
-  }, [environmentId]);
+  }, [environmentId, setRows]);
 
   useEffect(() => {
     void load();
@@ -121,24 +121,16 @@ export function EolWidget({ widget, environmentId, focused, itemIndex }: WidgetV
   return (
     <div>
       <div className="filter-bar">
-        <span className={rows.some((r) => r.worst.state === "ended") ? "tone-err" : "ink-2"}>
-          {loaded ? headline(rows) : "…"}
-        </span>
+        <span className={rows.some((r) => r.worst.state === "ended") ? "tone-err" : "ink-2"}>{loaded ? headline(rows) : "…"}</span>
         <button className="btn sm end" disabled={adding} onClick={() => void assign()}>
           Watch a repo…
         </button>
       </div>
 
-      {error && (
-        <div className="mono-label widget-note warn">
-          {error}
-        </div>
-      )}
+      {error && <div className="mono-label widget-note warn">{error}</div>}
 
       {stale.length > 0 && (
-        <div className="mono-label widget-note">
-          could not refresh {stale.join(", ")} — showing the dates already on this machine
-        </div>
+        <div className="mono-label widget-note">could not refresh {stale.join(", ")} — showing the dates already on this machine</div>
       )}
 
       <div className="rows">
@@ -186,9 +178,7 @@ export function EolWidget({ widget, environmentId, focused, itemIndex }: WidgetV
                       title={b.title}
                     />
                     {!row.unreadable && (
-                      <span className="meta ink-3">
-                        {row.findings.map((f) => `${f.product} ${f.cycle}`).join(" · ")}
-                      </span>
+                      <span className="meta ink-3">{row.findings.map((f) => `${f.product} ${f.cycle}`).join(" · ")}</span>
                     )}
                     {age && <span className="meta ink-3">{age}</span>}
                     {row.note && <span className="meta ink-3">{row.note}</span>}
@@ -196,11 +186,7 @@ export function EolWidget({ widget, environmentId, focused, itemIndex }: WidgetV
                 </div>
                 <div className="row-actions">
                   {row.url && (
-                    <button
-                      className="btn sm"
-                      title={row.url}
-                      onClick={() => void ipc.openExternal(row.url!)}
-                    >
+                    <button className="btn sm" title={row.url} onClick={() => void ipc.openExternal(row.url!)}>
                       Open
                     </button>
                   )}
@@ -255,16 +241,11 @@ export function EolWidget({ widget, environmentId, focused, itemIndex }: WidgetV
                         <span className="meta">
                           <Status state={verdictState(f.support.state)} label={fb.label} title={fb.title} />
                         </span>
-                        <span
-                          className="meta ink-3"
-                          title={`${f.raw} — ${confidenceNote(f)}`}
-                        >
+                        <span className="meta ink-3" title={`${f.raw} — ${confidenceNote(f)}`}>
                           {sources(f)}
                           {f.confidence !== "exact" && ` · ${confidenceNote(f)}`}
                         </span>
-                        {showLatest && f.latest && (
-                          <span className="meta ink-3">newest {f.latest}</span>
-                        )}
+                        {showLatest && f.latest && <span className="meta ink-3">newest {f.latest}</span>}
                       </div>
                     );
                   })}

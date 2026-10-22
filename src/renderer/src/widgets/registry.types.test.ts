@@ -37,7 +37,7 @@ describe("WidgetPreset is discriminated on kind", () => {
     // A clock has no slice to take, so `filter?: undefined` rejects the whole
     // literal rather than the one property — hence the directive sits on the
     // declaration here and on the property above.
-    // @ts-expect-error
+    // @ts-expect-error -- a clock preset must not carry a filter
     const clock: WidgetPreset = {
       id: "c",
       name: "C",

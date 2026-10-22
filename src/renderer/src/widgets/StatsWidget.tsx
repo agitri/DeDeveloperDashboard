@@ -34,7 +34,7 @@ export function StatsWidget({ environmentId }: WidgetViewProps) {
     } finally {
       setLoaded(true);
     }
-  }, [environmentId]);
+  }, [environmentId, setRows]);
 
   useEffect(() => {
     void load();
@@ -47,8 +47,7 @@ export function StatsWidget({ environmentId }: WidgetViewProps) {
   if (loaded && rows.length === 0) {
     return (
       <div className="widget-blank ink-3">
-        Nothing logged yet in the last {WINDOW_DAYS} days. The events table fills itself as you
-        use the board — switch a tab and come back.
+        Nothing logged yet in the last {WINDOW_DAYS} days. The events table fills itself as you use the board — switch a tab and come back.
       </div>
     );
   }
@@ -58,11 +57,7 @@ export function StatsWidget({ environmentId }: WidgetViewProps) {
       <Hero
         value={stats.spend > 0 ? `$${(stats.spend / 1_000_000).toFixed(2)}` : "$0.00"}
         label={`AI spend · last ${WINDOW_DAYS} days`}
-        detail={
-          stats.localShare !== null
-            ? `${Math.round(stats.localShare * 100)}% of AI actions ran locally`
-            : "no AI actions yet"
-        }
+        detail={stats.localShare !== null ? `${Math.round(stats.localShare * 100)}% of AI actions ran locally` : "no AI actions yet"}
       />
 
       {/* Dividers are drawn on the tiles, not as a gap over a coloured
@@ -78,11 +73,7 @@ export function StatsWidget({ environmentId }: WidgetViewProps) {
         <Tile label="Syncs" value={stats.syncs} />
       </div>
 
-      <BarChart
-        title="Activity per day"
-        series={stats.perDayActivity}
-        format={(n) => `${n} event${n === 1 ? "" : "s"}`}
-      />
+      <BarChart title="Activity per day" series={stats.perDayActivity} format={(n) => `${n} event${n === 1 ? "" : "s"}`} />
       <BarChart
         title="AI spend per day"
         series={stats.perDaySpend}
@@ -229,9 +220,7 @@ function BarChart({
         <span className="mono-label">{title}</span>
         <span className="grow" />
         <span className="chart-figure">
-          {hover !== null
-            ? `${series[hover]!.day.slice(5)} · ${format(series[hover]!.value)}`
-            : `peak ${format(max)}`}
+          {hover !== null ? `${series[hover]!.day.slice(5)} · ${format(series[hover]!.value)}` : `peak ${format(max)}`}
         </span>
       </div>
 
@@ -239,59 +228,59 @@ function BarChart({
         <div className="chart-caption">{emptyNote}</div>
       ) : (
         <div className="stat-chart">
-        <svg
-          viewBox={`0 0 ${width} ${height}`}
-          preserveAspectRatio="none"
-          style={{ width: "100%", height, display: "block" }}
-          role="img"
-          aria-label={`${title}. ${series.map((p) => `${p.day}: ${format(p.value)}`).join(", ")}`}
-          onMouseLeave={() => setHover(null)}
-        >
-          {/* Baseline only — a full grid would compete with 14 thin marks. */}
-          <line
-            x1={0}
-            y1={height - 0.5}
-            x2={width}
-            y2={height - 0.5}
-            stroke="var(--line)"
-            strokeWidth={1}
-            vectorEffect="non-scaling-stroke"
-          />
-          {series.map((point, index) => {
-            const barHeight = point.value === 0 ? 0 : Math.max((point.value / max) * (height - 6), 2);
-            const x = index * slot + (slot - barWidth) / 2;
-            return (
-              <g key={point.day}>
-                <rect
-                  x={x}
-                  y={height - barHeight}
-                  width={barWidth}
-                  height={barHeight}
-                  rx={1.2}
-                  // The newest day is the environment colour at full strength;
-                  // the rest are a mix. Set as a class so the stylesheet owns
-                  // the palette rather than the component.
-                  className={`bar${index === series.length - 1 ? " today" : ""}`}
-                  opacity={hover === null || hover === index ? 1 : 0.45}
-                />
-                {/* Hit target spans the full slot and the full height, so a
+          <svg
+            viewBox={`0 0 ${width} ${height}`}
+            preserveAspectRatio="none"
+            style={{ width: "100%", height, display: "block" }}
+            role="img"
+            aria-label={`${title}. ${series.map((p) => `${p.day}: ${format(p.value)}`).join(", ")}`}
+            onMouseLeave={() => setHover(null)}
+          >
+            {/* Baseline only — a full grid would compete with 14 thin marks. */}
+            <line
+              x1={0}
+              y1={height - 0.5}
+              x2={width}
+              y2={height - 0.5}
+              stroke="var(--line)"
+              strokeWidth={1}
+              vectorEffect="non-scaling-stroke"
+            />
+            {series.map((point, index) => {
+              const barHeight = point.value === 0 ? 0 : Math.max((point.value / max) * (height - 6), 2);
+              const x = index * slot + (slot - barWidth) / 2;
+              return (
+                <g key={point.day}>
+                  <rect
+                    x={x}
+                    y={height - barHeight}
+                    width={barWidth}
+                    height={barHeight}
+                    rx={1.2}
+                    // The newest day is the environment colour at full strength;
+                    // the rest are a mix. Set as a class so the stylesheet owns
+                    // the palette rather than the component.
+                    className={`bar${index === series.length - 1 ? " today" : ""}`}
+                    opacity={hover === null || hover === index ? 1 : 0.45}
+                  />
+                  {/* Hit target spans the full slot and the full height, so a
                     zero-value day is still hoverable. It carries a class rather
                     than only `fill="transparent"`: a stylesheet rule on `rect`
                     beats a presentation attribute, so styling the bars from CSS
                     turned every hit target into a solid block. */}
-                <rect
-                  className="hit"
-                  x={index * slot}
-                  y={0}
-                  width={slot}
-                  height={height}
-                  fill="transparent"
-                  onMouseEnter={() => setHover(index)}
-                />
-              </g>
-            );
-          })}
-        </svg>
+                  <rect
+                    className="hit"
+                    x={index * slot}
+                    y={0}
+                    width={slot}
+                    height={height}
+                    fill="transparent"
+                    onMouseEnter={() => setHover(index)}
+                  />
+                </g>
+              );
+            })}
+          </svg>
         </div>
       )}
     </div>

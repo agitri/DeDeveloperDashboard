@@ -152,7 +152,7 @@ async function mail(cx: FetchContext, me: string, replied: Set<string>): Promise
       // The Rust does not status-check these: `.ok()?` only drops a transport
       // failure or a body that is not JSON.
       const response = await cx.fetch(metadataUrl, { method: "GET", headers: { authorization: `Bearer ${cx.token}` } });
-      return (await response.json()) as unknown;
+      return await response.json();
     } catch {
       return null;
     }
@@ -170,7 +170,7 @@ async function mail(cx: FetchContext, me: string, replied: Set<string>): Promise
 export function header(message: unknown, name: string): string | null {
   const list = at(message, "payload.headers");
   if (!Array.isArray(list)) return null;
-  const found = list.find((h) => {
+  const found: unknown = list.find((h: unknown) => {
     const n = str(at(h, "name"));
     return n !== null && eqIgnoreAsciiCase(n, name);
   });
@@ -304,7 +304,10 @@ async function modify(cx: FetchContext, id: string, body: unknown): Promise<unkn
  *  through `item_action`, which a human has to press. The draft is a proposal
  *  until then. */
 async function reply(cx: FetchContext, item: Item, id: string, body: string): Promise<string> {
-  const message = await get(cx, `${GMAIL}/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Message-ID`);
+  const message = await get(
+    cx,
+    `${GMAIL}/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Message-ID`,
+  );
 
   const to = header(message, "From") ?? "";
   const original = header(message, "Subject") ?? "";

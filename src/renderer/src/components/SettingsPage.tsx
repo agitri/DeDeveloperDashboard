@@ -7,15 +7,7 @@ import { SCALE_MAX, SCALE_MIN, SCHEMES, clampScale, hintAttr } from "../lib/appe
 import { useStore } from "../state/store";
 import { ENV_COLORS } from "../lib/palette";
 import { useUi } from "../state/ui";
-import type {
-  McpReport,
-  AppearanceSettings,
-  Connection,
-  Environment,
-  FoundApp,
-  PathsInfo,
-  Settings,
-} from "../types";
+import type { McpReport, AppearanceSettings, Connection, Environment, FoundApp, PathsInfo, Settings } from "../types";
 
 /**
  * For a local-first app the settings page *is* the onboarding — there is no
@@ -44,9 +36,7 @@ const ENV_PANELS = [
   { id: "data", label: "Data" },
 ] as const;
 
-const PANELS = [...GLOBAL_PANELS, ...ENV_PANELS];
-
-type PanelId = (typeof PANELS)[number]["id"];
+type PanelId = (typeof GLOBAL_PANELS | typeof ENV_PANELS)[number]["id"];
 
 export function SettingsPage({ keymap }: { keymap: Record<string, string[]> }) {
   // The panel lives in UI state so the palette can deep-link straight into one.
@@ -70,11 +60,7 @@ export function SettingsPage({ keymap }: { keymap: Record<string, string[]> }) {
       <nav className="settings-nav">
         <div className="mono-label nav-head">This app</div>
         {GLOBAL_PANELS.map((p) => (
-          <button
-            key={p.id}
-            className={panel === p.id ? "active" : ""}
-            onClick={() => setPanel(p.id)}
-          >
+          <button key={p.id} className={panel === p.id ? "active" : ""} onClick={() => setPanel(p.id)}>
             {p.label}
           </button>
         ))}
@@ -84,11 +70,7 @@ export function SettingsPage({ keymap }: { keymap: Record<string, string[]> }) {
           {environment?.name ?? envId}
         </div>
         {ENV_PANELS.map((p) => (
-          <button
-            key={p.id}
-            className={panel === p.id ? "active" : ""}
-            onClick={() => setPanel(p.id)}
-          >
+          <button key={p.id} className={panel === p.id ? "active" : ""} onClick={() => setPanel(p.id)}>
             {p.label}
           </button>
         ))}
@@ -109,15 +91,7 @@ export function SettingsPage({ keymap }: { keymap: Record<string, string[]> }) {
 
 type PatchFn = (update: (draft: Settings) => Settings) => void;
 
-function Row({
-  label,
-  desc,
-  children,
-}: {
-  label: string;
-  desc?: string;
-  children: React.ReactNode;
-}) {
+function Row({ label, desc, children }: { label: string; desc?: string; children: React.ReactNode }) {
   return (
     <div className="setting-row">
       <div>
@@ -163,9 +137,7 @@ function EnvironmentsPanel({ activeId }: { activeId: string }) {
   // switching panels and coming back does not re-scroll.
   useEffect(() => {
     if (!anchor) return;
-    document
-      .querySelector<HTMLElement>(`[data-env-card="${anchor}"]`)
-      ?.scrollIntoView({ block: "center", behavior: "smooth" });
+    document.querySelector<HTMLElement>(`[data-env-card="${anchor}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" });
     setFlashId(anchor);
     clearAnchor();
   }, [anchor, clearAnchor]);
@@ -209,11 +181,9 @@ function EnvironmentsPanel({ activeId }: { activeId: string }) {
     <>
       <h1>Environments</h1>
       <p className="lede">
-        A wall, not a filter. Each environment owns its own projects, connections, keys, stats
-        and tabs, on disk and in the keychain — your employer's tokens and your personal mail
-        never touch. There is no profile to switch into: every environment is connected at once
-        and shows up as a coloured group in the tab strip, so clicking a tab <em>is</em> the
-        switch.
+        A wall, not a filter. Each environment owns its own projects, connections, keys, stats and tabs, on disk and in the keychain — your
+        employer's tokens and your personal mail never touch. There is no profile to switch into: every environment is connected at once and
+        shows up as a coloured group in the tab strip, so clicking a tab <em>is</em> the switch.
       </p>
 
       {environments.map((env) => (
@@ -263,8 +233,8 @@ function EnvironmentsPanel({ activeId }: { activeId: string }) {
       </div>
 
       <div className="note">
-        A new environment starts with its own empty board. Nothing is copied across — use
-        Appearance → layout export/import when you deliberately want the same setup in both.
+        A new environment starts with its own empty board. Nothing is copied across — use Appearance → layout export/import when you
+        deliberately want the same setup in both.
       </div>
     </>
   );
@@ -303,11 +273,7 @@ function EnvironmentCard({
   const [color, setColor] = useState(env.color);
 
   return (
-    <div
-      className={`card${flash ? " flash" : ""}`}
-      data-env-card={env.id}
-      onAnimationEnd={onFlashEnd}
-    >
+    <div className={`card${flash ? " flash" : ""}`} data-env-card={env.id} onAnimationEnd={onFlashEnd}>
       <div className="card-head">
         <i className="env-dot" style={{ ["--env" as string]: color, marginRight: 4 }} />
         <div className="grow">
@@ -357,24 +323,14 @@ function EnvironmentCard({
             />
           ))}
         </Row>
-        <Row
-          label="Focus mode"
-          desc="Hide its tab group entirely. A visibility toggle — nothing is deleted, nothing stops syncing."
-        >
-          <input
-            type="checkbox"
-            checked={env.hidden}
-            onChange={(e) => onPatch({ hidden: e.target.checked })}
-          />
+        <Row label="Focus mode" desc="Hide its tab group entirely. A visibility toggle — nothing is deleted, nothing stops syncing.">
+          <input type="checkbox" checked={env.hidden} onChange={(e) => onPatch({ hidden: e.target.checked })} />
           <span className="mono-label">{env.hidden ? "hidden" : "visible"}</span>
         </Row>
         <Row label="Directory">
           <span className="pathline">~/.ddd/environments/{env.id}/</span>
         </Row>
-        <Row
-          label="Delete"
-          desc="Removes its directory, its tabs and every keychain entry its connections own."
-        >
+        <Row label="Delete" desc="Removes its directory, its tabs and every keychain entry its connections own.">
           {onlyOne ? (
             <span className="mono-label">the last environment cannot be deleted</span>
           ) : confirming ? (
@@ -556,15 +512,7 @@ const PROVIDERS: {
  * Nothing here can start a process — approval is a record, and only a sync
  * spawns anything.
  */
-function McpPanel({
-  connection,
-  patch,
-  envId,
-}: {
-  connection: Connection;
-  patch: PatchFn;
-  envId: string;
-}) {
+function McpPanel({ connection, patch, envId }: { connection: Connection; patch: PatchFn; envId: string }) {
   const [typed, setTyped] = useState("");
   const [report, setReport] = useState<McpReport | null>(null);
   const [busy, setBusy] = useState(false);
@@ -668,7 +616,10 @@ function McpPanel({
             <span className="mono-label">{report.skippedForModels}</span>
           </Row>
           {report.tools.length > 0 && (
-            <Row label="Tools" desc="Discovered and listed. Not callable in this version — when they arrive they become item actions, behind the same approval gate as everything else that sends something outward.">
+            <Row
+              label="Tools"
+              desc="Discovered and listed. Not callable in this version — when they arrive they become item actions, behind the same approval gate as everything else that sends something outward."
+            >
               <span className="mono-label" style={{ color: "var(--ink-3)" }}>
                 {report.tools.map((t) => t.name).join(" · ")}
               </span>
@@ -693,26 +644,18 @@ function McpPanel({
   );
 }
 
-function ConnectionsPanel({
-  settings,
-  patch,
-  envId,
-}: {
-  settings: Settings;
-  patch: PatchFn;
-  envId: string;
-}) {
+function ConnectionsPanel({ settings, patch, envId }: { settings: Settings; patch: PatchFn; envId: string }) {
   const showToast = useUi((s) => s.showToast);
   const [secretPresent, setSecretPresent] = useState<Record<string, boolean>>({});
   const [editing, setEditing] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    void Promise.all(
-      settings.connections.map(async (c) => [c.id, await ipc.secretExists(envId, c.id).catch(() => false)] as const),
-    ).then((pairs) => {
-      if (!cancelled) setSecretPresent(Object.fromEntries(pairs));
-    });
+    void Promise.all(settings.connections.map(async (c) => [c.id, await ipc.secretExists(envId, c.id).catch(() => false)] as const)).then(
+      (pairs) => {
+        if (!cancelled) setSecretPresent(Object.fromEntries(pairs));
+      },
+    );
     return () => {
       cancelled = true;
     };
@@ -763,15 +706,15 @@ function ConnectionsPanel({
     <>
       <h1>Connections</h1>
       <p className="lede">
-        Connections are account-scoped and belong to exactly one environment, so work GitHub and
-        personal GitHub can both be connected without either seeing the other. Tokens live in the
-        OS keychain under <code>ddd:{envId}</code> — this page shows status, never secrets.
+        Connections are account-scoped and belong to exactly one environment, so work GitHub and personal GitHub can both be connected
+        without either seeing the other. Tokens live in the OS keychain under <code>ddd:{envId}</code> — this page shows status, never
+        secrets.
       </p>
 
       {settings.connections.length === 0 && (
         <div className="note" style={{ marginBottom: 16 }}>
-          Nothing connected yet in this environment. Adding a card below creates the connection
-          record; OAuth device-code flows arrive with each adapter's phase.
+          Nothing connected yet in this environment. Adding a card below creates the connection record; OAuth device-code flows arrive with
+          each adapter's phase.
         </div>
       )}
 
@@ -801,14 +744,9 @@ function ConnectionsPanel({
                 {secretPresent[connection.id] ? "Reconnect" : "Connect"}
               </button>
             ) : (
-              <button
-                className="btn"
-                onClick={() => setEditing(editing === connection.id ? null : connection.id)}
-              >
+              <button className="btn" onClick={() => setEditing(editing === connection.id ? null : connection.id)}>
                 {(() => {
-                  const what = (
-                    PROVIDERS.find((p) => p.id === connection.provider)?.secretLabel ?? "token"
-                  ).toLowerCase();
+                  const what = (PROVIDERS.find((p) => p.id === connection.provider)?.secretLabel ?? "token").toLowerCase();
                   return `${secretPresent[connection.id] ? "Replace" : "Set"} ${what}`;
                 })()}
               </button>
@@ -819,23 +757,16 @@ function ConnectionsPanel({
           </div>
           <div className="card-body">
             {PROVIDERS.find((p) => p.id === connection.provider)?.adminNeeded && (
-              <div className="admin-note">
-                {PROVIDERS.find((p) => p.id === connection.provider)!.adminNeeded}
-              </div>
+              <div className="admin-note">{PROVIDERS.find((p) => p.id === connection.provider)!.adminNeeded}</div>
             )}
             {editing === connection.id && (
               <TokenField
-                label={
-                  PROVIDERS.find((p) => p.id === connection.provider)?.secretLabel ??
-                  connection.label
-                }
+                label={PROVIDERS.find((p) => p.id === connection.provider)?.secretLabel ?? connection.label}
                 onCancel={() => setEditing(null)}
                 onSave={(token) => void storeToken(connection, token)}
               />
             )}
-            {connection.provider === "mcp" && (
-              <McpPanel connection={connection} patch={patch} envId={envId} />
-            )}
+            {connection.provider === "mcp" && <McpPanel connection={connection} patch={patch} envId={envId} />}
             {(PROVIDERS.find((p) => p.id === connection.provider)?.fields ?? []).map((field) => (
               <Row key={field.key} label={field.label}>
                 <input
@@ -854,20 +785,13 @@ function ConnectionsPanel({
               </Row>
             ))}
             <Row label="Keychain" desc="Whether a credential exists for this connection.">
-              <span className="mono-label">
-                {secretPresent[connection.id] ? "present" : "empty"}
-              </span>
+              <span className="mono-label">{secretPresent[connection.id] ? "present" : "empty"}</span>
             </Row>
             <Row label="Scopes" desc="Shown in full so self-hosters can see exactly what is asked for.">
               <span className="pathline">{connection.scopes.join(" · ") || "—"}</span>
             </Row>
-            <Row
-              label="Last sync"
-              desc={connection.error ?? "The scheduler refreshes on the interval set in Appearance."}
-            >
-              <span className="mono-label">
-                {connection.lastSyncAt ? new Date(connection.lastSyncAt).toLocaleString() : "never"}
-              </span>
+            <Row label="Last sync" desc={connection.error ?? "The scheduler refreshes on the interval set in Appearance."}>
+              <span className="mono-label">{connection.lastSyncAt ? new Date(connection.lastSyncAt).toLocaleString() : "never"}</span>
               <button
                 className="btn"
                 onClick={() => {
@@ -890,11 +814,7 @@ function ConnectionsPanel({
       <div className="card">
         <div className="card-body">
           {PROVIDERS.map((p) => (
-            <Row
-              key={p.id}
-              label={p.label}
-              desc={p.ready ? "Adapter is in." : `Adapter lands in ${p.phase}.`}
-            >
+            <Row key={p.id} label={p.label} desc={p.ready ? "Adapter is in." : `Adapter lands in ${p.phase}.`}>
               {p.adminNeeded && (
                 <span className="admin-flag" title={p.adminNeeded}>
                   may need an admin
@@ -913,15 +833,7 @@ function ConnectionsPanel({
 
 /** One-shot secret entry. The value never leaves this component except on its
  *  way to the keychain, and there is no command that can read it back. */
-function TokenField({
-  label,
-  onSave,
-  onCancel,
-}: {
-  label: string;
-  onSave: (token: string) => void;
-  onCancel: () => void;
-}) {
+function TokenField({ label, onSave, onCancel }: { label: string; onSave: (token: string) => void; onCancel: () => void }) {
   const [value, setValue] = useState("");
   return (
     <Row label="Token" desc={`Stored in the OS keychain for ${label}. Never written to a config file.`}>
@@ -961,24 +873,14 @@ const AI_ACTIONS = [
   { id: "code.propose_fix", label: "Propose a fix", note: "Code quality matters most here. Lands in Phase 4b." },
 ];
 
-function AiPanel({
-  settings,
-  patch,
-  envId,
-}: {
-  settings: Settings;
-  patch: PatchFn;
-  envId: string;
-}) {
+function AiPanel({ settings, patch, envId }: { settings: Settings; patch: PatchFn; envId: string }) {
   const showToast = useUi((s) => s.showToast);
   const [keyPresent, setKeyPresent] = useState<Record<string, boolean>>({});
   const [editingKey, setEditingKey] = useState<string | null>(null);
 
   useEffect(() => {
     void Promise.all(
-      ["ai:anthropic", "ai:openai-compatible"].map(
-        async (key) => [key, await ipc.secretExists(envId, key).catch(() => false)] as const,
-      ),
+      ["ai:anthropic", "ai:openai-compatible"].map(async (key) => [key, await ipc.secretExists(envId, key).catch(() => false)] as const),
     ).then((pairs) => setKeyPresent(Object.fromEntries(pairs)));
   }, [envId]);
 
@@ -997,9 +899,8 @@ function AiPanel({
     <>
       <h1>AI</h1>
       <p className="lede">
-        AI never acts on its own. Every action produces a proposal you approve — the approval gate
-        holds the credentials, the model never does. Routing defaults send cheap, private work to a
-        local model and drafting or code to Claude.
+        AI never acts on its own. Every action produces a proposal you approve — the approval gate holds the credentials, the model never
+        does. Routing defaults send cheap, private work to a local model and drafting or code to Claude.
       </p>
 
       <div className="card">
@@ -1024,19 +925,9 @@ function AiPanel({
               <option value="openai-compatible">OpenAI-compatible endpoint</option>
             </select>
           </Row>
-          <Row
-            label="Anthropic API key"
-            desc="Stored in the OS keychain for this environment. Never written to a config file."
-          >
-            <span className="mono-label">
-              {keyPresent["ai:anthropic"] ? "present" : "not set"}
-            </span>
-            <button
-              className="btn"
-              onClick={() =>
-                setEditingKey(editingKey === "ai:anthropic" ? null : "ai:anthropic")
-              }
-            >
+          <Row label="Anthropic API key" desc="Stored in the OS keychain for this environment. Never written to a config file.">
+            <span className="mono-label">{keyPresent["ai:anthropic"] ? "present" : "not set"}</span>
+            <button className="btn" onClick={() => setEditingKey(editingKey === "ai:anthropic" ? null : "ai:anthropic")}>
               {keyPresent["ai:anthropic"] ? "Replace key" : "Set key"}
             </button>
           </Row>
@@ -1175,9 +1066,8 @@ function VoicePanel({ settings, patch }: { settings: Settings; patch: PatchFn })
     <>
       <h1>Voice</h1>
       <p className="lede">
-        Voice is an interface to the same actions and the same approval gates — it never gets extra
-        powers. Push-to-talk is itself just a keybinding. The pipeline ships in Phase 5; these
-        preferences are stored now so the wiring has somewhere to read from.
+        Voice is an interface to the same actions and the same approval gates — it never gets extra powers. Push-to-talk is itself just a
+        keybinding. The pipeline ships in Phase 5; these preferences are stored now so the wiring has somewhere to read from.
       </p>
 
       <div className="card">
@@ -1194,10 +1084,7 @@ function VoicePanel({ settings, patch }: { settings: Settings; patch: PatchFn })
               }
             />
           </Row>
-          <Row
-            label="Speech-to-text"
-            desc="Same Whisper model family either way — local keeps audio on the machine."
-          >
+          <Row label="Speech-to-text" desc="Same Whisper model family either way — local keeps audio on the machine.">
             <select
               className="field"
               style={{ width: 240 }}
@@ -1280,19 +1167,13 @@ function AppPicker({
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `load` is a fresh
-    // closure each render; the fetch is a one-shot on mount by design.
+    // `load` is a fresh closure each render; the fetch is a one-shot on mount by design.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
     <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-      <input
-        className="field"
-        style={{ width: 300 }}
-        placeholder={placeholder}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-      />
+      <input className="field" style={{ width: 300 }} placeholder={placeholder} value={value} onChange={(e) => onChange(e.target.value)} />
       {found.map((app) => (
         <button
           key={app.id}
@@ -1328,9 +1209,8 @@ function AppearancePanel() {
     <>
       <h1>Appearance &amp; behavior</h1>
       <p className="lede">
-        Theme, terminal, and how often the sync engine is allowed to work. These apply to every
-        environment — your shortcuts and your theme should not change because you clicked a
-        different tab.
+        Theme, terminal, and how often the sync engine is allowed to work. These apply to every environment — your shortcuts and your theme
+        should not change because you clicked a different tab.
       </p>
       <div className="card">
         <div className="card-body">
@@ -1512,10 +1392,7 @@ function AppearancePanel() {
               }
             />
           </Row>
-          <Row
-            label="Launch command"
-            desc="What runs once the terminal is open. `claude --continue` picks the last session back up."
-          >
+          <Row label="Launch command" desc="What runs once the terminal is open. `claude --continue` picks the last session back up.">
             <input
               className="field"
               style={{ width: 240 }}
@@ -1593,11 +1470,7 @@ function KeyboardPanel({ keymap, envId }: { keymap: Record<string, string[]>; en
     return () => window.removeEventListener("keydown", onKeyDown, true);
   }, [capturing, local, envId, showToast]);
 
-  const rows = actions.filter(
-    (a) =>
-      !query ||
-      `${a.title} ${a.group}`.toLowerCase().includes(query.toLowerCase()),
-  );
+  const rows = actions.filter((a) => !query || `${a.title} ${a.group}`.toLowerCase().includes(query.toLowerCase()));
 
   async function resetToPreset() {
     setLocal(DEFAULT_KEYMAP);
@@ -1609,9 +1482,8 @@ function KeyboardPanel({ keymap, envId }: { keymap: Record<string, string[]>; en
     <>
       <h1>Keyboard</h1>
       <p className="lede">
-        Every action is here, and every action is reachable without the mouse. Bindings are stored
-        in <code>keymap.json</code> next to this environment's layout — edit them here or in the
-        file. <code>mod</code> means ⌘ on macOS and Ctrl elsewhere.
+        Every action is here, and every action is reachable without the mouse. Bindings are stored in <code>keymap.json</code> next to this
+        environment's layout — edit them here or in the file. <code>mod</code> means ⌘ on macOS and Ctrl elsewhere.
       </p>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
@@ -1647,11 +1519,7 @@ function KeyboardPanel({ keymap, envId }: { keymap: Record<string, string[]>; en
                   <Kbd binding={b} key={b} />
                 ))}
                 {bindings.length === 0 && <span className="mono-label">unbound</span>}
-                <button
-                  className="btn"
-                  onClick={() => setCapturing(action.id)}
-                  onKeyDown={(e) => e.preventDefault()}
-                >
+                <button className="btn" onClick={() => setCapturing(action.id)} onKeyDown={(e) => e.preventDefault()}>
                   {capturing === action.id ? "Press a key…" : "Rebind"}
                 </button>
               </Row>
@@ -1689,7 +1557,11 @@ function LayoutTransferCard({ envId }: { envId: string }) {
 
   const envName = environments.find((e) => e.id === envId)?.name ?? envId;
   const active = tabs.find((t) => t.id === activeTabId);
-  const slug = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const slug = (text: string) =>
+    text
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
 
   async function write(tabIds: string[] | undefined, name: string) {
     setBusy(true);
@@ -1756,21 +1628,16 @@ function LayoutTransferCard({ envId }: { envId: string }) {
   );
 }
 
-function DataPanel({
-  settings,
-  patch,
-  envId,
-}: {
-  settings: Settings;
-  patch: PatchFn;
-  envId: string;
-}) {
+function DataPanel({ settings, patch, envId }: { settings: Settings; patch: PatchFn; envId: string }) {
   const [paths, setPaths] = useState<PathsInfo | null>(null);
   const [eventCount, setEventCount] = useState<number | null>(null);
   const showToast = useUi((s) => s.showToast);
 
   useEffect(() => {
-    void ipc.pathsInfo(envId).then(setPaths).catch(() => setPaths(null));
+    void ipc
+      .pathsInfo(envId)
+      .then(setPaths)
+      .catch(() => setPaths(null));
     void ipc.eventsQuery(envId, { limit: 1000 }).then((rows) => setEventCount(rows.length));
   }, [envId]);
 
@@ -1778,8 +1645,7 @@ function DataPanel({
     <>
       <h1>Data</h1>
       <p className="lede">
-        Everything DDD knows is on this machine, in files you can read. Zero telemetry leaves —
-        the stats board is your dashboard about you.
+        Everything DDD knows is on this machine, in files you can read. Zero telemetry leaves — the stats board is your dashboard about you.
       </p>
 
       <div className="card">
@@ -1806,10 +1672,7 @@ function DataPanel({
           <div className="grow">Events</div>
         </div>
         <div className="card-body">
-          <Row
-            label="Log activity"
-            desc="Feeds the stats board. Turning this off stops the writing, not just the charts."
-          >
+          <Row label="Log activity" desc="Feeds the stats board. Turning this off stops the writing, not just the charts.">
             <input
               type="checkbox"
               checked={settings.data.statsLoggingEnabled}

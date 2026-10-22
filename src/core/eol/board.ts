@@ -100,7 +100,7 @@ export function build(
         // No schedule means no verdict. A cycle the API has never heard of is
         // unknown, never ended — that would be the worst possible way to be
         // wrong.
-        support: cycle === null ? ({ state: "unknown" } as Support) : supportOn(cycle, today),
+        support: cycle === null ? { state: "unknown" } : supportOn(cycle, today),
         // Only ever a real date. "Reached" and "pending" are verdicts, and the
         // verdict already carries them.
         eolDate: cycle === null ? null : milestoneDate(cycle.eol),

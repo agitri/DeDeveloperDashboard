@@ -95,7 +95,7 @@ export function DevServerWidget({ widget, environmentId, focused, itemIndex }: W
         setError(String(e));
       }
     },
-    [environmentId, knownOnly, query, baseMs],
+    [environmentId, knownOnly, query, baseMs, setRows],
   );
 
   const loadRef = useRef(load);
@@ -111,10 +111,11 @@ export function DevServerWidget({ widget, environmentId, focused, itemIndex }: W
     let timer: ReturnType<typeof setTimeout>;
     let stopped = false;
     const tick = () => {
-      timer = setTimeout(async () => {
+      timer = setTimeout(() => {
         if (stopped) return;
-        await loadRef.current(true);
-        if (!stopped) tick();
+        void loadRef.current(true).then(() => {
+          if (!stopped) tick();
+        });
       }, intervalRef.current);
     };
     tick();
@@ -142,9 +143,7 @@ export function DevServerWidget({ widget, environmentId, focused, itemIndex }: W
       const probe = await ipc.devServerProbe(row.address, row.port, true);
       setRows((current) =>
         current.map((r) =>
-          r.key === row.key
-            ? { ...r, health: probe.health, latencyMs: probe.latencyMs, checkedAt: probe.checkedAt }
-            : r,
+          r.key === row.key ? { ...r, health: probe.health, latencyMs: probe.latencyMs, checkedAt: probe.checkedAt } : r,
         ),
       );
     } catch (e) {
@@ -213,11 +212,7 @@ export function DevServerWidget({ widget, environmentId, focused, itemIndex }: W
         )}
       </div>
 
-      {error && (
-        <div className="mono-label widget-note warn">
-          could not read the machine — showing the last scan · {error}
-        </div>
-      )}
+      {error && <div className="mono-label widget-note warn">could not read the machine — showing the last scan · {error}</div>}
 
       {slowed && (
         <div className="mono-label widget-note">
@@ -241,10 +236,7 @@ export function DevServerWidget({ widget, environmentId, focused, itemIndex }: W
                     <span>:{row.port}</span>
                     <span className="soft">{row.projectName ?? row.process ?? "(unknown)"}</span>
                     {row.matchedAncestor && (
-                      <span
-                        className="mono-label"
-                        title={`Started in ${row.cwd} — rolled up to its project`}
-                      >
+                      <span className="mono-label" title={`Started in ${row.cwd} — rolled up to its project`}>
                         ↑
                       </span>
                     )}
@@ -271,9 +263,7 @@ export function DevServerWidget({ widget, environmentId, focused, itemIndex }: W
                       <span className="meta ink-3">
                         {row.process} {row.pid}
                         {row.workers > 0 && (
-                          <span title="Worker processes sharing this listening socket — one server, not many">
-                            {" "}+{row.workers}
-                          </span>
+                          <span title="Worker processes sharing this listening socket — one server, not many"> +{row.workers}</span>
                         )}
                       </span>
                     )}
@@ -297,18 +287,10 @@ export function DevServerWidget({ widget, environmentId, focused, itemIndex }: W
                 <div className="row-actions">
                   {row.url && (
                     <>
-                      <button
-                        className="btn sm"
-                        title={row.url}
-                        onClick={() => void act(() => ipc.openExternal(row.url!))}
-                      >
+                      <button className="btn sm" title={row.url} onClick={() => void act(() => ipc.openExternal(row.url!))}>
                         Open
                       </button>
-                      <button
-                        className="btn sm"
-                        title="Copy the URL"
-                        onClick={() => void copy(row.url!, `Copied ${row.url}`)}
-                      >
+                      <button className="btn sm" title="Copy the URL" onClick={() => void copy(row.url!, `Copied ${row.url}`)}>
                         Copy
                       </button>
                     </>
@@ -336,10 +318,7 @@ export function DevServerWidget({ widget, environmentId, focused, itemIndex }: W
                       className="btn sm"
                       title="Watch this project for runtimes going out of support"
                       onClick={() =>
-                        void act(
-                          () => ipc.eolWatch(environmentId, path),
-                          `${row.projectName ?? path} added to the support watch`,
-                        )
+                        void act(() => ipc.eolWatch(environmentId, path), `${row.projectName ?? path} added to the support watch`)
                       }
                     >
                       Watch
@@ -360,11 +339,7 @@ export function DevServerWidget({ widget, environmentId, focused, itemIndex }: W
                     </button>
                   )}
                   {!row.foreign && !row.docker && (
-                    <button
-                      className="btn sm"
-                      title="Probe this socket now"
-                      onClick={() => void check(row)}
-                    >
+                    <button className="btn sm" title="Probe this socket now" onClick={() => void check(row)}>
                       Check
                     </button>
                   )}
@@ -395,16 +370,11 @@ export function DevServerWidget({ widget, environmentId, focused, itemIndex }: W
               {open && (
                 <div className="row-detail">
                   {row.containers.map((c) => (
-                    <div
-                      key={c.name}
-                      className="row-sub badged"
-                    >
+                    <div key={c.name} className="row-sub badged">
                       <span className="dot sm" style={{ background: containerTone(c.running, c.unhealthy) }} />
                       <span className="ink-2">{c.name}</span>
                       <span className="ink-3">{c.status}</span>
-                      {c.ports.length > 0 && (
-                        <span className="ink-3">{c.ports.map((p) => `:${p}`).join(" ")}</span>
-                      )}
+                      {c.ports.length > 0 && <span className="ink-3">{c.ports.map((p) => `:${p}`).join(" ")}</span>}
                     </div>
                   ))}
                 </div>
@@ -419,15 +389,14 @@ export function DevServerWidget({ widget, environmentId, focused, itemIndex }: W
           title={knownOnly ? "Nothing of yours is listening in a known project." : "Nothing of yours is listening."}
           body={
             <>
-              DDD can only see processes running as you — a service started with sudo, or owned by
-              another user, will not appear here, and no permission setting changes that.
+              DDD can only see processes running as you — a service started with sudo, or owned by another user, will not appear here, and
+              no permission setting changes that.
             </>
           }
           meta={
             <>
               scanned in {scanMs}ms
-              {foreignCount > 0 &&
-                ` · ${foreignCount} socket${foreignCount === 1 ? "" : "s"} belong to someone else`}
+              {foreignCount > 0 && ` · ${foreignCount} socket${foreignCount === 1 ? "" : "s"} belong to someone else`}
             </>
           }
         />
@@ -435,12 +404,7 @@ export function DevServerWidget({ widget, environmentId, focused, itemIndex }: W
 
       <div className="filter-bar footer">
         <span className="mono-label">still getting EADDRINUSE?</span>
-        <input
-          className="field narrow"
-          placeholder="port"
-          value={lookupPort}
-          onChange={(e) => setLookupPort(e.target.value)}
-        />
+        <input className="field narrow" placeholder="port" value={lookupPort} onChange={(e) => setLookupPort(e.target.value)} />
         <button
           className="btn sm"
           disabled={!lookup}

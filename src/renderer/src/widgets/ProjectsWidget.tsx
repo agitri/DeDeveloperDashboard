@@ -18,10 +18,7 @@ import { firstLoad } from "../state/timing";
 export function ProjectsWidget({ widget, environmentId, focused, itemIndex }: WidgetViewProps) {
   const [projects, setProjects] = useRemembered<Project[]>(`projects:${environmentId}`, []);
   const projectId = typeof widget.filter.projectId === "string" ? widget.filter.projectId : undefined;
-  const visibleProjects = useMemo(
-    () => (projectId ? projects.filter((p) => p.id === projectId) : projects),
-    [projects, projectId],
-  );
+  const visibleProjects = useMemo(() => (projectId ? projects.filter((p) => p.id === projectId) : projects), [projects, projectId]);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +34,7 @@ export function ProjectsWidget({ widget, environmentId, focused, itemIndex }: Wi
     } catch (e) {
       setError(String(e));
     }
-  }, [environmentId]);
+  }, [environmentId, setProjects]);
 
   useEffect(() => {
     void refresh();
@@ -58,11 +55,7 @@ export function ProjectsWidget({ widget, environmentId, focused, itemIndex }: Wi
         if (changedEnv !== environmentId) return;
         void ipc
           .projectReload(environmentId, projectId)
-          .then((fresh) =>
-            setProjects((current) =>
-              current.map((p) => (p.id === fresh.id ? fresh : p)),
-            ),
-          )
+          .then((fresh) => setProjects((current) => current.map((p) => (p.id === fresh.id ? fresh : p))))
           // A project that vanished from the registry mid-flight is not an error.
           .catch(() => {});
       })
@@ -74,7 +67,7 @@ export function ProjectsWidget({ widget, environmentId, focused, itemIndex }: Wi
       cancelled = true;
       dispose?.();
     };
-  }, [environmentId]);
+  }, [environmentId, setProjects]);
 
   const launch = useCallback(
     async (project: Project) => {
@@ -330,9 +323,7 @@ function ProjectCard({
                 <span className="k">sync </span>↑{git.ahead} ↓{git.behind}
               </span>
             )}
-            {git.lastCommitSummary && (
-              <span className="ink-3">{git.lastCommitSummary}</span>
-            )}
+            {git.lastCommitSummary && <span className="ink-3">{git.lastCommitSummary}</span>}
           </>
         ) : (
           <span className="k">not a git repository</span>
@@ -349,8 +340,8 @@ function ProjectCard({
               <pre className="recap">{project.recap.trim()}</pre>
             ) : (
               <div className="ink-3">
-                No <code>.ddd/recap.md</code> yet — it appears after the first Claude Code session
-                that ends with the SessionEnd hook installed.
+                No <code>.ddd/recap.md</code> yet — it appears after the first Claude Code session that ends with the SessionEnd hook
+                installed.
               </div>
             )}
           </div>

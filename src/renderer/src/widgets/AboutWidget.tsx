@@ -26,7 +26,7 @@ const EMPTY: AboutData = { project: null, products: [], events: [] };
  * not a new source, and it never writes.
  */
 export function AboutWidget({ widget, environmentId }: WidgetViewProps) {
-  const projectId = String(widget.config.projectId ?? "");
+  const projectId = typeof widget.config.projectId === "string" ? widget.config.projectId : "";
   const [data, setData] = useRemembered<AboutData>(`about:${environmentId}:${projectId}`, EMPTY);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -128,9 +128,7 @@ export function AboutWidget({ widget, environmentId }: WidgetViewProps) {
       </div>
 
       <div>
-        <div className="mono-label caption">
-          Products{products.length > 0 ? ` (${products.length})` : ""}
-        </div>
+        <div className="mono-label caption">Products{products.length > 0 ? ` (${products.length})` : ""}</div>
         {products.length === 0 ? (
           <div className="ink-2">
             No products declared in this project&rsquo;s <code>.ddd/config.json</code>.
