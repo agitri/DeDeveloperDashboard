@@ -125,11 +125,11 @@ describe("support schedules and the cache in front of them", () => {
     const cache = defaultCache();
     cache.products["php"] = entry("2020-01-01T00:00:00Z", [{ ...defaultCycle(), cycle: "8.1" }]);
     const { fetch, calls } = fakeFetch((url) =>
-      url.endsWith("/php.json")
-        ? new Response(JSON.stringify([{ cycle: "8.4", support: "2026-12-31", eol: false, latest: "8.4.3" }]), {
-            status: 200,
-          })
-        : new Response("[]", { status: 200 }),
+      url.endsWith("/php.json") ?
+        new Response(JSON.stringify([{ cycle: "8.4", support: "2026-12-31", eol: false, latest: "8.4.3" }]), {
+          status: 200,
+        })
+      : new Response("[]", { status: 200 }),
     );
     const failed = await refreshFrom("https://endoflife.date/api", fetch, cache, ["php", "go"], NOW);
     expect(failed).toEqual(["go"]); // an empty list has told us nothing

@@ -52,7 +52,10 @@ export function Wizard() {
   if (!active || !step) return null;
 
   const isBookend = step.id === "welcome" || step.id === "finish";
-  const advanceLabel = step.id === "finish" ? "Finish" : isBookend ? "Next" : "Skip step";
+  const advanceLabel =
+    step.id === "finish" ? "Finish"
+    : isBookend ? "Next"
+    : "Skip step";
 
   const spotlightTarget = step.id === "environment" && view === "settings" && settingsPanel === "environments" ? "env-create" : step.target;
 
@@ -60,12 +63,11 @@ export function Wizard() {
     <>
       <Spotlight target={spotlightTarget} intense={showHint} />
       <div className="wizard-panel" role="dialog" aria-label="Guided tour">
-        {reward ? (
+        {reward ?
           <div className="wizard-reward" aria-hidden="true">
             🎉
           </div>
-        ) : (
-          <>
+        : <>
             <div className="wizard-head">
               <span className="mono-label wizard-progress">
                 {progress.current}/{progress.total}
@@ -92,7 +94,7 @@ export function Wizard() {
               </div>
             </div>
           </>
-        )}
+        }
       </div>
     </>
   );

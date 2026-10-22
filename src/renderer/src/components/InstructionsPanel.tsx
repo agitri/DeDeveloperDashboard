@@ -99,7 +99,11 @@ export function InstructionsPanel({ widget, environmentId, onClose }: { widget: 
 
       <div className="button-row">
         <button className="btn primary" disabled={busy || !loaded} onClick={() => void compile()}>
-          {busy ? "Reading…" : compiled ? "Recompile" : "Apply"}
+          {busy ?
+            "Reading…"
+          : compiled ?
+            "Recompile"
+          : "Apply"}
         </button>
         {compiled && (
           <button className="btn" disabled={busy} onClick={() => void clear()}>

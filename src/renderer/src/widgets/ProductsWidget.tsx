@@ -87,16 +87,14 @@ export function ProductsWidget({ widget, environmentId, focused, itemIndex }: Wi
       <Empty
         title={scoped ? "No products for this project" : "No products declared"}
         body={
-          scoped ? (
+          scoped ?
             <>
               This project has no products declared in its <code>.ddd/config.json</code>.
             </>
-          ) : (
-            <>
+          : <>
               A product is something a repo knows how to run. Declare one in that repo&rsquo;s <code>.ddd/config.json</code> and it shows up
               here — and travels with the checkout.
             </>
-          )
         }
         meta={scoped ? undefined : <code>{'{ "products": [{ "id": "serve", "run": "npm run dev" }] }'}</code>}
       />
@@ -151,7 +149,7 @@ export function ProductsWidget({ widget, environmentId, focused, itemIndex }: Wi
                         Approve…
                       </button>
                     )}
-                    {running ? (
+                    {running ?
                       <button
                         className="btn sm"
                         disabled={working}
@@ -160,8 +158,7 @@ export function ProductsWidget({ widget, environmentId, focused, itemIndex }: Wi
                       >
                         ■ Stop
                       </button>
-                    ) : (
-                      <button
+                    : <button
                         className="btn sm"
                         disabled={working || why !== null}
                         title={why ?? `Run: ${product.run}`}
@@ -169,7 +166,7 @@ export function ProductsWidget({ widget, environmentId, focused, itemIndex }: Wi
                       >
                         ▶ Start
                       </button>
-                    )}
+                    }
                     <button className="btn sm" title="What it printed" onClick={() => setReading(open ? null : product.key)}>
                       {open ? "▾" : "▸"} Output
                     </button>
@@ -206,13 +203,11 @@ function Output({ env, productKey }: { env: string; productKey: string }) {
 
   return (
     <div className="row-detail">
-      {text === null ? (
+      {text === null ?
         <span className="mono-label">reading…</span>
-      ) : text.trim() === "" ? (
+      : text.trim() === "" ?
         <span className="mono-label">nothing printed yet</span>
-      ) : (
-        <pre className="product-log">{text}</pre>
-      )}
+      : <pre className="product-log">{text}</pre>}
     </div>
   );
 }

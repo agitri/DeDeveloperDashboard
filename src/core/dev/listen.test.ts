@@ -172,7 +172,13 @@ describe("enumerate", () => {
     // must return and must be sorted, because an unstable order reshuffles the
     // board under the user's cursor on every refresh.
     const found = await enumerate();
-    const sorted = [...found].sort((a, b) => a.port - b.port || (a.address < b.address ? -1 : a.address > b.address ? 1 : 0));
+    const sorted = [...found].sort(
+      (a, b) =>
+        a.port - b.port ||
+        (a.address < b.address ? -1
+        : a.address > b.address ? 1
+        : 0),
+    );
     expect(found).toEqual(sorted);
   }, 30_000);
 });

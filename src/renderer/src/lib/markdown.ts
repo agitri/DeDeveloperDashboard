@@ -114,9 +114,9 @@ export function parse(source: string): Block[] {
         if (!match) break;
         const task = TASK.exec(match[1]!);
         items.push(
-          task
-            ? { kids: inline(task[2]!), task: { checked: task[1]!.toLowerCase() === "x", line: i } }
-            : { kids: inline(match[1]!), task: null },
+          task ?
+            { kids: inline(task[2]!), task: { checked: task[1]!.toLowerCase() === "x", line: i } }
+          : { kids: inline(match[1]!), task: null },
         );
         i++;
       }

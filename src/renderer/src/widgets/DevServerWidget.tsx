@@ -346,7 +346,7 @@ export function DevServerWidget({ widget, environmentId, focused, itemIndex }: W
                   {!row.foreign &&
                     row.pid !== null &&
                     !!row.process &&
-                    (confirmStop === row.key ? (
+                    (confirmStop === row.key ?
                       <>
                         <button className="btn danger sm" onClick={() => void stop(row)}>
                           Stop {row.process} (pid {row.pid})
@@ -355,15 +355,13 @@ export function DevServerWidget({ widget, environmentId, focused, itemIndex }: W
                           Cancel
                         </button>
                       </>
-                    ) : (
-                      <button
+                    : <button
                         className="btn sm"
                         title="Send SIGTERM — a request to shut down, never a force kill"
                         onClick={() => setConfirmStop(row.key)}
                       >
                         Stop…
-                      </button>
-                    ))}
+                      </button>)}
                 </div>
               </div>
 

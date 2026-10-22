@@ -169,9 +169,9 @@ export function ProjectsWidget({ widget, environmentId, focused, itemIndex }: Wi
         <Empty
           title={projectId ? "That project isn't registered" : "No projects yet."}
           body={
-            projectId
-              ? "Its id doesn't match a project registered in this environment — it may have been unregistered."
-              : "Register a directory to see its branch, recap and todos here."
+            projectId ?
+              "Its id doesn't match a project registered in this environment — it may have been unregistered."
+            : "Register a directory to see its branch, recap and todos here."
           }
         />
       )}
@@ -308,7 +308,7 @@ function ProjectCard({
 
       {/* The status line: everything you need to answer "where was I?" */}
       <div className="project-meta">
-        {git.isRepo ? (
+        {git.isRepo ?
           <>
             <span>
               <span className="k">branch </span>
@@ -325,9 +325,7 @@ function ProjectCard({
             )}
             {git.lastCommitSummary && <span className="ink-3">{git.lastCommitSummary}</span>}
           </>
-        ) : (
-          <span className="k">not a git repository</span>
-        )}
+        : <span className="k">not a git repository</span>}
       </div>
 
       {expanded && (
@@ -336,32 +334,30 @@ function ProjectCard({
             <div className="mono-label" style={{ marginBottom: 5 }}>
               Recap {project.recapUpdatedAt ? `· ${relative(project.recapUpdatedAt)}` : ""}
             </div>
-            {project.recap ? (
+            {project.recap ?
               <pre className="recap">{project.recap.trim()}</pre>
-            ) : (
-              <div className="ink-3">
+            : <div className="ink-3">
                 No <code>.ddd/recap.md</code> yet — it appears after the first Claude Code session that ends with the SessionEnd hook
                 installed.
               </div>
-            )}
+            }
           </div>
 
           <div className="project-section">
             <div className="mono-label" style={{ marginBottom: 5 }}>
               Todos
             </div>
-            {project.todos.length === 0 ? (
+            {project.todos.length === 0 ?
               <div className="ink-3">
                 Nothing captured. Use <code>/todo</code> inside Claude Code.
               </div>
-            ) : (
-              project.todos.map((todo) => (
+            : project.todos.map((todo) => (
                 <div key={todo.id} className={`todo${todo.done ? " done" : ""}`}>
                   <span className="box">{todo.done ? "[x]" : "[ ]"}</span>
                   <span>{todo.text}</span>
                 </div>
               ))
-            )}
+            }
           </div>
 
           <div className="project-section">

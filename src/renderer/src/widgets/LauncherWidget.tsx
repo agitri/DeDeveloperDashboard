@@ -107,13 +107,12 @@ export function LauncherWidget({ widget }: WidgetViewProps) {
         </button>
       </div>
 
-      {targets.length === 0 ? (
+      {targets.length === 0 ?
         <Empty
           title="No directories yet."
           body="Add one and it becomes a one-click way into your terminal or your editor — the ones you actually use, not a copy of them."
         />
-      ) : (
-        <div className="launcher-grid launch">
+      : <div className="launcher-grid launch">
           {targets.map((target) => (
             <div key={target.id} className="launcher-cell launch-tile">
               <button
@@ -141,7 +140,7 @@ export function LauncherWidget({ widget }: WidgetViewProps) {
             </div>
           ))}
         </div>
-      )}
+      }
     </div>
   );
 }

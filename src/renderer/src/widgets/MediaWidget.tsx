@@ -95,12 +95,13 @@ export function MediaWidget({ widget }: WidgetViewProps) {
         </div>
       )}
 
-      {!shown ? (
+      {!shown ?
         <Empty title="No player detected — open Spotify or Apple Music (on Linux, install playerctl)" />
-      ) : (
-        <div className="media-body">
+      : <div className="media-body">
           <div className="media-art">
-            {shown.track?.artUrl ? <img src={shown.track.artUrl} alt="" /> : <div className="media-art-fallback">♪</div>}
+            {shown.track?.artUrl ?
+              <img src={shown.track.artUrl} alt="" />
+            : <div className="media-art-fallback">♪</div>}
           </div>
 
           <div className="media-info">
@@ -140,7 +141,7 @@ export function MediaWidget({ widget }: WidgetViewProps) {
             </div>
           )}
         </div>
-      )}
+      }
     </div>
   );
 }

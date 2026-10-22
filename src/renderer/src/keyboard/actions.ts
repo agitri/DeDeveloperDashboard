@@ -468,7 +468,11 @@ export function buildActions(): Action[] {
     const isActive = env?.id === store.activeEnvironmentId();
     actions.push({
       id: `env.go.${i + 1}`,
-      title: env ? (isActive ? `${env.collapsed ? "Unfold" : "Fold"} ${env.name}` : `Go to ${env.name}`) : `Go to environment ${i + 1}`,
+      title:
+        env ?
+          isActive ? `${env.collapsed ? "Unfold" : "Fold"} ${env.name}`
+          : `Go to ${env.name}`
+        : `Go to environment ${i + 1}`,
       group: "Environments",
       hint: env && isActive ? "You are here — folds its tabs away" : undefined,
       run: () => {

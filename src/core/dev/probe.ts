@@ -96,11 +96,10 @@ export function target(address: string, port: number): Target {
  */
 export function browserUrl(address: string, port: number): string {
   const loopback = ["0.0.0.0", "*", "::", "[::]", "127.0.0.1", "::1", "[::1]"];
-  const host = loopback.includes(address)
-    ? "localhost"
-    : address.includes(":")
-      ? `[${address.replace(/^\[/, "").replace(/\]$/, "")}]`
-      : address;
+  const host =
+    loopback.includes(address) ? "localhost"
+    : address.includes(":") ? `[${address.replace(/^\[/, "").replace(/\]$/, "")}]`
+    : address;
   return `http://${host}:${port}`;
 }
 

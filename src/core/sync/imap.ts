@@ -176,7 +176,10 @@ export function stableKey(parsed: Email, raw: RawMessage): string {
  * the "keeps only the first address" test. */
 function addressOf(parsed: Email, header: "from" | "to" | "cc"): string {
   const v = header === "from" ? parsed.from : parsed[header];
-  const list: Address[] = v === undefined ? [] : Array.isArray(v) ? v : [v];
+  const list: Address[] =
+    v === undefined ? []
+    : Array.isArray(v) ? v
+    : [v];
   return list
     .flatMap((a) => a.group ?? [a])
     .map((a) => a.address)

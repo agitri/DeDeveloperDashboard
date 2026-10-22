@@ -102,7 +102,13 @@ function MenuSurface({
           const at = selectable.indexOf(current);
           const step = e.key === "ArrowDown" ? 1 : -1;
           const next = (at + step + selectable.length) % selectable.length;
-          return selectable[at === -1 ? (step === 1 ? 0 : selectable.length - 1) : next]!;
+          return selectable[
+            at === -1 ?
+              step === 1 ?
+                0
+              : selectable.length - 1
+            : next
+          ]!;
         });
       }
       if (e.key === "Enter" && cursor >= 0) {

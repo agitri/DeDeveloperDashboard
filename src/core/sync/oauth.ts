@@ -104,11 +104,10 @@ export function awaitRedirect(server: Server, expectedState: string, timeoutMs =
         return;
       }
       const stateOk = params.get("state") === expectedState;
-      const body = !stateOk
-        ? "Something went wrong: the state did not match. Nothing was connected."
-        : params.has("code")
-          ? "Connected. You can close this tab and go back to DDD."
-          : "Consent was denied. Nothing was connected.";
+      const body =
+        !stateOk ? "Something went wrong: the state did not match. Nothing was connected."
+        : params.has("code") ? "Connected. You can close this tab and go back to DDD."
+        : "Consent was denied. Nothing was connected.";
       res.writeHead(200, { "content-type": "text/html; charset=utf-8", "content-length": String(Buffer.byteLength(body)) }).end(body);
       if (!stateOk) {
         // The exact shape of a CSRF attempt on the loopback listener: fail closed.
@@ -159,10 +158,13 @@ async function postForm(fetch: typeof globalThis.fetch, url: string, form: [stri
 function storeTokens(env: EnvRoot, connection: Connection, tokens: Record<string, unknown>, secrets: SecretStore): void {
   // Slack nests the user token; Google returns it flat.
   const nested =
-    typeof tokens.authed_user === "object" && tokens.authed_user !== null
-      ? (tokens.authed_user as Record<string, unknown>).access_token
-      : undefined;
-  const access = typeof tokens.access_token === "string" ? tokens.access_token : typeof nested === "string" ? nested : null;
+    typeof tokens.authed_user === "object" && tokens.authed_user !== null ?
+      (tokens.authed_user as Record<string, unknown>).access_token
+    : undefined;
+  const access =
+    typeof tokens.access_token === "string" ? tokens.access_token
+    : typeof nested === "string" ? nested
+    : null;
   if (access === null) throw DddError.config("no access token in the response");
   secrets.set(env, connection.id, access);
   if (typeof tokens.refresh_token === "string") secrets.set(env, `${connection.id}:refresh`, tokens.refresh_token);

@@ -105,11 +105,9 @@ export function CalendarWidget({ widget, environmentId }: WidgetViewProps) {
         </span>
       </div>
 
-      {view === "agenda" ? (
+      {view === "agenda" ?
         <Agenda occurrences={occurrences} />
-      ) : (
-        <Grid days={days} byDay={byDay} month={anchor.getMonth()} firstDay={firstDay} />
-      )}
+      : <Grid days={days} byDay={byDay} month={anchor.getMonth()} firstDay={firstDay} />}
     </div>
   );
 }

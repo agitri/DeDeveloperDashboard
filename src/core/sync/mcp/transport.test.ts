@@ -128,9 +128,9 @@ describe("opening a transport", () => {
         // open a standalone SSE stream this fixture would have to serve.
         if (message.id === undefined) return void response.end("{}");
         const result =
-          message.method === "initialize"
-            ? { protocolVersion: "2025-06-18", serverInfo: { name: "files", version: "1.0.0" }, capabilities: { tools: {} } }
-            : { tools: [{ name: "search", inputSchema: { type: "object" } }] };
+          message.method === "initialize" ?
+            { protocolVersion: "2025-06-18", serverInfo: { name: "files", version: "1.0.0" }, capabilities: { tools: {} } }
+          : { tools: [{ name: "search", inputSchema: { type: "object" } }] };
         response.end(JSON.stringify({ jsonrpc: "2.0", id: message.id, result }));
       });
     });
@@ -169,9 +169,9 @@ describe("opening a transport", () => {
         response.setHeader("content-type", "application/json");
         if (message.id === undefined) return void response.end("{}");
         const result =
-          message.method === "initialize"
-            ? { protocolVersion: "2025-06-18", serverInfo: { name: "files", version: "1.0.0" }, capabilities: {} }
-            : { tools: [] };
+          message.method === "initialize" ?
+            { protocolVersion: "2025-06-18", serverInfo: { name: "files", version: "1.0.0" }, capabilities: {} }
+          : { tools: [] };
         response.end(JSON.stringify({ jsonrpc: "2.0", id: message.id, result }));
       });
     });

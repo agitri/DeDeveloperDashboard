@@ -59,12 +59,10 @@ export function defaultRoots(
     huggingface: env.HF_HUB_CACHE && env.HF_HUB_CACHE !== "" ? env.HF_HUB_CACHE : join(hfHome, "hub"),
     lmstudio: join(home, ".lmstudio", "models"),
     llamacpp: mac ? join(home, "Library", "Caches", "llama.cpp") : join(home, ".cache", "llama.cpp"),
-    jan: mac
-      ? join(home, "Library", "Application Support", "Jan", "data", "models")
-      : join(home, ".local", "share", "Jan", "data", "models"),
-    gpt4all: mac
-      ? join(home, "Library", "Application Support", "nomic.ai", "GPT4All")
-      : join(home, ".local", "share", "nomic.ai", "GPT4All"),
+    jan:
+      mac ? join(home, "Library", "Application Support", "Jan", "data", "models") : join(home, ".local", "share", "Jan", "data", "models"),
+    gpt4all:
+      mac ? join(home, "Library", "Application Support", "nomic.ai", "GPT4All") : join(home, ".local", "share", "nomic.ai", "GPT4All"),
   };
 }
 

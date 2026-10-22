@@ -90,7 +90,13 @@ export function expand(events: EventSpec[], from: Date, to: Date): Occurrence[] 
 
   // Start then id, exactly as the Rust's `sort_by`. Both are RFC 3339 UTC
   // strings in the same shape, so a string compare is a time compare.
-  out.sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  out.sort((a, b) =>
+    a.start < b.start ? -1
+    : a.start > b.start ? 1
+    : a.id < b.id ? -1
+    : a.id > b.id ? 1
+    : 0,
+  );
   return out;
 }
 

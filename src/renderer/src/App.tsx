@@ -72,7 +72,12 @@ export default function App() {
   useEffect(() => {
     const media = window.matchMedia("(prefers-color-scheme: dark)");
     const apply = () => {
-      const resolved = theme === "system" ? (media.matches ? "dark" : "light") : theme;
+      const resolved =
+        theme === "system" ?
+          media.matches ?
+            "dark"
+          : "light"
+        : theme;
       document.documentElement.dataset.theme = resolved;
       const style = document.documentElement.style;
       for (const prop of SCHEME_PROPERTIES) style.removeProperty(prop);
@@ -132,13 +137,9 @@ export default function App() {
   const settingsBinding = keymap["app.settings"]?.[0];
 
   const content =
-    view === "settings" ? (
-      <SettingsPage keymap={keymap} />
-    ) : overviewEnvId ? (
-      <EnvironmentOverview envId={overviewEnvId} />
-    ) : (
-      <Canvas tab={activeTab} />
-    );
+    view === "settings" ? <SettingsPage keymap={keymap} />
+    : overviewEnvId ? <EnvironmentOverview envId={overviewEnvId} />
+    : <Canvas tab={activeTab} />;
 
   const overlays = (
     <>

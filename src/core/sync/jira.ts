@@ -183,8 +183,9 @@ export class JiraAdapter implements SourceAdapter {
           await send(cx, `${base}/rest/api/3/issue/${key}/transitions`, { method: "GET", headers: { authorization: basic(cx) } }),
         );
         const transitions = at(listed, "transitions");
-        const found: unknown = Array.isArray(transitions)
-          ? transitions.find((t: unknown) => {
+        const found: unknown =
+          Array.isArray(transitions) ?
+            transitions.find((t: unknown) => {
               const name = str(at(t, "name"));
               return name !== null && eqIgnoreAsciiCase(name, wanted);
             })

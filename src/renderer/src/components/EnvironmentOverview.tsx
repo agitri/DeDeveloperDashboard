@@ -47,13 +47,12 @@ export function EnvironmentOverview({ envId }: { envId: string }) {
         </button>
       </div>
 
-      {envTabs.length === 0 ? (
+      {envTabs.length === 0 ?
         <div className="canvas-empty">
           <h2>Nothing here yet</h2>
           <p>This environment has no tabs. Make one and it appears here.</p>
         </div>
-      ) : (
-        <div className="overview-grid">
+      : <div className="overview-grid">
           {envTabs.map((tab) => (
             <TabCard
               key={tab.id}
@@ -64,7 +63,7 @@ export function EnvironmentOverview({ envId }: { envId: string }) {
             />
           ))}
         </div>
-      )}
+      }
     </div>
   );
 }
@@ -96,15 +95,14 @@ function TabCard({
         )}
       </div>
       <div className="overview-card-body">
-        {unique.length === 0 ? (
+        {unique.length === 0 ?
           <span className="empty">empty</span>
-        ) : (
-          unique.map((name) => (
+        : unique.map((name) => (
             <span key={name} className="chip">
               {name}
             </span>
           ))
-        )}
+        }
       </div>
       <div className="mono-label overview-card-foot">
         {tab.widgets.length} widget{tab.widgets.length === 1 ? "" : "s"}

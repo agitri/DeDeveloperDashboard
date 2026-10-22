@@ -109,13 +109,13 @@ export function clear(env: EnvRoot, widgetId: string): void {
  *  creation, so the first thing you see is what this widget can be told. */
 export function template(kind: string): string {
   const fields =
-    kind === "repos"
-      ? "  · recent repositories, or all of them\n  · a word in the name\n"
-      : "  · which source (github, jira, slack, mail…) and which kind\n" +
-        "  · a word in the title or body\n" +
-        "  · unread only\n" +
-        "  · leave out kinds — automated mail, for instance\n" +
-        "  · how many to show\n";
+    kind === "repos" ?
+      "  · recent repositories, or all of them\n  · a word in the name\n"
+    : "  · which source (github, jira, slack, mail…) and which kind\n" +
+      "  · a word in the title or body\n" +
+      "  · unread only\n" +
+      "  · leave out kinds — automated mail, for instance\n" +
+      "  · how many to show\n";
   return (
     "Write what you want this widget to show, in plain words.\n" +
     'For example: "No automated mail. Only messages a person actually sent me. Latest 10."\n\n' +
@@ -180,43 +180,43 @@ export const ACTION = "widget.instructions";
  *  will invent the fields. */
 export function completionFor(kind: string, prose: string, model: string): Completion {
   const schema =
-    kind === "repos"
-      ? '  scope: "recent" or "all"\n' + "  query: text that appears in the repository name\n"
-      : "  kind: exactly one of —\n" +
-        "    pull_request   a pull request you opened or are involved in\n" +
-        "    review_request a pull request waiting on your review\n" +
-        "    issue          an issue\n" +
-        "    comment        a comment on a PR or issue\n" +
-        "    mail           mail a person sent\n" +
-        "    mail_bulk      newsletters, notifications, marketing\n" +
-        "    message        a chat message (Slack)\n" +
-        "    mention        someone naming you in chat\n" +
-        "    event          a calendar event\n" +
-        "    repo           a repository\n" +
-        "  source: github, jira, slack, mail or google. Only set this when the\n" +
-        "          user named a service. Never pair it with a kind from a\n" +
-        "          different service.\n" +
-        "  excludeKinds: array of those same kind values, to leave out\n" +
-        "  query: text that literally appears in the title or body\n" +
-        "  unreadOnly: true — only when the user asked about unread\n" +
-        "  limit: whole number, how many rows to show\n" +
-        "  project: a project name the user named\n";
+    kind === "repos" ?
+      '  scope: "recent" or "all"\n' + "  query: text that appears in the repository name\n"
+    : "  kind: exactly one of —\n" +
+      "    pull_request   a pull request you opened or are involved in\n" +
+      "    review_request a pull request waiting on your review\n" +
+      "    issue          an issue\n" +
+      "    comment        a comment on a PR or issue\n" +
+      "    mail           mail a person sent\n" +
+      "    mail_bulk      newsletters, notifications, marketing\n" +
+      "    message        a chat message (Slack)\n" +
+      "    mention        someone naming you in chat\n" +
+      "    event          a calendar event\n" +
+      "    repo           a repository\n" +
+      "  source: github, jira, slack, mail or google. Only set this when the\n" +
+      "          user named a service. Never pair it with a kind from a\n" +
+      "          different service.\n" +
+      "  excludeKinds: array of those same kind values, to leave out\n" +
+      "  query: text that literally appears in the title or body\n" +
+      "  unreadOnly: true — only when the user asked about unread\n" +
+      "  limit: whole number, how many rows to show\n" +
+      "  project: a project name the user named\n";
 
   // Kind-specific, because an example is read as permission: show a repos
   // widget an example containing `unreadOnly` and it will produce one.
   const guidance =
-    kind === "repos"
-      ? 'Example — "all of them, not just the recent ones"\n' +
-        '{"filter": {"scope": "all"}, "unmet": []}\n\n' +
-        'Example — "the ones I worked on with Anna"\n' +
-        '{"filter": {}, "unmet": ["the ones I worked on with Anna"]}\n\n'
-      : "When the user says everything, anything, or names no particular sort of thing, set no `kind` at all. `kind` and `excludeKinds` are alternatives: once `kind` is set, nothing else can appear anyway.\n\n" +
-        'Example — "No automated mail. Only messages a person actually sent me. Latest 10."\n' +
-        '{"filter": {"kind": "mail", "excludeKinds": ["mail_bulk"], "limit": 10}, "unmet": []}\n\n' +
-        'Example — "PRs waiting on my review, and anything that sounds urgent"\n' +
-        '{"filter": {"kind": "review_request"}, "unmet": ["anything that sounds urgent"]}\n\n' +
-        'Example — "everything I have not read from people I actually know"\n' +
-        '{"filter": {"unreadOnly": true}, "unmet": ["from people I actually know"]}\n\n';
+    kind === "repos" ?
+      'Example — "all of them, not just the recent ones"\n' +
+      '{"filter": {"scope": "all"}, "unmet": []}\n\n' +
+      'Example — "the ones I worked on with Anna"\n' +
+      '{"filter": {}, "unmet": ["the ones I worked on with Anna"]}\n\n'
+    : "When the user says everything, anything, or names no particular sort of thing, set no `kind` at all. `kind` and `excludeKinds` are alternatives: once `kind` is set, nothing else can appear anyway.\n\n" +
+      'Example — "No automated mail. Only messages a person actually sent me. Latest 10."\n' +
+      '{"filter": {"kind": "mail", "excludeKinds": ["mail_bulk"], "limit": 10}, "unmet": []}\n\n' +
+      'Example — "PRs waiting on my review, and anything that sounds urgent"\n' +
+      '{"filter": {"kind": "review_request"}, "unmet": ["anything that sounds urgent"]}\n\n' +
+      'Example — "everything I have not read from people I actually know"\n' +
+      '{"filter": {"unreadOnly": true}, "unmet": ["from people I actually know"]}\n\n';
 
   return {
     // Worked examples rather than rules alone: told only in prose, 7B models

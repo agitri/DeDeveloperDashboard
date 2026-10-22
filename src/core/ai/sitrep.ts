@@ -26,15 +26,15 @@ export function completionFor(input: SitrepInput, model: string): Completion {
   const facts = [
     `Project: ${input.projectName}.`,
     `Away for about ${input.awayDays} days.`,
-    input.commits > 0
-      ? `${input.commits} commit(s) touched ${input.filesChanged} file(s)${input.commitMessages.length ? ": " + input.commitMessages.slice(0, 5).join("; ") : ""}.`
-      : "No new commits.",
-    input.processesStopped.length > 0
-      ? `Processes that stopped: ${input.processesStopped.join(", ")}. ${input.processesRunning} still running.`
-      : `${input.processesRunning} process(es) running.`,
-    input.aiActions.length > 0
-      ? "AI activity: " + input.aiActions.map((a) => `${a.action} ×${a.count}`).join(", ") + "."
-      : "No AI activity.",
+    input.commits > 0 ?
+      `${input.commits} commit(s) touched ${input.filesChanged} file(s)${input.commitMessages.length ? ": " + input.commitMessages.slice(0, 5).join("; ") : ""}.`
+    : "No new commits.",
+    input.processesStopped.length > 0 ?
+      `Processes that stopped: ${input.processesStopped.join(", ")}. ${input.processesRunning} still running.`
+    : `${input.processesRunning} process(es) running.`,
+    input.aiActions.length > 0 ?
+      "AI activity: " + input.aiActions.map((a) => `${a.action} ×${a.count}`).join(", ") + "."
+    : "No AI activity.",
   ].join("\n");
   return {
     system: SYSTEM,

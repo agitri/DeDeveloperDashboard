@@ -3,7 +3,14 @@ import { parse, type Block, type Inline } from "./markdown";
 
 /** Flatten every inline node to its literal text, marks and all. */
 function textOf(kids: Inline[]): string {
-  return kids.map((k) => (k.t === "text" ? k.v : k.t === "code" ? k.v : "kids" in k ? textOf(k.kids) : "")).join("");
+  return kids
+    .map((k) =>
+      k.t === "text" ? k.v
+      : k.t === "code" ? k.v
+      : "kids" in k ? textOf(k.kids)
+      : "",
+    )
+    .join("");
 }
 
 /** Narrow to the inline children of whichever block kinds have them. */

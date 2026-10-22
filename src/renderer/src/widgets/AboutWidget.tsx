@@ -94,7 +94,7 @@ export function AboutWidget({ widget, environmentId }: WidgetViewProps) {
       {remote && <div className="ink-2">{remote}</div>}
 
       <div className="project-meta">
-        {git.isRepo ? (
+        {git.isRepo ?
           <>
             <span>
               <span className="k">branch </span>
@@ -110,9 +110,7 @@ export function AboutWidget({ widget, environmentId }: WidgetViewProps) {
               </span>
             )}
           </>
-        ) : (
-          <span className="k">not a git repository</span>
-        )}
+        : <span className="k">not a git repository</span>}
         {openTodos > 0 && (
           <span>
             <span className="k">todo </span>
@@ -129,27 +127,25 @@ export function AboutWidget({ widget, environmentId }: WidgetViewProps) {
 
       <div>
         <div className="mono-label caption">Products{products.length > 0 ? ` (${products.length})` : ""}</div>
-        {products.length === 0 ? (
+        {products.length === 0 ?
           <div className="ink-2">
             No products declared in this project&rsquo;s <code>.ddd/config.json</code>.
           </div>
-        ) : (
-          <div className="row-detail">
+        : <div className="row-detail">
             {products.map((product) => (
               <div key={product.key} className="row-sub">
                 {product.name}
               </div>
             ))}
           </div>
-        )}
+        }
       </div>
 
       <div>
         <div className="mono-label caption">Recent activity</div>
-        {events.length === 0 ? (
+        {events.length === 0 ?
           <div className="ink-2">No recent activity.</div>
-        ) : (
-          <div className="row-detail">
+        : <div className="row-detail">
             {events.map((event) => (
               <div key={event.id} className="row-sub">
                 <span className="ink-2">{event.kind}</span>
@@ -157,7 +153,7 @@ export function AboutWidget({ widget, environmentId }: WidgetViewProps) {
               </div>
             ))}
           </div>
-        )}
+        }
       </div>
     </div>
   );

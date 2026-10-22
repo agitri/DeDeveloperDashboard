@@ -144,15 +144,14 @@ export function ModelsWidget({ widget }: WidgetViewProps) {
           <button className="btn xs" title="Rescan" onClick={() => void refresh()} disabled={busy !== null}>
             ↻
           </button>
-          {busy && confirming === null ? (
+          {busy && confirming === null ?
             <button className="btn xs" onClick={() => (cancelAll.current = true)}>
               Stop after this one
             </button>
-          ) : (
-            <button className="btn xs primary" disabled={queue.length === 0 || busy !== null} onClick={() => setConfirming("all")}>
+          : <button className="btn xs primary" disabled={queue.length === 0 || busy !== null} onClick={() => setConfirming("all")}>
               Move all
             </button>
-          )}
+          }
         </div>
       </div>
 
@@ -176,13 +175,12 @@ export function ModelsWidget({ widget }: WidgetViewProps) {
         </div>
       )}
 
-      {present.length === 0 ? (
+      {present.length === 0 ?
         <Empty
           title="No local model stores found"
           body="Looked for Ollama, the Hugging Face hub cache (MLX, vLLM), LM Studio, llama.cpp, Jan and GPT4All."
         />
-      ) : (
-        present.map((store) => (
+      : present.map((store) => (
           <div className="models-store" key={store.runtime}>
             <div className="models-store-head">
               <span className="models-store-name">{store.label}</span>
@@ -202,7 +200,7 @@ export function ModelsWidget({ widget }: WidgetViewProps) {
                     <div className="row-title" title={m.path}>
                       {m.name}
                     </div>
-                    {p ? (
+                    {p ?
                       <div className="models-progress">
                         <div className="models-progress-bar">
                           <div className="models-progress-fill" style={{ width: `${percent(p.bytesDone, p.bytesTotal)}%` }} />
@@ -211,18 +209,18 @@ export function ModelsWidget({ widget }: WidgetViewProps) {
                           {p.phase === "remove" ? "removing source…" : `${fmtBytes(p.bytesDone)} / ${fmtBytes(p.bytesTotal)}`}
                         </span>
                       </div>
-                    ) : err ? (
+                    : err ?
                       <div className="row-sub models-row-error">{err}</div>
-                    ) : confirming === m.id ? (
+                    : confirming === m.id ?
                       <div className="row-sub">
                         Move to <code>{shortDest || "a folder you pick next"}</code>?
                         {m.runtime === "ollama" && " Exported as GGUF + Modelfile and removed from Ollama."}
                       </div>
-                    ) : null}
+                    : null}
                   </div>
                   <span className="models-row-bytes ink-2">{fmtBytes(m.bytes)}</span>
                   <div className="models-row-actions">
-                    {confirming === m.id ? (
+                    {confirming === m.id ?
                       <>
                         <button className="btn xs primary" onClick={() => void runOne(m)}>
                           Move
@@ -231,18 +229,17 @@ export function ModelsWidget({ widget }: WidgetViewProps) {
                           Cancel
                         </button>
                       </>
-                    ) : (
-                      <button className="btn xs" disabled={busy !== null} onClick={() => setConfirming(m.id)}>
+                    : <button className="btn xs" disabled={busy !== null} onClick={() => setConfirming(m.id)}>
                         Move
                       </button>
-                    )}
+                    }
                   </div>
                 </div>
               );
             })}
           </div>
         ))
-      )}
+      }
 
       {moved.length > 0 && (
         <div className="models-store">

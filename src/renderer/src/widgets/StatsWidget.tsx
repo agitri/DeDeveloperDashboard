@@ -82,9 +82,9 @@ export function StatsWidget({ environmentId }: WidgetViewProps) {
       />
 
       <div className="mono-label">
-        {rows.length >= MAX_EVENTS
-          ? `showing the most recent ${MAX_EVENTS} events — older ones exist but are not counted here`
-          : `${rows.length} events · never leaves this machine`}
+        {rows.length >= MAX_EVENTS ?
+          `showing the most recent ${MAX_EVENTS} events — older ones exist but are not counted here`
+        : `${rows.length} events · never leaves this machine`}
       </div>
     </div>
   );
@@ -224,10 +224,9 @@ function BarChart({
         </span>
       </div>
 
-      {allZero && emptyNote ? (
+      {allZero && emptyNote ?
         <div className="chart-caption">{emptyNote}</div>
-      ) : (
-        <div className="stat-chart">
+      : <div className="stat-chart">
           <svg
             viewBox={`0 0 ${width} ${height}`}
             preserveAspectRatio="none"
@@ -282,7 +281,7 @@ function BarChart({
             })}
           </svg>
         </div>
-      )}
+      }
     </div>
   );
 }

@@ -29,9 +29,9 @@ export function badge(health: Health, latencyMs: number | null): Badge {
         label: latencyMs === null ? "listening" : `${latencyMs}ms`,
         color: "var(--ok)",
         title:
-          latencyMs === null
-            ? "Accepted a connection. Not asked for a reply — its process is not on the HTTP list."
-            : `Answered in ${latencyMs}ms`,
+          latencyMs === null ?
+            "Accepted a connection. Not asked for a reply — its process is not on the HTTP list."
+          : `Answered in ${latencyMs}ms`,
       };
     case "slow":
       return {
@@ -66,7 +66,10 @@ export function badge(health: Health, latencyMs: number | null): Badge {
  */
 export function nextInterval(baseMs: number, currentMs: number, lastScanMs: number): number {
   const CEILING = 30_000;
-  const next = lastScanMs > 750 ? currentMs * 2 : lastScanMs < 400 ? Math.floor(currentMs / 2) : currentMs;
+  const next =
+    lastScanMs > 750 ? currentMs * 2
+    : lastScanMs < 400 ? Math.floor(currentMs / 2)
+    : currentMs;
   return Math.min(Math.max(next, baseMs), Math.max(CEILING, baseMs));
 }
 

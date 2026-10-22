@@ -308,11 +308,9 @@ export async function moveModel(
   if (!(await exists(m.path))) throw DddError.notFound(`${m.id} is no longer at ${m.path}`);
 
   const destination =
-    m.runtime === "ollama"
-      ? join(destRoot, "ollama", ollamaFolderName(m.name))
-      : m.runtime === "huggingface"
-        ? join(destRoot, "huggingface", relative(root, m.path))
-        : join(destRoot, m.runtime, relative(root, m.path));
+    m.runtime === "ollama" ? join(destRoot, "ollama", ollamaFolderName(m.name))
+    : m.runtime === "huggingface" ? join(destRoot, "huggingface", relative(root, m.path))
+    : join(destRoot, m.runtime, relative(root, m.path));
   if (await exists(destination)) throw DddError.invalid(`${destination} already exists; move or remove it first`);
 
   const total = m.runtime === "ollama" ? readManifest(m.path).reduce((n, l) => n + l.size, 0) : sizeOf(m.path);

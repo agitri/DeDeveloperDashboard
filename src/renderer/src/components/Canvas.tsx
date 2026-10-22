@@ -55,7 +55,7 @@ export function Canvas({ tab }: { tab: EnvTab | null }) {
 
   return (
     <div className="canvas" data-wizard-target="board" ref={containerRef}>
-      {tab.widgets.length === 0 ? (
+      {tab.widgets.length === 0 ?
         <div className="canvas-empty">
           <h2>{tab.name} is empty</h2>
           <p>A widget is a source, a filter and a view. Add one and scope it as wide or as narrow as you like.</p>
@@ -63,8 +63,7 @@ export function Canvas({ tab }: { tab: EnvTab | null }) {
             Add widget
           </button>
         </div>
-      ) : (
-        mounted && (
+      : mounted && (
           <GridLayout
             width={width}
             className="grid"
@@ -87,26 +86,25 @@ export function Canvas({ tab }: { tab: EnvTab | null }) {
               return (
                 <div key={widget.id}>
                   <WidgetFrame widget={widget} environmentId={tab.environmentId}>
-                    {View ? (
+                    {View ?
                       <View
                         widget={widget}
                         environmentId={tab.environmentId}
                         focused={focusedWidgetId === widget.id}
                         itemIndex={itemIndex}
                       />
-                    ) : (
-                      <div style={{ color: "var(--ink-3)" }}>
+                    : <div style={{ color: "var(--ink-3)" }}>
                         Unknown widget kind <code>{widget.kind}</code>. It stays in layout.json untouched, so an older DDD will not eat your
                         board.
                       </div>
-                    )}
+                    }
                   </WidgetFrame>
                 </div>
               );
             })}
           </GridLayout>
         )
-      )}
+      }
     </div>
   );
 }

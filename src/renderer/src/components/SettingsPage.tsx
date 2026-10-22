@@ -331,9 +331,9 @@ function EnvironmentCard({
           <span className="pathline">~/.ddd/environments/{env.id}/</span>
         </Row>
         <Row label="Delete" desc="Removes its directory, its tabs and every keychain entry its connections own.">
-          {onlyOne ? (
+          {onlyOne ?
             <span className="mono-label">the last environment cannot be deleted</span>
-          ) : confirming ? (
+          : confirming ?
             <>
               <button className="btn danger" onClick={onDelete}>
                 Delete {env.name} permanently
@@ -342,11 +342,10 @@ function EnvironmentCard({
                 Cancel
               </button>
             </>
-          ) : (
-            <button className="btn danger" onClick={onConfirm}>
+          : <button className="btn danger" onClick={onConfirm}>
               Delete…
             </button>
-          )}
+          }
         </Row>
       </div>
     </div>
@@ -556,12 +555,11 @@ function McpPanel({ connection, patch, envId }: { connection: Connection; patch:
           label="Approval"
           desc="This launches a program on your machine as you. The approval is bound to the exact command below — editing it asks again."
         >
-          {consented ? (
+          {consented ?
             <span className="mono-label" style={{ color: "var(--ok)" }}>
               approved
             </span>
-          ) : (
-            <>
+          : <>
               <input
                 className="field"
                 style={{ maxWidth: 120 }}
@@ -577,7 +575,7 @@ function McpPanel({ connection, patch, envId }: { connection: Connection; patch:
                 Approve this command
               </button>
             </>
-          )}
+          }
         </Row>
       )}
       {isStdio && command && (
@@ -726,7 +724,7 @@ function ConnectionsPanel({ settings, patch, envId }: { settings: Settings; patc
               <div>{connection.label}</div>
               <div className="mono-label">{connection.provider}</div>
             </div>
-            {PROVIDERS.find((p) => p.id === connection.provider)?.oauth ? (
+            {PROVIDERS.find((p) => p.id === connection.provider)?.oauth ?
               <button
                 className="btn primary"
                 title="Opens your browser; the token never passes through this window"
@@ -743,14 +741,13 @@ function ConnectionsPanel({ settings, patch, envId }: { settings: Settings; patc
               >
                 {secretPresent[connection.id] ? "Reconnect" : "Connect"}
               </button>
-            ) : (
-              <button className="btn" onClick={() => setEditing(editing === connection.id ? null : connection.id)}>
+            : <button className="btn" onClick={() => setEditing(editing === connection.id ? null : connection.id)}>
                 {(() => {
                   const what = (PROVIDERS.find((p) => p.id === connection.provider)?.secretLabel ?? "token").toLowerCase();
                   return `${secretPresent[connection.id] ? "Replace" : "Set"} ${what}`;
                 })()}
               </button>
-            )}
+            }
             <button className="btn danger" onClick={() => void removeConnection(connection)}>
               Remove
             </button>
@@ -1287,7 +1284,7 @@ function AppearancePanel() {
                   })
                 }
               />
-              {appearance.accent ? (
+              {appearance.accent ?
                 <button
                   className="btn sm"
                   onClick={() =>
@@ -1299,9 +1296,7 @@ function AppearancePanel() {
                 >
                   Follow environment
                 </button>
-              ) : (
-                <span className="ink-3">follows the environment</span>
-              )}
+              : <span className="ink-3">follows the environment</span>}
             </span>
           </Row>
           <Row
@@ -1653,15 +1648,13 @@ function DataPanel({ settings, patch, envId }: { settings: Settings; patch: Patc
           <div className="grow">Where things live</div>
         </div>
         <div className="card-body">
-          {paths ? (
+          {paths ?
             Object.entries(paths).map(([key, value]) => (
               <Row key={key} label={key.replace(/([A-Z])/g, " $1").toLowerCase()}>
                 <span className="pathline">{value || "—"}</span>
               </Row>
             ))
-          ) : (
-            <div style={{ color: "var(--ink-3)" }}>Paths are only available in the desktop app.</div>
-          )}
+          : <div style={{ color: "var(--ink-3)" }}>Paths are only available in the desktop app.</div>}
         </div>
       </div>
 

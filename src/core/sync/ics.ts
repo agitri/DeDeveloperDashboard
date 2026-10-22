@@ -163,11 +163,10 @@ export class IcsAdapter implements SourceAdapter {
  */
 export function normalizeUrl(raw: string): string {
   const trimmed = raw.trim();
-  const rewritten = trimmed.startsWith("webcal://")
-    ? `https://${trimmed.slice("webcal://".length)}`
-    : trimmed.startsWith("webcals://")
-      ? `https://${trimmed.slice("webcals://".length)}`
-      : trimmed;
+  const rewritten =
+    trimmed.startsWith("webcal://") ? `https://${trimmed.slice("webcal://".length)}`
+    : trimmed.startsWith("webcals://") ? `https://${trimmed.slice("webcals://".length)}`
+    : trimmed;
 
   const lower = rewritten.toLowerCase();
   if (lower.startsWith("https://") || lower.startsWith("http://")) return rewritten;
@@ -223,9 +222,9 @@ function toItem(fields: string[], connectionId: string, environmentId: string, c
   const dtend = findTime(fields, "DTEND");
   const duration = find(fields, "DURATION");
   const end =
-    dtend !== null
-      ? dtend[0]
-      : ((duration === null ? null : addDuration(start, duration)) ?? new Date(start.getTime() + (allDay ? DAY_MS : HOUR_MS)));
+    dtend !== null ?
+      dtend[0]
+    : ((duration === null ? null : addDuration(start, duration)) ?? new Date(start.getTime() + (allDay ? DAY_MS : HOUR_MS)));
 
   const refs = [`dtstart:${rfc3339(start)}`, `dtend:${rfc3339(end)}`, `allday:${allDay}`];
   if (startTz !== null) refs.push(`tzid:${startTz}`);

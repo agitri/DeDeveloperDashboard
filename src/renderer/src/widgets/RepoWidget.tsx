@@ -418,7 +418,7 @@ export function RepoWidget({ widget, environmentId, focused, itemIndex }: Widget
                   Promote to tab
                 </button>
                 {row.localPath &&
-                  (confirmUnlink === row.remote ? (
+                  (confirmUnlink === row.remote ?
                     <>
                       <button className="btn danger sm" onClick={() => void unlink(row)}>
                         Remove mapping
@@ -427,28 +427,25 @@ export function RepoWidget({ widget, environmentId, focused, itemIndex }: Widget
                         Cancel
                       </button>
                     </>
-                  ) : (
-                    <button
+                  : <button
                       className="btn sm"
                       title="Removes the mapping only — the folder on disk is untouched"
                       onClick={() => setConfirmUnlink(row.remote)}
                     >
                       Unlink…
-                    </button>
-                  ))}
-                {isHidden ? (
+                    </button>)}
+                {isHidden ?
                   <button className="btn sm" title="Show this repository in the list again" onClick={() => unhide(row.remote)}>
                     Unhide
                   </button>
-                ) : (
-                  <button
+                : <button
                     className="btn sm"
                     title="Remove from this list only — nothing is unlinked, deleted or unsynced"
                     onClick={() => hide(row.remote)}
                   >
                     Hide
                   </button>
-                )}
+                }
                 <button className="btn sm" onClick={() => void ipc.openExternal(row.url)}>
                   Open
                 </button>
@@ -509,7 +506,7 @@ export function RepoWidget({ widget, environmentId, focused, itemIndex }: Widget
                       </button>
                     </>
                   )}
-                  {confirmForget === row.path ? (
+                  {confirmForget === row.path ?
                     <>
                       <button className="btn danger sm" onClick={() => void forget(row)}>
                         Forget
@@ -518,15 +515,14 @@ export function RepoWidget({ widget, environmentId, focused, itemIndex }: Widget
                         Cancel
                       </button>
                     </>
-                  ) : (
-                    <button
+                  : <button
                       className="btn sm"
                       title="Removes it from this list only — the folder on disk is untouched"
                       onClick={() => setConfirmForget(row.path)}
                     >
                       Forget…
                     </button>
-                  )}
+                  }
                 </div>
               </div>
             ))}

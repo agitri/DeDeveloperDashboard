@@ -120,7 +120,9 @@ export function ConsoleRail({
         aria-label="Search actions, tabs, projects"
         onClick={() => togglePalette(true)}
       >
-        {paletteBinding ? <Kbd binding={paletteBinding} /> : "⌘K"}
+        {paletteBinding ?
+          <Kbd binding={paletteBinding} />
+        : "⌘K"}
       </button>
       <RailClock />
     </div>
@@ -363,16 +365,15 @@ function RailEnvironment({
       >
         <span className="rail-letter">{env.name.slice(0, 1).toUpperCase()}</span>
         <span className="rail-name">{env.name}</span>
-        {envHint ? (
+        {envHint ?
           <Kbd binding={envHint} className="rail-env-hint" />
-        ) : (
-          <span className="rail-env-count" title={`${tabs.length} tab${tabs.length === 1 ? "" : "s"}`}>
+        : <span className="rail-env-count" title={`${tabs.length} tab${tabs.length === 1 ? "" : "s"}`}>
             {tabs.length}
           </span>
-        )}
+        }
       </div>
 
-      {expanded ? (
+      {expanded ?
         <div className="rail-boards" ref={boardsRef} style={{ ["--c" as string]: env.color }} {...dragHandlers}>
           {/* Rendered in run order — the same order as the tab array — because
               `resolveDrop` walks the rendered tiles to work out where a drop
@@ -433,7 +434,7 @@ function RailEnvironment({
             {hintsVisible && newTabBinding && <Kbd binding={newTabBinding} />}
           </button>
         </div>
-      ) : null}
+      : null}
     </>
   );
 }
@@ -603,7 +604,7 @@ function RailGroupPill({
         }}
       >
         <i />
-        {renamingGroupId === group.id ? (
+        {renamingGroupId === group.id ?
           <input
             className="field rail-rename"
             autoFocus
@@ -623,9 +624,7 @@ function RailGroupPill({
               }
             }}
           />
-        ) : (
-          <span>{group.name}</span>
-        )}
+        : <span>{group.name}</span>}
         <span className="rail-group-count">{count}</span>
       </div>
     </>

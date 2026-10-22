@@ -235,11 +235,11 @@ function specFromItem(item: Item, settings: Settings): EventSpec | null {
   const recurrenceRef = pick("recurrenceid:");
   const recurrenceId = recurrenceRef === null ? null : calendar.parseRfc3339(recurrenceRef);
   const overrides: Override | null =
-    series !== null && recurrenceId !== null
-      ? // The series id must be the *item* id the series was stored under, not
-        // the bare UID, or the override never matches anything.
-        { seriesId: makeItemId(item.connectionId, series), recurrenceId }
-      : null;
+    series !== null && recurrenceId !== null ?
+      // The series id must be the *item* id the series was stored under, not
+      // the bare UID, or the override never matches anything.
+      { seriesId: makeItemId(item.connectionId, series), recurrenceId }
+    : null;
 
   return {
     id: item.id,

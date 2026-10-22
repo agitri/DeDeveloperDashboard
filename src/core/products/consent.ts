@@ -68,8 +68,8 @@ export function revoke(file: string, key: string): void {
 export type Missing = "never" | "changed";
 
 export function missingMessage(m: Missing): string {
-  return m === "never"
-    ? "not approved to run in this environment yet"
+  return m === "never" ?
+      "not approved to run in this environment yet"
     : "the command changed since you approved it — read it again and approve the new one";
 }
 

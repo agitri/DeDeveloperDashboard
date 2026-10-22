@@ -77,7 +77,12 @@ export function parse(output: string): Map<string, DevContainer[]> {
     });
     out.set(dir, list);
   }
-  for (const list of out.values()) list.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+  for (const list of out.values())
+    list.sort((a, b) =>
+      a.name < b.name ? -1
+      : a.name > b.name ? 1
+      : 0,
+    );
   return out;
 }
 

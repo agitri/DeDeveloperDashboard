@@ -656,15 +656,15 @@ export const useStore = create<Store>((set, get) => ({
       const next = {
         ...layout,
         tabs: layout.tabs.map((t) =>
-          t.id === tab.id
-            ? {
-                ...t,
-                widgets: t.widgets.map((w) => {
-                  const u = byId.get(w.id);
-                  return u ? { ...w, layout: { x: u.x, y: u.y, w: u.w, h: u.h } } : w;
-                }),
-              }
-            : t,
+          t.id === tab.id ?
+            {
+              ...t,
+              widgets: t.widgets.map((w) => {
+                const u = byId.get(w.id);
+                return u ? { ...w, layout: { x: u.x, y: u.y, w: u.w, h: u.h } } : w;
+              }),
+            }
+          : t,
         ),
       };
       persistLayout(envId, next);

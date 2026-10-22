@@ -89,10 +89,15 @@ export function SitrepWidget({ widget, environmentId }: WidgetViewProps) {
         const proj = projects.find((p) => p.id === projectId) ?? null;
         // Newest first; `0` for equal timestamps keeps the comparator a valid
         // total order rather than one that quietly depends on sort stability.
-        const merged = [...aiEvents, ...productEvents].sort((a, b) => (a.ts === b.ts ? 0 : a.ts < b.ts ? 1 : -1));
+        const merged = [...aiEvents, ...productEvents].sort((a, b) =>
+          a.ts === b.ts ? 0
+          : a.ts < b.ts ? 1
+          : -1,
+        );
         const fallbackSince = new Date(Date.now() - FALLBACK_WINDOW_MS).toISOString();
-        const repoChanges = proj
-          ? await ipc.repoChangesSince(environmentId, proj.path, lastVisitedAt ?? fallbackSince)
+        const repoChanges =
+          proj ?
+            await ipc.repoChangesSince(environmentId, proj.path, lastVisitedAt ?? fallbackSince)
           : { commits: 0, filesChanged: 0, messages: [] };
         return [proj, prods, merged, repoChanges] as const;
       });
@@ -129,15 +134,16 @@ export function SitrepWidget({ widget, environmentId }: WidgetViewProps) {
 
   const cachedRaw = widget.config.sitrep as SitrepCache | undefined;
   const cached =
-    cachedRaw?.text !== undefined && cachedRaw.coveredThroughTs !== undefined
-      ? { text: cachedRaw.text, key: cachedRaw.coveredThroughTs }
-      : undefined;
+    cachedRaw?.text !== undefined && cachedRaw.coveredThroughTs !== undefined ?
+      { text: cachedRaw.text, key: cachedRaw.coveredThroughTs }
+    : undefined;
   // A stale `genError` (from a previous, now-superseded range) must not leak
   // into this range's decision — only a failure *of this attempt* counts.
   const effectiveGenError = genError && attempted.current === currentKey;
 
-  const banner = delta
-    ? sitrepBanner({
+  const banner =
+    delta ?
+      sitrepBanner({
         away: away.away,
         delta,
         cached,
@@ -251,10 +257,9 @@ export function SitrepWidget({ widget, environmentId }: WidgetViewProps) {
 
       <div>
         <div className="mono-label caption">Timeline</div>
-        {recent.length === 0 ? (
+        {recent.length === 0 ?
           <div className="ink-2">No recent activity.</div>
-        ) : (
-          <div className="sitrep-timeline">
+        : <div className="sitrep-timeline">
             {recent.map((event) => (
               <div key={event.id} className="sitrep-line">
                 <span className="ink-2">{event.kind}</span>
@@ -262,7 +267,7 @@ export function SitrepWidget({ widget, environmentId }: WidgetViewProps) {
               </div>
             ))}
           </div>
-        )}
+        }
       </div>
     </div>
   );

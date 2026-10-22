@@ -208,7 +208,7 @@ export function EolWidget({ widget, environmentId, focused, itemIndex }: WidgetV
                       </button>
                     </>
                   )}
-                  {confirmDrop === row.path ? (
+                  {confirmDrop === row.path ?
                     <>
                       <button className="btn danger sm" onClick={() => void drop(row)}>
                         Stop watching
@@ -217,15 +217,14 @@ export function EolWidget({ widget, environmentId, focused, itemIndex }: WidgetV
                         Cancel
                       </button>
                     </>
-                  ) : (
-                    <button
+                  : <button
                       className="btn sm"
                       title="Removes it from this list only — the checkout on disk is untouched"
                       onClick={() => setConfirmDrop(row.path)}
                     >
                       Unwatch…
                     </button>
-                  )}
+                  }
                 </div>
               </div>
 

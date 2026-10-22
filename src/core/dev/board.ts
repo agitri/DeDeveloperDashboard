@@ -298,18 +298,19 @@ export function join(
     // A Docker-published port has the daemon as its process, so its cwd is
     // Docker's own — never a project. Attribute it by which project's compose
     // file published that port instead.
-    const projectDir = matched !== null ? matched.path : docker ? dirPublishing(l.port, byDir) : null;
+    const projectDir =
+      matched !== null ? matched.path
+      : docker ? dirPublishing(l.port, byDir)
+      : null;
     const rowContainers = projectDir === null ? [] : (byDir.get(projectDir)?.slice() ?? []);
     // A Docker row is named by its compose project rather than by the
     // directory's basename: a compose file living in `…/foo/backend` gives every
     // container a `foo-` prefix, and "backend" matches nothing the user sees in
     // `docker ps`.
     const projectName =
-      matched === null && docker && rowContainers[0] !== undefined
-        ? rowContainers[0].project
-        : projectDir === null
-          ? null
-          : leaf(projectDir);
+      matched === null && docker && rowContainers[0] !== undefined ? rowContainers[0].project
+      : projectDir === null ? null
+      : leaf(projectDir);
 
     if (knownOnly && projectName === null) {
       hidden += 1;

@@ -183,5 +183,9 @@ function isDirectory(path: string): boolean {
 
 /** Byte-wise, like Rust's `String::cmp`. */
 function byteCompare(a: string, b: string): number {
-  return a < b ? -1 : a > b ? 1 : 0;
+  return (
+    a < b ? -1
+    : a > b ? 1
+    : 0
+  );
 }

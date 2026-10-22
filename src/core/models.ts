@@ -99,13 +99,12 @@ export function globalFromJson(raw: unknown): StoredGlobal {
   const appearance = o.appearance === undefined || o.appearance === null ? null : appearanceRequired(o.appearance);
   const wizardRaw = o.wizard;
   const wizard =
-    wizardRaw && typeof wizardRaw === "object"
-      ? {
-          completed: (wizardRaw as Record<string, unknown>).completed === true,
-          step:
-            typeof (wizardRaw as Record<string, unknown>).step === "number" ? ((wizardRaw as Record<string, unknown>).step as number) : 0,
-        }
-      : null;
+    wizardRaw && typeof wizardRaw === "object" ?
+      {
+        completed: (wizardRaw as Record<string, unknown>).completed === true,
+        step: typeof (wizardRaw as Record<string, unknown>).step === "number" ? ((wizardRaw as Record<string, unknown>).step as number) : 0,
+      }
+    : null;
   return {
     version: optional(o, "version", isNumber, 1),
     environments,

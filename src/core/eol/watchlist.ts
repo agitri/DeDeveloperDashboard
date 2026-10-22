@@ -69,7 +69,10 @@ export function save(env: EnvRoot, list: Watchlist): void {
 export function validateUrl(raw: string): string {
   const url = raw.trim();
   if (url === "") throw DddError.invalid("no address given");
-  const rest = url.startsWith("https://") ? url.slice(8) : url.startsWith("http://") ? url.slice(7) : null;
+  const rest =
+    url.startsWith("https://") ? url.slice(8)
+    : url.startsWith("http://") ? url.slice(7)
+    : null;
   if (rest === null) throw DddError.invalid(`${url} is not an http or https address`);
   const host = rest.split(/[/?#]/)[0] ?? "";
   if (host === "" || !host.includes(".")) throw DddError.invalid(`${url} has no host to reach`);

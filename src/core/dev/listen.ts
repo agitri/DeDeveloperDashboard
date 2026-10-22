@@ -66,9 +66,9 @@ export const NETSTAT_ARGS = ["-ano"];
  *  Never rejects: an enumeration that cannot read simply finds less. */
 export async function enumerate(runner: Runner = execFileRunner, platform: NodeJS.Platform = process.platform): Promise<Listener[]> {
   const found =
-    platform === "win32"
-      ? parseNetstat((await runner("netstat", NETSTAT_ARGS)).stdout)
-      : parseLsof((await runner("lsof", LSOF_ARGS)).stdout);
+    platform === "win32" ?
+      parseNetstat((await runner("netstat", NETSTAT_ARGS)).stdout)
+    : parseLsof((await runner("lsof", LSOF_ARGS)).stdout);
   return order(found);
 }
 
@@ -77,7 +77,13 @@ export async function enumerate(runner: Runner = execFileRunner, platform: NodeJ
  *  reports a dual-descriptor bind twice), different processes on one socket do
  *  not — that collapse belongs to the join, which counts them as workers. */
 export function order(found: Listener[]): Listener[] {
-  const sorted = [...found].sort((a, b) => a.port - b.port || (a.address < b.address ? -1 : a.address > b.address ? 1 : 0));
+  const sorted = [...found].sort(
+    (a, b) =>
+      a.port - b.port ||
+      (a.address < b.address ? -1
+      : a.address > b.address ? 1
+      : 0),
+  );
   return sorted.filter((l, i) => {
     const previous = sorted[i - 1];
     return (

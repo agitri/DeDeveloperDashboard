@@ -95,9 +95,9 @@ function fakeGitHub(overrides: Partial<Record<string, (body: string | null) => R
     if (query.includes("viewer")) {
       // Page 1 then a stalled cursor: the same endCursor twice must stop the loop.
       const page =
-        variables.cursor === null
-          ? { nodes: [repoNode("https://github.com/agitri/ddd", "")], pageInfo: { hasNextPage: true, endCursor: "C1" } }
-          : { nodes: [repoNode("https://github.com/agitri/other", "")], pageInfo: { hasNextPage: true, endCursor: "C1" } };
+        variables.cursor === null ?
+          { nodes: [repoNode("https://github.com/agitri/ddd", "")], pageInfo: { hasNextPage: true, endCursor: "C1" } }
+        : { nodes: [repoNode("https://github.com/agitri/other", "")], pageInfo: { hasNextPage: true, endCursor: "C1" } };
       return json({ data: { viewer: { repositories: page } } });
     }
     const pr = (n: number) => ({

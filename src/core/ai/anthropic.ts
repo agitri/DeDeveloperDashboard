@@ -80,8 +80,9 @@ export class AnthropicProvider implements LLMProvider {
 
     // `content` is a list of typed blocks; only the text ones are the answer.
     const blocks = at(parsed, "content");
-    const textOut = Array.isArray(blocks)
-      ? blocks
+    const textOut =
+      Array.isArray(blocks) ?
+        blocks
           .filter((b) => asStr(at(b, "type")) === "text")
           .map((b) => asStr(at(b, "text")))
           .filter((t): t is string => t !== null)

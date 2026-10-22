@@ -130,9 +130,9 @@ export function ItemsWidget({ widget, environmentId, focused, itemIndex }: Widge
       <Empty
         title="Nothing here yet."
         body={
-          filter.connectionId
-            ? "The scheduler will fill this in on its next pass."
-            : "Connect an account in Settings → Connections, then this fills itself."
+          filter.connectionId ?
+            "The scheduler will fill this in on its next pass."
+          : "Connect an account in Settings → Connections, then this fills itself."
         }
         meta={
           <button
@@ -335,22 +335,21 @@ function IcmPanel({ context, onClose }: { context: AiContext | null; onClose: ()
     <div className="item-detail stack">
       <div className="mono-label caption">what these actions will be given</div>
 
-      {!plan ? (
+      {!plan ?
         <div className="ink-2">
           This item is not matched to a project on disk, so an action gets the item and nothing else. Map its repository to a checkout and
           its <code>.ddd/icm/</code> is read from then on.
         </div>
-      ) : plan.missing ? (
+      : plan.missing ?
         <div className="ink-2">
           <b>{context.project}</b> has no <code>.ddd/icm/</code> folder, so an action gets the item and nothing else. Anything you write
           there — conventions, architecture, what you are in the middle of — is read on every action.
         </div>
-      ) : plan.files.length === 0 ? (
+      : plan.files.length === 0 ?
         <div className="ink-2">
           <b>{context.project}</b> has an <code>.ddd/icm/</code> folder with nothing in it.
         </div>
-      ) : (
-        <>
+      : <>
           {plan.files.map((file) => (
             <div key={file.path} className="row-sub">
               <span className="ink-2 finding-name">{file.name}</span>
@@ -364,7 +363,7 @@ function IcmPanel({ context, onClose }: { context: AiContext | null; onClose: ()
             {format(plan.totalUsed)} of {format(plan.budget)} budget · sent with every action on this item
           </div>
         </>
-      )}
+      }
 
       <div className="button-row">
         {plan && !plan.missing && (

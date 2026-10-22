@@ -27,11 +27,10 @@ export async function dispatch(
   const name = String(cmd);
   // Object.hasOwn, not `in` / bracket lookup: a renderer sending "constructor"
   // or "toString" must get "unknown command", not Object.prototype's own.
-  const handler: HostHandler | Handler | undefined = Object.hasOwn(host, name)
-    ? host[name]
-    : Object.hasOwn(commands, name)
-      ? commands[name]
-      : undefined;
+  const handler: HostHandler | Handler | undefined =
+    Object.hasOwn(host, name) ? host[name]
+    : Object.hasOwn(commands, name) ? commands[name]
+    : undefined;
   if (!handler) return { ok: false, error: `unknown command ${name}` };
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

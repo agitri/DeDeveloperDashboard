@@ -347,7 +347,7 @@ function GroupPill({ group, envId, count }: { group: TabGroup; envId: string; co
       }}
     >
       <i className="group-dot" />
-      {renamingGroupId === group.id ? (
+      {renamingGroupId === group.id ?
         <NameInput
           value={group.name}
           onCommit={(name) => {
@@ -355,9 +355,7 @@ function GroupPill({ group, envId, count }: { group: TabGroup; envId: string; co
             startRenamingGroup(null);
           }}
         />
-      ) : (
-        <span>{group.name}</span>
-      )}
+      : <span>{group.name}</span>}
       {group.collapsed && <span className="group-count">{count}</span>}
     </button>
   );
@@ -450,15 +448,15 @@ function TabButton({
         },
       ],
     },
-    ...(tab.groupId
-      ? [
-          {
-            kind: "action" as const,
-            label: "Remove from group",
-            run: () => setTabGroup(tab.id, null),
-          },
-        ]
-      : []),
+    ...(tab.groupId ?
+      [
+        {
+          kind: "action" as const,
+          label: "Remove from group",
+          run: () => setTabGroup(tab.id, null),
+        },
+      ]
+    : []),
     { kind: "separator" },
     { kind: "action", label: "Close tab", danger: true, run: () => closeTab(tab.id) },
   ];
@@ -479,9 +477,9 @@ function TabButton({
         onDragStart={onDragStart}
         onDragEnd={onDragEnd}
         title={
-          renaming
-            ? undefined
-            : `${tab.name} — double-click to rename${renameBinding ? ` (${formatBinding(renameBinding)})` : ""}, right-click for more`
+          renaming ? undefined : (
+            `${tab.name} — double-click to rename${renameBinding ? ` (${formatBinding(renameBinding)})` : ""}, right-click for more`
+          )
         }
         onClick={() => selectTab(tab.id)}
         onDoubleClick={() => startRenamingTab(tab.id)}
@@ -491,7 +489,7 @@ function TabButton({
           openMenu(e.clientX, e.clientY, items);
         }}
       >
-        {renaming ? (
+        {renaming ?
           <NameInput
             value={tab.name}
             onCommit={(name) => {
@@ -499,9 +497,7 @@ function TabButton({
               startRenamingTab(null);
             }}
           />
-        ) : (
-          <span>{tab.name}</span>
-        )}
+        : <span>{tab.name}</span>}
         {hintsVisible && binding && <Kbd binding={binding} />}
       </button>
     </>

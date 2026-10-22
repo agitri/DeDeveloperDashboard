@@ -108,7 +108,11 @@ export function save(env: EnvRoot, cache: Cache): void {
 
 /** Byte-wise, like Rust's `String::cmp`, which is what a `BTreeMap` sorts by. */
 function byteCompare(a: string, b: string): number {
-  return a < b ? -1 : a > b ? 1 : 0;
+  return (
+    a < b ? -1
+    : a > b ? 1
+    : 0
+  );
 }
 
 /** Field order and key order as the Rust's serde would write them. */

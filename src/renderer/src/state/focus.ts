@@ -49,7 +49,12 @@ export const useFocus = create<FocusState>((set, get) => ({
     if (order.length === 0) return;
     const current = order.indexOf(get().focusedWidgetId ?? "");
     // No focus yet + forward step lands on the first widget rather than the second.
-    const start = current === -1 ? (delta > 0 ? -1 : 0) : current;
+    const start =
+      current === -1 ?
+        delta > 0 ?
+          -1
+        : 0
+      : current;
     const next = (((start + delta) % order.length) + order.length) % order.length;
     set({ focusedWidgetId: order[next]!, itemIndex: 0 });
   },

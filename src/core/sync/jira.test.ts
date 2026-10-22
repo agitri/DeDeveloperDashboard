@@ -200,14 +200,14 @@ describe("performing", () => {
   it("looks the transition id up by name, case insensitively, then posts it", async () => {
     const jira = fakeJira({
       [TRANSITIONS]: (body) =>
-        body === null
-          ? json({
-              transitions: [
-                { id: "11", name: "Backlog" },
-                { id: "31", name: "Done" },
-              ],
-            })
-          : json({}),
+        body === null ?
+          json({
+            transitions: [
+              { id: "11", name: "Backlog" },
+              { id: "31", name: "Done" },
+            ],
+          })
+        : json({}),
     });
     const c = cx(jira.fetch);
     expect(await new JiraAdapter().perform(c, { action: "transition", item, input: "done" })).toBe("Moved ENG-1 to done");

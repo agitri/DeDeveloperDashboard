@@ -11,7 +11,10 @@ export function fmtBytes(n: number): string {
     v /= 1000;
     i++;
   }
-  const text = i === 0 ? String(Math.round(v)) : v >= 10 ? String(Math.round(v)) : v.toFixed(1);
+  const text =
+    i === 0 ? String(Math.round(v))
+    : v >= 10 ? String(Math.round(v))
+    : v.toFixed(1);
   return `${text} ${units[i]}`;
 }
 

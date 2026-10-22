@@ -285,7 +285,10 @@ export async function openInEditor(dir: string, editor: string | null | undefine
     // spawnDetached rejects with a DddError.io(cause), whose message is
     // "io: <cause>" — strip that prefix so the user sees the raw spawn
     // error (e.g. "spawn code ENOENT"), not "io: spawn code ENOENT".
-    const message = e instanceof DddError && e.kind === "io" ? e.message.replace(/^io: /, "") : e instanceof Error ? e.message : String(e);
+    const message =
+      e instanceof DddError && e.kind === "io" ? e.message.replace(/^io: /, "")
+      : e instanceof Error ? e.message
+      : String(e);
     throw DddError.config(`could not start ${chosen}: ${message}`);
   }
 }

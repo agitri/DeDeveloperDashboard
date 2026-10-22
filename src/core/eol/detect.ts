@@ -89,7 +89,9 @@ export function parseConstraint(raw: string, product: string): { cycle: string; 
   if (token === undefined) return null;
 
   const confidence: Confidence =
-    token.startsWith(">=") || token.startsWith(">") ? "floor" : token.startsWith("^") || token.startsWith("~") ? "range" : "exact";
+    token.startsWith(">=") || token.startsWith(">") ? "floor"
+    : token.startsWith("^") || token.startsWith("~") ? "range"
+    : "exact";
 
   // Rust's `trim_start_matches(['>', '=', '<', '^', '~', 'v', 'V'])`.
   const digits = token.replace(/^[>=<^~vV]+/, "");
@@ -235,7 +237,11 @@ function lines(text: string): string[] {
  * most trustworthy thing in a repository because a human wrote one number.
  */
 export function parseVersionFile(name: string, text: string): Declaration[] {
-  const product = name === ".nvmrc" ? "nodejs" : name === ".python-version" ? "python" : name === ".ruby-version" ? "ruby" : null;
+  const product =
+    name === ".nvmrc" ? "nodejs"
+    : name === ".python-version" ? "python"
+    : name === ".ruby-version" ? "ruby"
+    : null;
   if (product === null) return [];
   const line = lines(text)
     .map((l) => l.trim())
@@ -260,7 +266,10 @@ export function parseDockerfile(text: string): Declaration[] {
   const out: Declaration[] = [];
   for (const raw of lines(text)) {
     const line = raw.trim();
-    const rest = line.startsWith("FROM ") ? line.slice(5) : line.startsWith("from ") ? line.slice(5) : null;
+    const rest =
+      line.startsWith("FROM ") ? line.slice(5)
+      : line.startsWith("from ") ? line.slice(5)
+      : null;
     if (rest === null) continue;
     // `FROM x AS builder`, and registry-qualified names.
     let image = rest.trim().split(/\s+/)[0] ?? "";
@@ -288,13 +297,10 @@ export function parseDockerfile(text: string): Declaration[] {
  */
 export function parseTomlLike(name: string, text: string): Declaration[] {
   const pair: [string, string] | null =
-    name === "pyproject.toml"
-      ? ["requires-python", "python"]
-      : name === "Cargo.toml"
-        ? ["rust-version", "rust"]
-        : name === "go.mod"
-          ? ["go", "go"]
-          : null;
+    name === "pyproject.toml" ? ["requires-python", "python"]
+    : name === "Cargo.toml" ? ["rust-version", "rust"]
+    : name === "go.mod" ? ["go", "go"]
+    : null;
   if (pair === null) return [];
   const [key, product] = pair;
   for (const raw of lines(text)) {
@@ -334,7 +340,11 @@ export const FILES: readonly string[] = [
 
 /** Byte-wise, like Rust's `String::cmp`. */
 function byteCompare(a: string, b: string): number {
-  return a < b ? -1 : a > b ? 1 : 0;
+  return (
+    a < b ? -1
+    : a > b ? 1
+    : 0
+  );
 }
 
 /**

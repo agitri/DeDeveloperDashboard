@@ -240,7 +240,10 @@ function aiFetch(answers: { anthropic?: unknown; ollama?: unknown; status?: numb
   const fetch = (async (url: string | URL | Request) => {
     const u = String(url);
     calls.push(u);
-    const body = u.startsWith("https://api.anthropic.com") ? answers.anthropic : u.includes("/api/chat") ? answers.ollama : undefined;
+    const body =
+      u.startsWith("https://api.anthropic.com") ? answers.anthropic
+      : u.includes("/api/chat") ? answers.ollama
+      : undefined;
     if (body === undefined) return new Response("{}", { status: 500, statusText: "Internal Server Error" });
     return new Response(JSON.stringify(body), { status: answers.status ?? 200, headers: { "content-type": "application/json" } });
   }) as typeof globalThis.fetch;
