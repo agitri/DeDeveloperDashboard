@@ -302,9 +302,7 @@ describe("moveGroup", () => {
 
   it("leaves an ordering alone when the group is not in it", () => {
     const before = base();
-    expect(moveGroup(before, "nope", 0).tabs.map((t) => t.id)).toEqual(
-      before.tabs.map((t) => t.id),
-    );
+    expect(moveGroup(before, "nope", 0).tabs.map((t) => t.id)).toEqual(before.tabs.map((t) => t.id));
   });
 
   it("does not nest one group inside another", () => {

@@ -6,15 +6,8 @@ import { widgetDef } from "../widgets/registry";
 import { useFocus } from "../state/focus";
 import { releaseControl } from "../keyboard/controls";
 import { WidgetFrame } from "./WidgetFrame";
-import {
-  GRID_COLS as COLS,
-  GRID_ROW_HEIGHT as ROW_HEIGHT,
-  GRID_MARGIN as MARGIN,
-  WIDGET_MIN_W,
-  WIDGET_MIN_H,
-} from "../state/grid";
+import { GRID_COLS as COLS, GRID_ROW_HEIGHT as ROW_HEIGHT, GRID_MARGIN as MARGIN, WIDGET_MIN_W, WIDGET_MIN_H } from "../state/grid";
 import type { EnvTab } from "../types";
-
 
 /**
  * The tab canvas. Drag and resize come entirely from react-grid-layout — §9
@@ -65,10 +58,7 @@ export function Canvas({ tab }: { tab: EnvTab | null }) {
       {tab.widgets.length === 0 ? (
         <div className="canvas-empty">
           <h2>{tab.name} is empty</h2>
-          <p>
-            A widget is a source, a filter and a view. Add one and scope it as wide or as narrow
-            as you like.
-          </p>
+          <p>A widget is a source, a filter and a view. Add one and scope it as wide or as narrow as you like.</p>
           <button className="btn primary" onClick={() => togglePicker(true)}>
             Add widget
           </button>
@@ -106,8 +96,8 @@ export function Canvas({ tab }: { tab: EnvTab | null }) {
                       />
                     ) : (
                       <div style={{ color: "var(--ink-3)" }}>
-                        Unknown widget kind <code>{widget.kind}</code>. It stays in layout.json
-                        untouched, so an older DDD will not eat your board.
+                        Unknown widget kind <code>{widget.kind}</code>. It stays in layout.json untouched, so an older DDD will not eat your
+                        board.
                       </div>
                     )}
                   </WidgetFrame>

@@ -12,11 +12,7 @@ const event = (over: Partial<EventRow> = {}): EventRow => ({
 
 describe("recentForProject", () => {
   it("matches events logged by project name", () => {
-    const events = [
-      event({ id: 3, project: "widgets" }),
-      event({ id: 2, project: "other" }),
-      event({ id: 1, project: "widgets" }),
-    ];
+    const events = [event({ id: 3, project: "widgets" }), event({ id: 2, project: "other" }), event({ id: 1, project: "widgets" })];
     expect(recentForProject(events, "widgets").map((e) => e.id)).toEqual([3, 1]);
   });
 
@@ -27,23 +23,12 @@ describe("recentForProject", () => {
   });
 
   it("respects the limit, keeping newest-first order intact", () => {
-    const events = [
-      event({ id: 5 }),
-      event({ id: 4 }),
-      event({ id: 3 }),
-      event({ id: 2 }),
-      event({ id: 1 }),
-    ];
+    const events = [event({ id: 5 }), event({ id: 4 }), event({ id: 3 }), event({ id: 2 }), event({ id: 1 })];
     expect(recentForProject(events, "widgets", 2).map((e) => e.id)).toEqual([5, 4]);
   });
 
   it("also matches the promoted-tab project id, so tab.promote events stay visible", () => {
-    const events = [
-      event({ id: 2, project: "widgets" }),
-      event({ id: 1, project: "widgets-a1b2c3", kind: "tab.promote" }),
-    ];
-    expect(recentForProject(events, "widgets", 8, "widgets-a1b2c3").map((e) => e.id)).toEqual([
-      2, 1,
-    ]);
+    const events = [event({ id: 2, project: "widgets" }), event({ id: 1, project: "widgets-a1b2c3", kind: "tab.promote" })];
+    expect(recentForProject(events, "widgets", 8, "widgets-a1b2c3").map((e) => e.id)).toEqual([2, 1]);
   });
 });

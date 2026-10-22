@@ -11,7 +11,8 @@ const SENT = `${GMAIL}/messages?q=in%3Asent%20newer_than%3A30d&maxResults=100`;
 const INBOX = `${GMAIL}/messages?q=in%3Ainbox%20newer_than%3A14d&maxResults=40`;
 const meta = (id: string) =>
   `${GMAIL}/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Subject&metadataHeaders=List-Unsubscribe&metadataHeaders=List-Id&metadataHeaders=Auto-Submitted&metadataHeaders=Precedence`;
-const replyMeta = (id: string) => `${GMAIL}/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Message-ID`;
+const replyMeta = (id: string) =>
+  `${GMAIL}/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Message-ID`;
 const modify = (id: string) => `${GMAIL}/messages/${id}/modify`;
 const SEND = `${GMAIL}/messages/send`;
 const EVENTS = `${CALENDAR}/calendars/primary/events?singleEvents=true&orderBy=startTime&timeMin=`;
@@ -36,7 +37,8 @@ function fakeGoogle(handlers: Record<string, (body: string | null) => Response |
       // A real await point, so overlapping requests really do overlap.
       await new Promise((resolve) => setTimeout(resolve, 1));
       const key = handlers[url] ? url : Object.keys(handlers).find((k) => url.startsWith(k));
-      if (key === undefined) return new Response(JSON.stringify({ error: { message: "no handler" } }), { status: 404, statusText: "Not Found" });
+      if (key === undefined)
+        return new Response(JSON.stringify({ error: { message: "no handler" } }), { status: 404, statusText: "Not Found" });
       return await handlers[key]!(body);
     } finally {
       state.inFlight--;
@@ -45,7 +47,8 @@ function fakeGoogle(handlers: Record<string, (body: string | null) => Response |
   return { fetch, calls, state };
 }
 
-const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json" } });
+const json = (data: unknown, status = 200) =>
+  new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json" } });
 const headers = (pairs: [string, string][]) => ({ payload: { headers: pairs.map(([name, value]) => ({ name, value })) } });
 
 const human = {
@@ -179,7 +182,17 @@ describe("fetching", () => {
     const out: Record<string, () => Response> = {};
     for (let i = 0; i < n; i++) {
       out[meta(`m${i}`)] = () =>
-        json({ id: `m${i}`, threadId: `t${i}`, internalDate: "1723999999000", snippet: "s", labelIds: ["INBOX"], ...headers([["From", `p${i}@x.io`], ["Subject", `S${i}`]]) });
+        json({
+          id: `m${i}`,
+          threadId: `t${i}`,
+          internalDate: "1723999999000",
+          snippet: "s",
+          labelIds: ["INBOX"],
+          ...headers([
+            ["From", `p${i}@x.io`],
+            ["Subject", `S${i}`],
+          ]),
+        });
     }
     return out;
   };
@@ -243,7 +256,12 @@ describe("fetching", () => {
     // No profile and no sent threads: the same mail reads as bulk.
     expect(items[0]!.kind).toBe("mail_bulk");
 
-    const dead = fakeGoogle({ [PROFILE]: () => json({}), [SENT]: () => json({}), [INBOX]: () => new Response(JSON.stringify({ error: { message: "Invalid Credentials" } }), { status: 401, statusText: "Unauthorized" }) });
+    const dead = fakeGoogle({
+      [PROFILE]: () => json({}),
+      [SENT]: () => json({}),
+      [INBOX]: () =>
+        new Response(JSON.stringify({ error: { message: "Invalid Credentials" } }), { status: 401, statusText: "Unauthorized" }),
+    });
     await expect(new GoogleAdapter().fetch(cx(dead.fetch))).rejects.toThrow("google 401 Unauthorized: Invalid Credentials");
 
     const html = `<html>${"x".repeat(400)}</html>`;
@@ -285,11 +303,13 @@ describe("performing", () => {
   it("replies into the thread with an RFC 822 message", async () => {
     const google = fakeGoogle({
       [replyMeta("m1")]: () =>
-        json(headers([
-          ["From", "Jordy <jordy@example.com>"],
-          ["Subject", "Ping"],
-          ["Message-ID", "<m1@mail>"],
-        ])),
+        json(
+          headers([
+            ["From", "Jordy <jordy@example.com>"],
+            ["Subject", "Ping"],
+            ["Message-ID", "<m1@mail>"],
+          ]),
+        ),
       [SEND]: () => json({ id: "sent" }),
     });
     expect(await new GoogleAdapter().perform(cx(google.fetch), { action: "reply", item, input: "On it." })).toBe("Replied to Jordy");
@@ -303,7 +323,14 @@ describe("performing", () => {
 
   it("does not stack a second Re:, whatever its case", async () => {
     const google = fakeGoogle({
-      [replyMeta("m1")]: () => json(headers([["From", "a@b.c"], ["Subject", "re: Ping"], ["Message-ID", "<m1@mail>"]])),
+      [replyMeta("m1")]: () =>
+        json(
+          headers([
+            ["From", "a@b.c"],
+            ["Subject", "re: Ping"],
+            ["Message-ID", "<m1@mail>"],
+          ]),
+        ),
       [SEND]: () => json({}),
     });
     expect(await new GoogleAdapter().perform(cx(google.fetch), { action: "reply", item, input: "x" })).toBe("Replied to a");
@@ -315,9 +342,9 @@ describe("performing", () => {
     const google = fakeGoogle();
     const c = cx(google.fetch);
     await expect(new GoogleAdapter().perform(c, { action: "reply", item, input: null })).rejects.toThrow("a reply needs a body");
-    await expect(new GoogleAdapter().perform(c, { action: "archive", item: { ...item, refs: [], title: "Some row" }, input: null })).rejects.toThrow(
-      "Some row is not a Gmail message",
-    );
+    await expect(
+      new GoogleAdapter().perform(c, { action: "archive", item: { ...item, refs: [], title: "Some row" }, input: null }),
+    ).rejects.toThrow("Some row is not a Gmail message");
     await expect(new GoogleAdapter().perform(c, { action: "dance", item, input: null })).rejects.toThrow("google cannot dance");
     expect(google.calls).toHaveLength(0);
   });

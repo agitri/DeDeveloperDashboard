@@ -65,9 +65,19 @@ export function replaceForConnection(env: EnvRoot, connectionId: string, items: 
       );
       for (const item of items) {
         insert.run(
-          item.id, item.connectionId, item.source, item.kind, item.project ?? null, item.title,
-          item.body ?? null, item.url ?? null, JSON.stringify(item.refs), JSON.stringify(item.actions),
-          item.updatedAt, item.unread ? 1 : 0, syncedAt,
+          item.id,
+          item.connectionId,
+          item.source,
+          item.kind,
+          item.project ?? null,
+          item.title,
+          item.body ?? null,
+          item.url ?? null,
+          JSON.stringify(item.refs),
+          JSON.stringify(item.actions),
+          item.updatedAt,
+          item.unread ? 1 : 0,
+          syncedAt,
         );
       }
       db.exec("COMMIT");
@@ -81,9 +91,18 @@ export function replaceForConnection(env: EnvRoot, connectionId: string, items: 
 const COLUMNS = "id, connection_id, source, kind, project, title, body, url, refs, actions, updated_at, unread";
 
 interface Row {
-  id: string; connection_id: string; source: string; kind: string; project: string | null;
-  title: string; body: string | null; url: string | null; refs: string; actions: string;
-  updated_at: string; unread: number;
+  id: string;
+  connection_id: string;
+  source: string;
+  kind: string;
+  project: string | null;
+  title: string;
+  body: string | null;
+  url: string | null;
+  refs: string;
+  actions: string;
+  updated_at: string;
+  unread: number;
 }
 
 function rowToItem(r: Row, environmentId: string): Item {

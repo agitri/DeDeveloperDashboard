@@ -21,10 +21,7 @@ export function EnvironmentOverview({ envId }: { envId: string }) {
   const openSettingsPanel = useUi((s) => s.openSettingsPanel);
   const setView = useStore((s) => s.setView);
 
-  const envTabs = useMemo(
-    () => tabs.filter((t) => t.environmentId === envId),
-    [tabs, envId],
-  );
+  const envTabs = useMemo(() => tabs.filter((t) => t.environmentId === envId), [tabs, envId]);
   const groups: TabGroup[] = layouts[envId]?.groups ?? [];
 
   return (
@@ -89,11 +86,7 @@ function TabCard({
   const unique = [...new Set(contents)];
 
   return (
-    <button
-      className="overview-card"
-      style={{ ["--card" as string]: tab.color ?? fallbackColor }}
-      onClick={onOpen}
-    >
+    <button className="overview-card" style={{ ["--card" as string]: tab.color ?? fallbackColor }} onClick={onOpen}>
       <div className="overview-card-head">
         <span className="name">{tab.name}</span>
         {group && (

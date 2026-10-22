@@ -23,9 +23,7 @@ describe("reading what a checkout says it is built on", () => {
     // Verbatim from four of this machine's projects. The 8.0 line is the one
     // whose support ended on 2026-07-31, which is the whole reason this widget
     // exists.
-    const declarations = parseComposerJson(
-      '{"require": {"php": ">=8.4", "symfony/framework-bundle": "8.0.*"}}',
-    );
+    const declarations = parseComposerJson('{"require": {"php": ">=8.4", "symfony/framework-bundle": "8.0.*"}}');
     const symfony = declarations.find((d) => d.product === "symfony")!;
     expect(symfony.cycle).toBe("8.0");
     expect(symfony.confidence).toBe("exact"); // `8.0.*` pins a release line
@@ -45,9 +43,7 @@ describe("reading what a checkout says it is built on", () => {
   });
 
   it("a platform pin beats the constraint beside it", () => {
-    const d = parseComposerJson(
-      '{"require": {"php": ">=8.4"}, "config": {"platform": {"php": "8.1.29"}}}',
-    );
+    const d = parseComposerJson('{"require": {"php": ">=8.4"}, "config": {"platform": {"php": "8.1.29"}}}');
     const php = d.filter((x) => x.product === "php");
     expect(php).toHaveLength(1); // one answer, the trustworthy one
     expect(php[0]!.cycle).toBe("8.1");

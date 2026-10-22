@@ -17,26 +17,17 @@ describe("pickActive", () => {
   });
 
   it("falls back to the playing player when the pinned one is not present", () => {
-    const players = [
-      player({ player: "spotify", playing: false }),
-      player({ player: "apple-music", playing: true }),
-    ];
+    const players = [player({ player: "spotify", playing: false }), player({ player: "apple-music", playing: true })];
     expect(pickActive(players, "missing")?.player).toBe("apple-music");
   });
 
   it("falls back to the playing player when nothing is pinned", () => {
-    const players = [
-      player({ player: "spotify", playing: false }),
-      player({ player: "apple-music", playing: true }),
-    ];
+    const players = [player({ player: "spotify", playing: false }), player({ player: "apple-music", playing: true })];
     expect(pickActive(players)?.player).toBe("apple-music");
   });
 
-  it("treats \"auto\" the same as no pin", () => {
-    const players = [
-      player({ player: "spotify", playing: false }),
-      player({ player: "apple-music", playing: true }),
-    ];
+  it('treats "auto" the same as no pin', () => {
+    const players = [player({ player: "spotify", playing: false }), player({ player: "apple-music", playing: true })];
     expect(pickActive(players, "auto")?.player).toBe("apple-music");
   });
 
@@ -54,7 +45,7 @@ describe("toggleAction", () => {
   // Locks down the play/pause fix: the widget's transport toggle must always
   // dispatch the one real API verb, "playpause" — not "play"/"pause", which
   // are not `MediaAction` members and silently zeroed the volume instead.
-  it("always dispatches \"playpause\"", () => {
+  it('always dispatches "playpause"', () => {
     expect(toggleAction()).toBe("playpause");
   });
 });

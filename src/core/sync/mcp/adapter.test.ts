@@ -28,9 +28,7 @@ describe("what the adapter refuses", () => {
     // real server that would write a marker file the moment it ran.
     const marker = scratchFile("marker");
     const cx = context({ [config.COMMAND]: JSON.stringify([process.execPath, FIXTURE, marker]) });
-    await expect(new McpAdapter().fetch(cx)).rejects.toThrow(
-      "this server has not been approved to run — approve it in Settings first",
-    );
+    await expect(new McpAdapter().fetch(cx)).rejects.toThrow("this server has not been approved to run — approve it in Settings first");
     expect(existsSync(marker)).toBe(false); // nothing ran
   });
 
@@ -82,9 +80,7 @@ describe("what the adapter refuses", () => {
       updatedAt: "2026-09-04T10:00:00Z",
       unread: false,
     } satisfies Item;
-    await expect(new McpAdapter().perform(context({}), { action: "search", item, input: null })).rejects.toThrow(
-      "mcp cannot search",
-    );
+    await expect(new McpAdapter().perform(context({}), { action: "search", item, input: null })).rejects.toThrow("mcp cannot search");
   });
 });
 

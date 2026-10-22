@@ -110,10 +110,35 @@ describe("choosing what to dial", () => {
 describe("the http allowlist", () => {
   it("is the bundled list, verbatim", () => {
     expect(HTTP_PROCESSES).toEqual([
-      "node", "next-server", "next", "vite", "esbuild", "webpack", "bun", "deno",
-      "symfony", "php", "php-fpm", "caddy", "nginx", "httpd", "traefik",
-      "python", "python3", "gunicorn", "uvicorn", "flask", "django",
-      "ruby", "rails", "puma", "cargo", "rustc", "dotnet", "java", "gradle",
+      "node",
+      "next-server",
+      "next",
+      "vite",
+      "esbuild",
+      "webpack",
+      "bun",
+      "deno",
+      "symfony",
+      "php",
+      "php-fpm",
+      "caddy",
+      "nginx",
+      "httpd",
+      "traefik",
+      "python",
+      "python3",
+      "gunicorn",
+      "uvicorn",
+      "flask",
+      "django",
+      "ruby",
+      "rails",
+      "puma",
+      "cargo",
+      "rustc",
+      "dotnet",
+      "java",
+      "gradle",
     ]);
   });
 
@@ -159,9 +184,7 @@ describe("the transport, against sockets this test owns", () => {
     const probe = await run({ host: "127.0.0.1", port: s.port }, true, 1000);
     expect(probe.health).toBe("up");
     expect(typeof probe.latencyMs).toBe("number");
-    expect(s.seen.join("")).toBe(
-      `HEAD / HTTP/1.0\r\nHost: 127.0.0.1:${s.port}\r\nUser-Agent: DDD-dev-board\r\nConnection: close\r\n\r\n`,
-    );
+    expect(s.seen.join("")).toBe(`HEAD / HTTP/1.0\r\nHost: 127.0.0.1:${s.port}\r\nUser-Agent: DDD-dev-board\r\nConnection: close\r\n\r\n`);
     expect(httpRequest({ host: "::1", port: 5199 })).toBe(
       "HEAD / HTTP/1.0\r\nHost: [::1]:5199\r\nUser-Agent: DDD-dev-board\r\nConnection: close\r\n\r\n",
     );

@@ -99,9 +99,7 @@ describe("the board", () => {
 
   it("a row is ranked by its worst finding", () => {
     const list = [watched("/p/mixed", null)];
-    const declarations: Declarations = [
-      ["/p/mixed", [declaration("symfony", "7.4"), declaration("symfony", "8.0")]],
-    ];
+    const declarations: Declarations = [["/p/mixed", [declaration("symfony", "7.4"), declaration("symfony", "8.0")]]];
     const board = build(list, declarations, cache(), NO_CHECKS, TODAY, NOW, []);
     expect(board.rows[0]!.worst).toEqual({ state: "ended" });
     expect(board.rows[0]!.findings).toHaveLength(2); // and both are still shown

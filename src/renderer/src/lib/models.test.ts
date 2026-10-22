@@ -5,13 +5,25 @@ import type { ModelScan } from "../types";
 const scan: ModelScan = {
   totalBytes: 60,
   stores: [
-    { runtime: "ollama", label: "Ollama", root: "/o", present: true, bytes: 50, models: [
-      { id: "ollama:a:1", runtime: "ollama", name: "a:1", path: "/o/m/a/1", bytes: 30 },
-      { id: "ollama:b:1", runtime: "ollama", name: "b:1", path: "/o/m/b/1", bytes: 20 },
-    ] },
-    { runtime: "huggingface", label: "HF", root: "/h", present: true, bytes: 10, models: [
-      { id: "huggingface:x/y", runtime: "huggingface", name: "x/y", path: "/h/models--x--y", bytes: 10 },
-    ] },
+    {
+      runtime: "ollama",
+      label: "Ollama",
+      root: "/o",
+      present: true,
+      bytes: 50,
+      models: [
+        { id: "ollama:a:1", runtime: "ollama", name: "a:1", path: "/o/m/a/1", bytes: 30 },
+        { id: "ollama:b:1", runtime: "ollama", name: "b:1", path: "/o/m/b/1", bytes: 20 },
+      ],
+    },
+    {
+      runtime: "huggingface",
+      label: "HF",
+      root: "/h",
+      present: true,
+      bytes: 10,
+      models: [{ id: "huggingface:x/y", runtime: "huggingface", name: "x/y", path: "/h/models--x--y", bytes: 10 }],
+    },
     { runtime: "jan", label: "Jan", root: "/j", present: false, bytes: 0, models: [] },
   ],
 };

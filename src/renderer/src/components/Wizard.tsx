@@ -54,10 +54,7 @@ export function Wizard() {
   const isBookend = step.id === "welcome" || step.id === "finish";
   const advanceLabel = step.id === "finish" ? "Finish" : isBookend ? "Next" : "Skip step";
 
-  const spotlightTarget =
-    step.id === "environment" && view === "settings" && settingsPanel === "environments"
-      ? "env-create"
-      : step.target;
+  const spotlightTarget = step.id === "environment" && view === "settings" && settingsPanel === "environments" ? "env-create" : step.target;
 
   return (
     <>
@@ -73,12 +70,7 @@ export function Wizard() {
               <span className="mono-label wizard-progress">
                 {progress.current}/{progress.total}
               </span>
-              <button
-                className="icon-btn wizard-exit"
-                title="Exit tour"
-                aria-label="Exit tour"
-                onClick={exit}
-              >
+              <button className="icon-btn wizard-exit" title="Exit tour" aria-label="Exit tour" onClick={exit}>
                 ×
               </button>
             </div>

@@ -11,13 +11,30 @@ import * as events from "../events";
 import { Scheduler, TICK_MS } from "./scheduler";
 
 const conn = (extra: Partial<Connection> = {}): Connection => ({
-  id: "mock-1", provider: "mock", label: "Mock", status: "disconnected", scopes: [], config: {}, lastSyncAt: null, error: null, ...extra,
+  id: "mock-1",
+  provider: "mock",
+  label: "Mock",
+  status: "disconnected",
+  scopes: [],
+  config: {},
+  lastSyncAt: null,
+  error: null,
+  ...extra,
 });
 
 function deps(fetch?: typeof globalThis.fetch) {
   const emitter = recordingEmitter();
   const secrets = memorySecrets();
-  return { deps: { fetch: fetch ?? (async () => new Response("{}", { status: 500, statusText: "Internal Server Error" })), secrets, openUrl: async () => {}, emit: emitter }, emitter, secrets };
+  return {
+    deps: {
+      fetch: fetch ?? (async () => new Response("{}", { status: 500, statusText: "Internal Server Error" })),
+      secrets,
+      openUrl: async () => {},
+      emit: emitter,
+    },
+    emitter,
+    secrets,
+  };
 }
 
 describe("due", () => {
@@ -49,7 +66,11 @@ describe("syncing one connection", () => {
     expect(stored.status).toBe("connected");
     expect(stored.error).toBeNull();
     expect(stored.lastSyncAt).toMatch(/^\d{4}-/);
-    expect(events.query(env, { kindPrefix: "sync.", limit: 10 })[0]).toMatchObject({ kind: "sync.fetch", source: "mock", meta: { items: 10 } });
+    expect(events.query(env, { kindPrefix: "sync.", limit: 10 })[0]).toMatchObject({
+      kind: "sync.fetch",
+      source: "mock",
+      meta: { items: 10 },
+    });
     expect(d.emitter.events).toEqual([{ name: "ddd://items-changed", payload: { environmentId: "default", connectionId: "mock-1" } }]);
   });
 
@@ -73,7 +94,9 @@ describe("syncing one connection", () => {
     settingsSave(env, s);
     const d = deps(async () => new Response(JSON.stringify({ message: "Bad credentials" }), { status: 401, statusText: "Unauthorized" }));
     d.secrets.set(env, "gh", "PAT");
-    await expect(new Scheduler(d.deps).syncConnection(env, conn({ id: "gh", provider: "github" }))).rejects.toThrow("github 401 Unauthorized: Bad credentials");
+    await expect(new Scheduler(d.deps).syncConnection(env, conn({ id: "gh", provider: "github" }))).rejects.toThrow(
+      "github 401 Unauthorized: Bad credentials",
+    );
     expect(settingsLoad(env).connections[0]).toMatchObject({ status: "expired", error: "github 401 Unauthorized: Bad credentials" });
     expect(d.emitter.events.map((e) => e.name)).toEqual(["ddd://items-changed"]);
     const d2 = deps(async () => new Response("boom", { status: 500, statusText: "Internal Server Error" }));

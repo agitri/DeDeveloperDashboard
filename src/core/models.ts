@@ -103,9 +103,7 @@ export function globalFromJson(raw: unknown): StoredGlobal {
       ? {
           completed: (wizardRaw as Record<string, unknown>).completed === true,
           step:
-            typeof (wizardRaw as Record<string, unknown>).step === "number"
-              ? ((wizardRaw as Record<string, unknown>).step as number)
-              : 0,
+            typeof (wizardRaw as Record<string, unknown>).step === "number" ? ((wizardRaw as Record<string, unknown>).step as number) : 0,
         }
       : null;
   return {

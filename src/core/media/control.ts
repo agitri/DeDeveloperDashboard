@@ -109,10 +109,13 @@ async function macCommand(runner: Runner, player: Player, action: MediaAction, v
   const app = MAC_APP[player];
   if (!app) throw DddError.notFound(`unknown media player ${JSON.stringify(player)}`);
   const verb =
-    action === "playpause" ? "playpause"
-    : action === "next" ? "next track"
-    : action === "previous" ? "previous track"
-    : `set sound volume to ${Math.round(value ?? 0)}`;
+    action === "playpause"
+      ? "playpause"
+      : action === "next"
+        ? "next track"
+        : action === "previous"
+          ? "previous track"
+          : `set sound volume to ${Math.round(value ?? 0)}`;
   await runner("osascript", ["-e", `tell application "${app}" to ${verb}`]);
 }
 
@@ -169,10 +172,13 @@ async function linuxState(runner: Runner): Promise<PlayerState[]> {
 
 async function linuxCommand(runner: Runner, player: Player, action: MediaAction, value?: number): Promise<void> {
   const args =
-    action === "playpause" ? ["-p", player, "play-pause"]
-    : action === "next" ? ["-p", player, "next"]
-    : action === "previous" ? ["-p", player, "previous"]
-    : ["-p", player, "volume", String((value ?? 0) / 100)];
+    action === "playpause"
+      ? ["-p", player, "play-pause"]
+      : action === "next"
+        ? ["-p", player, "next"]
+        : action === "previous"
+          ? ["-p", player, "previous"]
+          : ["-p", player, "volume", String((value ?? 0) / 100)];
   await runner("playerctl", args);
 }
 

@@ -4,10 +4,7 @@ import { buildPromotedTab } from "./promote";
 describe("buildPromotedTab", () => {
   let n = 0;
   const mint = (p: string) => `${p}-${n++}`;
-  const tab = buildPromotedTab(
-    { projectId: "proj1", name: "acme", path: "/repos/acme", remote: "github.com/acme/acme" },
-    mint,
-  );
+  const tab = buildPromotedTab({ projectId: "proj1", name: "acme", path: "/repos/acme", remote: "github.com/acme/acme" }, mint);
 
   it("names the tab for the repo", () => {
     expect(tab.name).toBe("acme");

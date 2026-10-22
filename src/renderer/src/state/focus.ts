@@ -30,12 +30,7 @@ interface FocusState {
   moveItem(delta: number): void;
   openFocusedItem(): void;
   runVerb(verb: string): void;
-  registerWidget(
-    id: string,
-    count: number,
-    onOpen?: (index: number) => void,
-    verbs?: Record<string, (index: number) => void>,
-  ): void;
+  registerWidget(id: string, count: number, onOpen?: (index: number) => void, verbs?: Record<string, (index: number) => void>): void;
   unregisterWidget(id: string): void;
 }
 
@@ -87,8 +82,7 @@ export const useFocus = create<FocusState>((set, get) => ({
       openHandlers: onOpen ? { ...s.openHandlers, [id]: onOpen } : s.openHandlers,
       verbHandlers: verbs ? { ...s.verbHandlers, [id]: verbs } : s.verbHandlers,
       // Clamp: a list that shrank under the cursor must not leave it dangling.
-      itemIndex:
-        s.focusedWidgetId === id ? Math.min(s.itemIndex, Math.max(0, count - 1)) : s.itemIndex,
+      itemIndex: s.focusedWidgetId === id ? Math.min(s.itemIndex, Math.max(0, count - 1)) : s.itemIndex,
     }));
   },
 

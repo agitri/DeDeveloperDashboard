@@ -201,7 +201,12 @@ describe("the join", () => {
   });
 
   it("searches port, process and project", () => {
-    for (const [query, port] of [["8005", 8005], ["symfony", 8005], ["climate", 8005], ["NODE", 3000]] as const) {
+    for (const [query, port] of [
+      ["8005", 8005],
+      ["symfony", 8005],
+      ["climate", 8005],
+      ["NODE", 3000],
+    ] as const) {
       const out = join(machine(), cwds(), known(), NO_CONTAINERS, { query });
       expect(out.rows.map((r) => r.port)).toContain(port);
     }
@@ -214,7 +219,11 @@ describe("the join", () => {
     // 16 rows collapse.
     const out = join(
       [l("127.0.0.1", 8005, 100, "php-fpm"), l("127.0.0.1", 8005, 101, "php-fpm"), l("127.0.0.1", 8005, 102, "php-fpm")],
-      new Map([[100, "/p"], [101, "/p"], [102, "/p"]]),
+      new Map([
+        [100, "/p"],
+        [101, "/p"],
+        [102, "/p"],
+      ]),
       [project("/p", null)],
       NO_CONTAINERS,
       {},
@@ -231,7 +240,10 @@ describe("the join", () => {
     // sockets with two processes. Collapsing them would hide one.
     const out = join(
       [l("127.0.0.1", 8000, 1, "node"), l("::1", 8000, 2, "node")],
-      new Map([[1, "/p"], [2, "/p"]]),
+      new Map([
+        [1, "/p"],
+        [2, "/p"],
+      ]),
       [project("/p", null)],
       NO_CONTAINERS,
       {},
@@ -245,7 +257,10 @@ describe("the join", () => {
     // and the php-fpm workers behind a symfony server. Every one of the 21 below
     // it was real. Nobody types localhost:62662.
     const listeners = [l("127.0.0.1", 8005, 1, "symfony"), l("127.0.0.1", 62662, 2, "php-fpm")];
-    const dirs = new Map([[1, "/p"], [2, "/p"]]);
+    const dirs = new Map([
+      [1, "/p"],
+      [2, "/p"],
+    ]);
     const out = join(listeners, dirs, [project("/p", null)], NO_CONTAINERS, {});
     expect(out.rows.map((r) => r.port)).toEqual([8005]);
     expect(out.hidden).toBe(1);
@@ -255,7 +270,10 @@ describe("the join", () => {
   });
 
   it("puts the boundary where the IANA range starts", () => {
-    for (const [port, shown] of [[49151, 1], [EPHEMERAL, 0]] as const) {
+    for (const [port, shown] of [
+      [49151, 1],
+      [EPHEMERAL, 0],
+    ] as const) {
       const out = join([l("127.0.0.1", port, 1, "node")], new Map([[1, "/p"]]), [project("/p", null)], NO_CONTAINERS, {});
       expect(out.rows).toHaveLength(shown);
     }
@@ -264,7 +282,10 @@ describe("the join", () => {
   it("marks a repo-link match with its path and leaves a registry-only match without one", () => {
     const out = join(
       [l("127.0.0.1", 8005, 1, "symfony"), l("127.0.0.1", 8006, 2, "symfony")],
-      new Map([[1, "/p/linked"], [2, "/p/registered"]]),
+      new Map([
+        [1, "/p/linked"],
+        [2, "/p/registered"],
+      ]),
       [{ path: "/p/linked", id: null, isRepoLink: true }, project("/p/registered", "p9")],
       NO_CONTAINERS,
       {},
@@ -378,7 +399,10 @@ describe("listing, including the probe pass", () => {
         // tier reaching the right rows, and tier 2 against a listener that never
         // accepts is `slow` by design.
         listeners: [l("127.0.0.1", port, 1, "myserver"), l("127.0.0.1", 1, 2, "myserver")],
-        cwds: new Map([[1, "/p"], [2, "/p"]]),
+        cwds: new Map([
+          [1, "/p"],
+          [2, "/p"],
+        ]),
         containers: NO_CONTAINERS,
         scanMs: 1,
       };

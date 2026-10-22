@@ -50,7 +50,12 @@ describe("the stop guard", () => {
     expect(refusalMessage({ kind: "notListening" })).toBe("it already exited — nothing is on that port now");
     expect(refusalMessage({ kind: "foreign" })).toBe("not your process — DDD will not ask for privilege to stop it");
     expect(refusalMessage({ kind: "unnamed" })).toBe("no process name to verify against, so the reuse guard cannot run");
-    for (const r of [{ kind: "notListening" }, { kind: "reused", now: "postgres (pid 1)" }, { kind: "foreign" }, { kind: "unnamed" }] as const) {
+    for (const r of [
+      { kind: "notListening" },
+      { kind: "reused", now: "postgres (pid 1)" },
+      { kind: "foreign" },
+      { kind: "unnamed" },
+    ] as const) {
       expect(refusalMessage(r).length).toBeGreaterThan(20);
     }
   });

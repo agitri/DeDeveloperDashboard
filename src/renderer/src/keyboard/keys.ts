@@ -4,8 +4,7 @@
 // `mod` means ⌘ on macOS and Ctrl everywhere else, so a shipped preset works on
 // every platform without forking the file.
 
-export const IS_MAC =
-  typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+export const IS_MAC = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 
 const MOD_ORDER = ["mod", "ctrl", "alt", "shift"] as const;
 
@@ -82,10 +81,5 @@ export function isTypingTarget(target: EventTarget | null): boolean {
   const el = target as HTMLElement | null;
   if (!el) return false;
   const tag = el.tagName;
-  return (
-    tag === "INPUT" ||
-    tag === "TEXTAREA" ||
-    tag === "SELECT" ||
-    el.isContentEditable === true
-  );
+  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el.isContentEditable === true;
 }

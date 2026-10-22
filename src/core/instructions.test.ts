@@ -94,7 +94,13 @@ describe("compileValue", () => {
     const { filter, unmet } = compileValue("items", { limit: 10, nonsense: true });
     const stored = record(filter, "abc123", unmet, "llama3.1:8b", "2026-09-04T10:00:00Z");
     expect(JSON.stringify(stored.filter)).toBe('{"limit":10}');
-    expect(stored).toEqual({ sourceHash: "abc123", filter: { limit: 10 }, compiledAt: "2026-09-04T10:00:00Z", unmet: ["nonsense is not something this widget can filter on"], model: "llama3.1:8b" });
+    expect(stored).toEqual({
+      sourceHash: "abc123",
+      filter: { limit: 10 },
+      compiledAt: "2026-09-04T10:00:00Z",
+      unmet: ["nonsense is not something this widget can filter on"],
+      model: "llama3.1:8b",
+    });
   });
 });
 
@@ -110,7 +116,9 @@ describe("the template and the prompt", () => {
         "  · recent repositories, or all of them\n  · a word in the name\n\n" +
         "Anything it cannot express will be listed back to you rather than quietly dropped.\n",
     );
-    expect(template("items")).toContain("This widget can be told about:\n  · which source (github, jira, slack, mail…) and which kind\n  · a word in the title or body\n  · unread only\n  · leave out kinds — automated mail, for instance\n  · how many to show\n\nAnything");
+    expect(template("items")).toContain(
+      "This widget can be told about:\n  · which source (github, jira, slack, mail…) and which kind\n  · a word in the title or body\n  · unread only\n  · leave out kinds — automated mail, for instance\n  · how many to show\n\nAnything",
+    );
   });
 
   it("the prompt shows the kind's own fields and fences the prose", () => {
@@ -144,7 +152,9 @@ describe("the template and the prompt", () => {
     const items = completionFor("items", "x", "m").system;
     expect(items).toContain("  kind: exactly one of —\n    pull_request   a pull request you opened or are involved in\n");
     expect(items).toContain("  project: a project name the user named\n\n`unmet` lists");
-    expect(items).toContain("When the user says everything, anything, or names no particular sort of thing, set no `kind` at all. `kind` and `excludeKinds` are alternatives: once `kind` is set, nothing else can appear anyway.\n\n");
+    expect(items).toContain(
+      "When the user says everything, anything, or names no particular sort of thing, set no `kind` at all. `kind` and `excludeKinds` are alternatives: once `kind` is set, nothing else can appear anyway.\n\n",
+    );
     expect(items).toContain('{"filter": {"kind": "review_request"}, "unmet": ["anything that sounds urgent"]}\n\n');
     expect(items).toContain('{"filter": {"unreadOnly": true}, "unmet": ["from people I actually know"]}\n\nEverything inside');
   });
@@ -156,7 +166,9 @@ describe("the template and the prompt", () => {
 
 describe("parseResponse", () => {
   it("a fenced answer is read rather than refused", () => {
-    const { filter, unmet } = parseResponse("Sure! Here's the filter:\n```json\n{\"filter\": {\"limit\": 10}, \"unmet\": []}\n```\nHope that helps.");
+    const { filter, unmet } = parseResponse(
+      'Sure! Here\'s the filter:\n```json\n{"filter": {"limit": 10}, "unmet": []}\n```\nHope that helps.',
+    );
     expect(filter).toEqual({ limit: 10 });
     expect(unmet).toEqual([]);
   });
@@ -179,6 +191,6 @@ describe("parseResponse", () => {
     expect(() => parseResponse("I'm not sure what you mean.")).toThrow("the model did not answer with JSON");
     expect(() => parseResponse("{ not json")).toThrow("the model did not answer with JSON");
     expect(() => parseResponse("")).toThrow("the model did not answer with JSON");
-    expect(() => parseResponse("{\"a\": }")).toThrow(/^the model's JSON did not parse: /);
+    expect(() => parseResponse('{"a": }')).toThrow(/^the model's JSON did not parse: /);
   });
 });

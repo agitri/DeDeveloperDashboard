@@ -45,9 +45,7 @@ describe("badge", () => {
   it("reads as supported with or without a published end date", () => {
     // Next.js 16 has no support date and is current — it must not read as a gap.
     expect(badge({ state: "active" }).label).toBe("supported");
-    expect(badge({ state: "active" }, { supportDate: "2028-11-30" }).label).toBe(
-      "supported to 2028-11-30",
-    );
+    expect(badge({ state: "active" }, { supportDate: "2028-11-30" }).label).toBe("supported to 2028-11-30");
   });
 });
 
@@ -61,9 +59,7 @@ describe("confidenceNote", () => {
 describe("sources", () => {
   it("names every file that agreed", () => {
     expect(sources(finding())).toBe("composer.json");
-    expect(sources(finding({ source: "Dockerfile", also: ["composer.json"] }))).toBe(
-      "Dockerfile (also composer.json)",
-    );
+    expect(sources(finding({ source: "Dockerfile", also: ["composer.json"] }))).toBe("Dockerfile (also composer.json)");
   });
 });
 
@@ -79,9 +75,7 @@ describe("headline", () => {
   });
 
   it("says nothing alarming when nothing is wrong", () => {
-    expect(headline([{ worst: { state: "active" }, url: null }])).toBe(
-      "Everything watched is still supported.",
-    );
+    expect(headline([{ worst: { state: "active" }, url: null }])).toBe("Everything watched is still supported.");
     expect(headline([])).toBe("Nothing assigned yet.");
   });
 });
@@ -120,9 +114,7 @@ describe("liveNote", () => {
 
   it("separates answering from not serving", () => {
     expect(liveNote({ state: "answering", detail: 403 })!.color).toBe("var(--ok)");
-    expect(liveNote({ state: "unreachable", detail: "connection refused" })!.label).toBe(
-      "○ not serving",
-    );
+    expect(liveNote({ state: "unreachable", detail: "connection refused" })!.label).toBe("○ not serving");
   });
 
   it("has nothing to say about a URL that was never checked", () => {

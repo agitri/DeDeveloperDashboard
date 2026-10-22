@@ -26,16 +26,8 @@ export function TitleBar() {
   return (
     <div className="titlebar" data-tauri-drag-region>
       <div className="titlebar-name" data-tauri-drag-region>
-        {env && (
-          <span
-            className="titlebar-swatch"
-            data-tauri-drag-region
-            style={{ background: env.color }}
-          />
-        )}
-        <span data-tauri-drag-region>
-          {env ? `${env.name}${activeTab ? ` — ${activeTab.name}` : ""}` : "DDD"}
-        </span>
+        {env && <span className="titlebar-swatch" data-tauri-drag-region style={{ background: env.color }} />}
+        <span data-tauri-drag-region>{env ? `${env.name}${activeTab ? ` — ${activeTab.name}` : ""}` : "DDD"}</span>
       </div>
     </div>
   );

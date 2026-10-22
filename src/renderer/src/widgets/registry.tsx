@@ -250,18 +250,7 @@ export type WidgetPreset =
   | (PresetBase & { kind: "repos"; filter?: RepoFilter })
   // Views that are their own filter: a clock has no slice to take.
   | (PresetBase & {
-      kind:
-        | "clock"
-        | "notes"
-        | "stats"
-        | "projects"
-        | "calendar"
-        | "launcher"
-        | "devservers"
-        | "products"
-        | "eol"
-        | "media"
-        | "models";
+      kind: "clock" | "notes" | "stats" | "projects" | "calendar" | "launcher" | "devservers" | "products" | "eol" | "media" | "models";
       filter?: undefined;
     });
 

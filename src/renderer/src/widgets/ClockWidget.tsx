@@ -10,10 +10,13 @@ export function ClockWidget(_props: WidgetViewProps) {
     // display never sits visibly behind the system clock.
     let timer: ReturnType<typeof setTimeout>;
     const schedule = () => {
-      timer = setTimeout(() => {
-        setNow(new Date());
-        schedule();
-      }, 1000 - (Date.now() % 1000));
+      timer = setTimeout(
+        () => {
+          setNow(new Date());
+          schedule();
+        },
+        1000 - (Date.now() % 1000),
+      );
     };
     schedule();
     return () => clearTimeout(timer);

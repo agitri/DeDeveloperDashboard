@@ -58,7 +58,10 @@ export function normalize(rawUrl: string): string | null {
 export function fallbackKey(rawUrl: string): string | null {
   let cleaned = rawUrl.trim().replace(/\/+$/, "").toLowerCase();
   if (cleaned.endsWith(".git")) cleaned = cleaned.slice(0, -4);
-  const segments = cleaned.split(/[/:]/).filter((s) => s !== "").reverse();
+  const segments = cleaned
+    .split(/[/:]/)
+    .filter((s) => s !== "")
+    .reverse();
   const repo = segments[0];
   const owner = segments[1];
   if (repo === undefined || owner === undefined) return null;

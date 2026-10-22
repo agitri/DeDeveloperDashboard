@@ -7,7 +7,9 @@ describe("the mock source", () => {
     const cx = fetchContext({ environmentId: "work", connection: { id: "mock-1", provider: "mock" } });
     const items = await new MockAdapter().fetch(cx);
     expect(items).toHaveLength(10);
-    expect(items.every((i) => i.id.startsWith("mock-1:") && i.connectionId === "mock-1" && i.environmentId === "work" && i.source === "mock")).toBe(true);
+    expect(
+      items.every((i) => i.id.startsWith("mock-1:") && i.connectionId === "mock-1" && i.environmentId === "work" && i.source === "mock"),
+    ).toBe(true);
     const kinds = items.map((i) => i.kind);
     expect(kinds.filter((k) => k === "pull_request")).toHaveLength(2);
     expect(kinds.filter((k) => k === "mail")).toHaveLength(2);

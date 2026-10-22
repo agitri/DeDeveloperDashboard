@@ -30,7 +30,8 @@ function fakeSlack(handlers: Record<string, (body: string | null) => Response> =
   return { fetch, calls };
 }
 
-const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json" } });
+const json = (data: unknown, status = 200) =>
+  new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json" } });
 const message = (ts: string, user: string, text: string) => ({ ts, user, text });
 
 // --- ported from the Rust's own tests -------------------------------------------
@@ -236,16 +237,18 @@ describe("performing", () => {
     const slack = fakeSlack();
     const c = cx(slack.fetch);
     await expect(new SlackAdapter().perform(c, { action: "reply", item, input: null })).rejects.toThrow("a reply needs text");
-    await expect(new SlackAdapter().perform(c, { action: "reply", item: { ...item, refs: [], title: "Some row" }, input: "x" })).rejects.toThrow(
-      "Some row has no Slack reference",
-    );
+    await expect(
+      new SlackAdapter().perform(c, { action: "reply", item: { ...item, refs: [], title: "Some row" }, input: "x" }),
+    ).rejects.toThrow("Some row has no Slack reference");
     await expect(new SlackAdapter().perform(c, { action: "dance", item, input: null })).rejects.toThrow("slack cannot dance");
     expect(slack.calls).toHaveLength(0);
   });
 
   it("reads ok:false out of a 200 and names the error, or says rejected", async () => {
     const refused = fakeSlack({ [POST]: () => json({ ok: false, error: "not_in_channel" }) });
-    await expect(new SlackAdapter().perform(cx(refused.fetch), { action: "reply", item, input: "x" })).rejects.toThrow("slack: not_in_channel");
+    await expect(new SlackAdapter().perform(cx(refused.fetch), { action: "reply", item, input: "x" })).rejects.toThrow(
+      "slack: not_in_channel",
+    );
     const silent = fakeSlack({ [POST]: () => json({ ok: false }) });
     await expect(new SlackAdapter().perform(cx(silent.fetch), { action: "reply", item, input: "x" })).rejects.toThrow("slack: rejected");
   });
@@ -254,10 +257,14 @@ describe("performing", () => {
     const down = cx(async () => {
       throw new Error("ECONNRESET");
     });
-    await expect(new SlackAdapter().perform(down, { action: "reply", item, input: "x" })).rejects.toThrow("slack request failed: ECONNRESET");
+    await expect(new SlackAdapter().perform(down, { action: "reply", item, input: "x" })).rejects.toThrow(
+      "slack request failed: ECONNRESET",
+    );
     // A non-JSON body is a transport-level failure too, exactly as `.json()` is in the Rust.
     const html = fakeSlack({ [POST]: () => new Response("<html>", { status: 200 }) });
-    await expect(new SlackAdapter().perform(cx(html.fetch), { action: "reply", item, input: "x" })).rejects.toThrow("slack request failed:");
+    await expect(new SlackAdapter().perform(cx(html.fetch), { action: "reply", item, input: "x" })).rejects.toThrow(
+      "slack request failed:",
+    );
   });
 });
 

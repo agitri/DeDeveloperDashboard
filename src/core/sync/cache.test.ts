@@ -35,8 +35,13 @@ describe("the item cache", () => {
     // let five repo rows eat a limit of 3 and return nothing.
     const { env } = scratchEnv("exclude-before-limit");
     replaceForConnection(env, "conn", [
-      item("r1", "repo"), item("r2", "repo"), item("r3", "repo"), item("r4", "repo"), item("r5", "repo"),
-      item("p1", "pull_request"), item("p2", "pull_request"),
+      item("r1", "repo"),
+      item("r2", "repo"),
+      item("r3", "repo"),
+      item("r4", "repo"),
+      item("r5", "repo"),
+      item("p1", "pull_request"),
+      item("p2", "pull_request"),
     ]);
     const rows = query(env, { limit: 3, excludeKinds: ["repo"] });
     expect(rows.map((r) => r.id).sort()).toEqual(["p1", "p2"]);
@@ -47,9 +52,16 @@ describe("the item cache", () => {
     replaceForConnection(env, "a", [item("a:1", "issue", { connectionId: "a" }), item("a:2", "issue", { connectionId: "a" })]);
     replaceForConnection(env, "b", [item("b:1", "issue", { connectionId: "b" })]);
     replaceForConnection(env, "a", [item("a:2", "issue", { connectionId: "a" })]);
-    expect(query(env, {}).map((r) => r.id).sort()).toEqual(["a:2", "b:1"]);
+    expect(
+      query(env, {})
+        .map((r) => r.id)
+        .sort(),
+    ).toEqual(["a:2", "b:1"]);
     // A duplicate id from a misbehaving adapter costs that row, not the sync.
-    replaceForConnection(env, "b", [item("b:1", "issue", { connectionId: "b" }), item("b:1", "issue", { connectionId: "b", title: "second" })]);
+    replaceForConnection(env, "b", [
+      item("b:1", "issue", { connectionId: "b" }),
+      item("b:1", "issue", { connectionId: "b", title: "second" }),
+    ]);
     expect(query(env, { connectionId: "b" }).map((r) => r.title)).toEqual(["second"]);
   });
 
@@ -73,7 +85,9 @@ describe("the item cache", () => {
 
   it("finds one item by id, round-tripping refs and actions", () => {
     const { env } = scratchEnv("find");
-    replaceForConnection(env, "conn", [item("x", "issue", { refs: ["github:a/b#1"], actions: [{ id: "open", label: "Open", outbound: false }] })]);
+    replaceForConnection(env, "conn", [
+      item("x", "issue", { refs: ["github:a/b#1"], actions: [{ id: "open", label: "Open", outbound: false }] }),
+    ]);
     const found = find(env, "x")!;
     expect(found.refs).toEqual(["github:a/b#1"]);
     expect(found.actions).toEqual([{ id: "open", label: "Open", outbound: false }]);

@@ -67,13 +67,7 @@ export function TabStrip({ keymap }: { keymap: Record<string, string[]> }) {
         );
       })}
 
-      <button
-        className="strip-add"
-        data-wizard-target="new-tab"
-        title="New tab"
-        aria-label="New tab"
-        onClick={() => addTab()}
-      >
+      <button className="strip-add" data-wizard-target="new-tab" title="New tab" aria-label="New tab" onClick={() => addTab()}>
         +
       </button>
       {hintsVisible && keymap["tab.new"]?.[0] && (
@@ -111,7 +105,6 @@ function pressEnvironment(envId: string, showing: boolean, collapsed: boolean) {
   }
   store.setEnvironmentCollapsed(envId, !collapsed);
 }
-
 
 function EnvBand({
   env,
@@ -244,11 +237,7 @@ function EnvBand({
         <button
           className="env-name"
           aria-selected={showingOverview}
-          title={
-            showingOverview
-              ? `${env.name} — click again to ${collapsed ? "unfold" : "fold"} its tabs`
-              : `${env.name} — see its tabs`
-          }
+          title={showingOverview ? `${env.name} — click again to ${collapsed ? "unfold" : "fold"} its tabs` : `${env.name} — see its tabs`}
           onClick={() => pressEnvironment(env.id, showingOverview, collapsed)}
         >
           <i className="env-dot" />
@@ -267,58 +256,61 @@ function EnvBand({
 
       {!collapsed &&
         runsOf(envTabs).map((run) => {
-        const group = run.groupId ? groups.find((g) => g.id === run.groupId) : undefined;
-        const start = cursor;
-        cursor += run.tabs.length;
+          const group = run.groupId ? groups.find((g) => g.id === run.groupId) : undefined;
+          const start = cursor;
+          cursor += run.tabs.length;
 
-        const renderTabs = run.tabs.map((tab, n) => (
-          <TabButton
-            key={tab.id}
-            tab={tab}
-            index={start + n}
-            envIndex={envTabs.findIndex((t) => t.id === tab.id)}
-            numbered={envTabs.some((t) => t.id === activeTabId)}
-            env={env}
-            groups={groups}
-            keymap={keymap}
-            active={!showingOverview && tab.id === activeTabId}
-            hintsVisible={hintsVisible}
-            selectTab={selectTab}
-            caretBefore={caret === start + n}
-            onDragStart={(e) => {
-              // A drag with nothing in its dataTransfer is not a drag the
-              // browser is obliged to start — Firefox refuses outright, and
-              // WebKit (which is what the Tauri window is) is inconsistent.
-              // The payload itself is unused: `dragging` in React state carries
-              // the real information, because dataTransfer is unreadable during
-              // `dragover`, which is exactly when the caret needs positioning.
-              e.dataTransfer.setData("text/plain", tab.id);
-              e.dataTransfer.effectAllowed = "move";
-              setDragging({ tabId: tab.id, envId: env.id });
-            }}
-            onDragEnd={() => {
-              setDragging(null);
-              setDropIndex(null);
-              setDropGroupId(null);
-            }}
-          />
-        ));
+          const renderTabs = run.tabs.map((tab, n) => (
+            <TabButton
+              key={tab.id}
+              tab={tab}
+              index={start + n}
+              envIndex={envTabs.findIndex((t) => t.id === tab.id)}
+              numbered={envTabs.some((t) => t.id === activeTabId)}
+              env={env}
+              groups={groups}
+              keymap={keymap}
+              active={!showingOverview && tab.id === activeTabId}
+              hintsVisible={hintsVisible}
+              selectTab={selectTab}
+              caretBefore={caret === start + n}
+              onDragStart={(e) => {
+                // A drag with nothing in its dataTransfer is not a drag the
+                // browser is obliged to start — Firefox refuses outright, and
+                // WebKit (which is what the Tauri window is) is inconsistent.
+                // The payload itself is unused: `dragging` in React state carries
+                // the real information, because dataTransfer is unreadable during
+                // `dragover`, which is exactly when the caret needs positioning.
+                e.dataTransfer.setData("text/plain", tab.id);
+                e.dataTransfer.effectAllowed = "move";
+                setDragging({ tabId: tab.id, envId: env.id });
+              }}
+              onDragEnd={() => {
+                setDragging(null);
+                setDropIndex(null);
+                setDropGroupId(null);
+              }}
+            />
+          ));
 
-        if (!group) return <div className="tab-run" key={`u${start}`}>{renderTabs}</div>;
-        return (
-          <div
-            className={`tab-run grouped${
-              dragging && dropGroupId === group.id ? " targeted" : ""
-            }`}
-            key={group.id}
-            data-group-id={group.id}
-            style={{ ["--grp" as string]: group.color }}
-          >
-            <GroupPill group={group} envId={env.id} count={run.tabs.length} />
-            {!group.collapsed && renderTabs}
-          </div>
-        );
-      })}
+          if (!group)
+            return (
+              <div className="tab-run" key={`u${start}`}>
+                {renderTabs}
+              </div>
+            );
+          return (
+            <div
+              className={`tab-run grouped${dragging && dropGroupId === group.id ? " targeted" : ""}`}
+              key={group.id}
+              data-group-id={group.id}
+              style={{ ["--grp" as string]: group.color }}
+            >
+              <GroupPill group={group} envId={env.id} count={run.tabs.length} />
+              {!group.collapsed && renderTabs}
+            </div>
+          );
+        })}
       {!collapsed && caret === envTabs.length && <i className="tab-caret" />}
     </div>
   );
@@ -414,8 +406,7 @@ function TabButton({
 
   // ⌘1…9 addresses the environment you are in, so only its tabs carry a chip.
   // A number beside a tab the shortcut does not select would be a lie.
-  const binding =
-    numbered && envIndex < 9 ? keymap[`tab.go.${envIndex + 1}`]?.[0] : undefined;
+  const binding = numbered && envIndex < 9 ? keymap[`tab.go.${envIndex + 1}`]?.[0] : undefined;
   const renameBinding = keymap["tab.rename"]?.[0];
   const color = tab.color ?? env.color;
   const renaming = renamingTabId === tab.id;
@@ -490,9 +481,7 @@ function TabButton({
         title={
           renaming
             ? undefined
-            : `${tab.name} — double-click to rename${
-                renameBinding ? ` (${formatBinding(renameBinding)})` : ""
-              }, right-click for more`
+            : `${tab.name} — double-click to rename${renameBinding ? ` (${formatBinding(renameBinding)})` : ""}, right-click for more`
         }
         onClick={() => selectTab(tab.id)}
         onDoubleClick={() => startRenamingTab(tab.id)}

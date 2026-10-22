@@ -81,11 +81,7 @@ export function ConsoleRail({
             tabs={tabs.filter((t) => t.environmentId === env.id)}
             keymap={keymap}
             hintsVisible={hintsVisible}
-            envHint={
-              hintsVisible
-                ? keymap[`env.go.${environments.filter((e) => !e.hidden).indexOf(env) + 1}`]?.[0]
-                : undefined
-            }
+            envHint={hintsVisible ? keymap[`env.go.${environments.filter((e) => !e.hidden).indexOf(env) + 1}`]?.[0] : undefined}
             groups={layouts[env.id]?.groups ?? []}
             activeTabId={activeTabId}
             selectTab={selectTab}
@@ -106,13 +102,7 @@ export function ConsoleRail({
 
       <div className="rail-spacer" />
 
-      <button
-        className="rail-toggle"
-        data-wizard-target="settings"
-        title="App settings"
-        aria-label="App settings"
-        onClick={onOpenSettings}
-      >
+      <button className="rail-toggle" data-wizard-target="settings" title="App settings" aria-label="App settings" onClick={onOpenSettings}>
         ⚙
       </button>
       <button
@@ -287,9 +277,7 @@ function RailEnvironment({
       },
     };
   }
-  const newTabTitle = newTabBinding
-    ? `New tab in ${env.name} (${formatBinding(newTabBinding)})`
-    : `New tab in ${env.name}`;
+  const newTabTitle = newTabBinding ? `New tab in ${env.name} (${formatBinding(newTabBinding)})` : `New tab in ${env.name}`;
   const holdsActive = tabs.some((t) => t.id === activeTabId);
 
   /** The strip's tab menu, on a rail tile. Same verbs, same order. */
@@ -332,9 +320,7 @@ function RailEnvironment({
           },
         ],
       },
-      ...(tab.groupId
-        ? [{ kind: "action" as const, label: "Remove from group", run: () => setTabGroup(tab.id, null) }]
-        : []),
+      ...(tab.groupId ? [{ kind: "action" as const, label: "Remove from group", run: () => setTabGroup(tab.id, null) }] : []),
       { kind: "action", label: "New tab", run: onAddTab },
       { kind: "separator" },
       {
@@ -372,9 +358,7 @@ function RailEnvironment({
         onContextMenu={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          openMenu(e.clientX, e.clientY, [
-            { kind: "action", label: `${env.name} settings…`, run: onGear },
-          ]);
+          openMenu(e.clientX, e.clientY, [{ kind: "action", label: `${env.name} settings…`, run: onGear }]);
         }}
       >
         <span className="rail-letter">{env.name.slice(0, 1).toUpperCase()}</span>
@@ -389,12 +373,7 @@ function RailEnvironment({
       </div>
 
       {expanded ? (
-        <div
-          className="rail-boards"
-          ref={boardsRef}
-          style={{ ["--c" as string]: env.color }}
-          {...dragHandlers}
-        >
+        <div className="rail-boards" ref={boardsRef} style={{ ["--c" as string]: env.color }} {...dragHandlers}>
           {/* Rendered in run order — the same order as the tab array — because
               `resolveDrop` walks the rendered tiles to work out where a drop
               lands. Every ungrouped tab first and then the groups would put the
@@ -411,9 +390,7 @@ function RailEnvironment({
                 active={tab.id === activeTabId}
                 onSelect={() => selectTab(tab.id)}
                 onMenu={(x, y) => tabMenu(x, y, tab)}
-                hint={
-                  hintsVisible && holdsActive ? keymap[`tab.go.${indexOf(tab)}`]?.[0] : undefined
-                }
+                hint={hintsVisible && holdsActive ? keymap[`tab.go.${indexOf(tab)}`]?.[0] : undefined}
                 {...tileProps(tab, run.from + n)}
               />
             ));
@@ -450,12 +427,7 @@ function RailEnvironment({
               </div>
             );
           })}
-          <button
-            className="rail-tile rail-add"
-            title={newTabTitle}
-            aria-label={`New tab in ${env.name}`}
-            onClick={onAddTab}
-          >
+          <button className="rail-tile rail-add" title={newTabTitle} aria-label={`New tab in ${env.name}`} onClick={onAddTab}>
             <span className="rail-tile-code">+</span>
             <span className="rail-tile-name">New tab</span>
             {hintsVisible && newTabBinding && <Kbd binding={newTabBinding} />}
@@ -604,58 +576,58 @@ function RailGroupPill({
   return (
     <>
       {caretBefore && <i className="rail-caret" />}
-    <div
-      className="rail-group-pill"
-      tabIndex={0}
-      role="button"
-      // The pill is the group's handle: dragging it moves the whole run.
-      // Not while renaming — dragging an input by its text is not a gesture
-      // anyone means.
-      draggable={renamingGroupId !== group.id}
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
-      aria-expanded={!group.collapsed}
-      title={`${group.name} — click to ${group.collapsed ? "expand" : "collapse"}`}
-      onClick={() => setGroupCollapsed(envId, group.id, !group.collapsed)}
-      onDoubleClick={() => startRenamingGroup(group.id)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
+      <div
+        className="rail-group-pill"
+        tabIndex={0}
+        role="button"
+        // The pill is the group's handle: dragging it moves the whole run.
+        // Not while renaming — dragging an input by its text is not a gesture
+        // anyone means.
+        draggable={renamingGroupId !== group.id}
+        onDragStart={onDragStart}
+        onDragEnd={onDragEnd}
+        aria-expanded={!group.collapsed}
+        title={`${group.name} — click to ${group.collapsed ? "expand" : "collapse"}`}
+        onClick={() => setGroupCollapsed(envId, group.id, !group.collapsed)}
+        onDoubleClick={() => startRenamingGroup(group.id)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setGroupCollapsed(envId, group.id, !group.collapsed);
+          }
+        }}
+        onContextMenu={(e) => {
           e.preventDefault();
-          setGroupCollapsed(envId, group.id, !group.collapsed);
-        }
-      }}
-      onContextMenu={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        openMenu(e.clientX, e.clientY, items);
-      }}
-    >
-      <i />
-      {renamingGroupId === group.id ? (
-        <input
-          className="field rail-rename"
-          autoFocus
-          defaultValue={group.name}
-          onClick={(e) => e.stopPropagation()}
-          onBlur={(e) => {
-            const name = e.target.value.trim();
-            if (name) renameGroup(envId, group.id, name);
-            startRenamingGroup(null);
-          }}
-          onKeyDown={(e) => {
-            e.stopPropagation();
-            if (e.key === "Enter") e.currentTarget.blur();
-            if (e.key === "Escape") {
-              e.currentTarget.value = group.name;
-              e.currentTarget.blur();
-            }
-          }}
-        />
-      ) : (
-        <span>{group.name}</span>
-      )}
-      <span className="rail-group-count">{count}</span>
-    </div>
+          e.stopPropagation();
+          openMenu(e.clientX, e.clientY, items);
+        }}
+      >
+        <i />
+        {renamingGroupId === group.id ? (
+          <input
+            className="field rail-rename"
+            autoFocus
+            defaultValue={group.name}
+            onClick={(e) => e.stopPropagation()}
+            onBlur={(e) => {
+              const name = e.target.value.trim();
+              if (name) renameGroup(envId, group.id, name);
+              startRenamingGroup(null);
+            }}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === "Enter") e.currentTarget.blur();
+              if (e.key === "Escape") {
+                e.currentTarget.value = group.name;
+                e.currentTarget.blur();
+              }
+            }}
+          />
+        ) : (
+          <span>{group.name}</span>
+        )}
+        <span className="rail-group-count">{count}</span>
+      </div>
     </>
   );
 }
@@ -669,9 +641,5 @@ function RailClock() {
     const timer = setInterval(() => setNow(new Date()), 30_000);
     return () => clearInterval(timer);
   }, []);
-  return (
-    <div className="rail-clock">
-      {now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}
-    </div>
-  );
+  return <div className="rail-clock">{now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}</div>;
 }

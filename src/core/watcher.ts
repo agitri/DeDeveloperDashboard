@@ -71,7 +71,10 @@ export class ProjectWatcher {
   sync(environmentId: string, projects: ProjectRef[]): void {
     const current = this.registry.get(environmentId);
     if (current && JSON.stringify(current) === JSON.stringify(projects)) return;
-    this.registry.set(environmentId, projects.map((p) => ({ id: p.id, path: p.path })));
+    this.registry.set(
+      environmentId,
+      projects.map((p) => ({ id: p.id, path: p.path })),
+    );
 
     const routes = new Map<string, ProjectChanged>();
     for (const [envId, entries] of this.registry) {

@@ -33,17 +33,13 @@ describe("the local calendar store", () => {
 
   it("refuses an event that ends before it starts, and writes nothing", () => {
     const { env } = scratchEnv("calendar-backwards");
-    expect(() => upsert(env, { ...event("e1"), end: "2026-08-19T08:00:00Z" })).toThrow(
-      "an event cannot end before it starts",
-    );
+    expect(() => upsert(env, { ...event("e1"), end: "2026-08-19T08:00:00Z" })).toThrow("an event cannot end before it starts");
     expect(load(env).events).toEqual([]);
   });
 
   it("refuses a bad timestamp and an empty title", () => {
     const { env } = scratchEnv("calendar-invalid");
-    expect(() => upsert(env, { ...event("e1"), start: "not a date" })).toThrow(
-      'start is not an RFC 3339 timestamp: "not a date"',
-    );
+    expect(() => upsert(env, { ...event("e1"), start: "not a date" })).toThrow('start is not an RFC 3339 timestamp: "not a date"');
     expect(() => upsert(env, { ...event("e1"), end: "19 Aug" })).toThrow('end is not an RFC 3339 timestamp: "19 Aug"');
     expect(() => upsert(env, { ...event("e2"), title: "   " })).toThrow("an event needs a title");
   });

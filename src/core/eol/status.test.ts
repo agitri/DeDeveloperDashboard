@@ -1,15 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  cycleFromApi,
-  cycleFromJson,
-  daysBetween,
-  find,
-  severity,
-  supportOn,
-  type Cycle,
-  type Milestone,
-  type Support,
-} from "./status";
+import { cycleFromApi, cycleFromJson, daysBetween, find, severity, supportOn, type Cycle, type Milestone, type Support } from "./status";
 
 function cycle(name: string, support: string | null, eol: string | null): Cycle {
   const at = (d: string | null): Milestone => (d === null ? { kind: "absent" } : { kind: "date", date: d });
@@ -147,9 +137,12 @@ describe("dates in, verdict out", () => {
       latest: "8.0.16",
     });
     expect(supportOn(c, "2026-09-04")).toEqual({ state: "ended" });
-    expect(cycleFromJson({ cycle: "9.9", support: { kind: "absent" }, eol: { kind: "pending" }, latest: null })).toEqual(
-      { cycle: "9.9", support: { kind: "absent" }, eol: { kind: "pending" }, latest: null },
-    );
+    expect(cycleFromJson({ cycle: "9.9", support: { kind: "absent" }, eol: { kind: "pending" }, latest: null })).toEqual({
+      cycle: "9.9",
+      support: { kind: "absent" },
+      eol: { kind: "pending" },
+      latest: null,
+    });
     expect(() => cycleFromJson({ cycle: "8.0", support: { kind: "maybe" } })).toThrow(/^json: /);
     expect(() => cycleFromJson([])).toThrow(/^json: /);
     expect(() => cycleFromApi("nope")).toThrow(/^json: /);

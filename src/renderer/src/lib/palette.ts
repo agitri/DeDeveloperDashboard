@@ -10,11 +10,4 @@
  * and only these. A second copy is how a validated palette quietly stops being
  * one.
  */
-export const ENV_COLORS: readonly string[] = [
-  "#2f6ae8",
-  "#c96a00",
-  "#00a99f",
-  "#c026a3",
-  "#7c3aed",
-  "#6b8f00",
-];
+export const ENV_COLORS: readonly string[] = ["#2f6ae8", "#c96a00", "#00a99f", "#c026a3", "#7c3aed", "#6b8f00"];

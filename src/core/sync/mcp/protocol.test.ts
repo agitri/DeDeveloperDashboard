@@ -52,12 +52,7 @@ describe("the audience filter", () => {
 describe("a listing page", () => {
   it("reports its cursor and drops only the unusable", () => {
     const page = parsePage({
-      resources: [
-        { uri: "x://1", name: "one" },
-        { name: "no uri at all" },
-        { uri: "   " },
-        { uri: "x://2" },
-      ],
+      resources: [{ uri: "x://1", name: "one" }, { name: "no uri at all" }, { uri: "   " }, { uri: "x://2" }],
       nextCursor: "abc",
     });
     expect(page.resources).toHaveLength(2); // one bad resource must not cost a page
@@ -103,7 +98,12 @@ describe("the handshake", () => {
 describe("contents", () => {
   it("joins text parts and yields nothing for a binary one", () => {
     expect(
-      parseContents({ contents: [{ uri: "x://1", text: "first" }, { uri: "x://1", text: "second" }] }),
+      parseContents({
+        contents: [
+          { uri: "x://1", text: "first" },
+          { uri: "x://1", text: "second" },
+        ],
+      }),
     ).toBe("first\n\nsecond");
     // A blob still becomes an item — with no body, and its MIME in refs.
     expect(parseContents({ contents: [{ uri: "x://1", blob: "aGk=", mimeType: "image/png" }] })).toBeNull();
@@ -151,11 +151,7 @@ describe("the read budget", () => {
 describe("tools", () => {
   it("are read for listing and nothing else", () => {
     const tools = parseTools({
-      tools: [
-        { name: "search", description: "find things" },
-        { name: "write" },
-        { description: "nameless, therefore not a tool" },
-      ],
+      tools: [{ name: "search", description: "find things" }, { name: "write" }, { description: "nameless, therefore not a tool" }],
     });
     expect(tools).toHaveLength(2);
     expect(tools[0]!.name).toBe("search");

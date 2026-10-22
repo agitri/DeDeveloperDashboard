@@ -212,10 +212,8 @@ export function buildGuide(widgets: WidgetDefinition[]): GuideEntry[] {
       needs: g?.needs ?? (def.needsConnection ? "A connection." : "Nothing."),
     };
   });
-  const toEntry = (group: GuideGroup) => (s: GuideStatic): GuideEntry => ({ ...s, group });
-  return [
-    ...widgetEntries,
-    ...GUIDE_INTEGRATIONS.map(toEntry("integration")),
-    ...GUIDE_CONCEPTS.map(toEntry("concept")),
-  ];
+  const toEntry =
+    (group: GuideGroup) =>
+    (s: GuideStatic): GuideEntry => ({ ...s, group });
+  return [...widgetEntries, ...GUIDE_INTEGRATIONS.map(toEntry("integration")), ...GUIDE_CONCEPTS.map(toEntry("concept"))];
 }

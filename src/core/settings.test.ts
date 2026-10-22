@@ -101,9 +101,7 @@ describe("settings defaults", () => {
   it("discards the whole legacy block, not just the bad field, on any failure", () => {
     // `showShortcutHints` is the wrong type — `serde_json::from_value(..).ok()`
     // fails the whole struct, so even the otherwise-valid theme is dropped.
-    expect(
-      appearanceFromJson({ theme: "dark", defaultRefreshSeconds: 60, showShortcutHints: "yes" }),
-    ).toEqual(defaultAppearance());
+    expect(appearanceFromJson({ theme: "dark", defaultRefreshSeconds: 60, showShortcutHints: "yes" })).toEqual(defaultAppearance());
   });
 });
 
@@ -142,9 +140,9 @@ describe("connections on disk", () => {
   });
 
   it("refuses a connection missing a required field, as serde would", () => {
-    expect(() =>
-      settingsFromJson({ connections: [{ id: "c1", provider: "github", status: "connected" }] }),
-    ).toThrow(/missing field `label`/);
+    expect(() => settingsFromJson({ connections: [{ id: "c1", provider: "github", status: "connected" }] })).toThrow(
+      /missing field `label`/,
+    );
   });
 
   it("refuses a status outside the enum, as serde would", () => {

@@ -30,10 +30,7 @@ export function CalendarWidget({ widget, environmentId }: WidgetViewProps) {
   }, [offset]);
 
   const days = useMemo(
-    () =>
-      view === "month"
-        ? monthGrid(anchor.getFullYear(), anchor.getMonth(), firstDay)
-        : weekGrid(anchor, offset, firstDay),
+    () => (view === "month" ? monthGrid(anchor.getFullYear(), anchor.getMonth(), firstDay) : weekGrid(anchor, offset, firstDay)),
     [view, anchor, offset, firstDay],
   );
 
@@ -89,11 +86,7 @@ export function CalendarWidget({ widget, environmentId }: WidgetViewProps) {
     <div className="cal">
       <div className="cal-bar">
         {(["month", "week", "agenda"] as const).map((option) => (
-          <button
-            key={option}
-            className={`btn${view === option ? " primary" : ""}`}
-            onClick={() => setView(option)}
-          >
+          <button key={option} className={`btn${view === option ? " primary" : ""}`} onClick={() => setView(option)}>
             {option[0]!.toUpperCase() + option.slice(1)}
           </button>
         ))}
@@ -126,10 +119,7 @@ function weekGrid(_anchor: Date, offset: number, firstDay: number): Date[] {
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset * 7);
   const back = (today.getDay() - firstDay + 7) % 7;
   const start = new Date(today.getFullYear(), today.getMonth(), today.getDate() - back);
-  return Array.from(
-    { length: 7 },
-    (_, i) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + i),
-  );
+  return Array.from({ length: 7 }, (_, i) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + i));
 }
 
 /**
@@ -137,24 +127,12 @@ function weekGrid(_anchor: Date, offset: number, firstDay: number): Date[] {
  * anything after 22:00 in Amsterdam on the following day.
  */
 function localKey(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
-    d.getDate(),
-  ).padStart(2, "0")}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-function Grid({
-  days,
-  byDay,
-  month,
-  firstDay,
-}: {
-  days: Date[];
-  byDay: Map<string, Occurrence[]>;
-  month: number;
-  firstDay: number;
-}) {
+function Grid({ days, byDay, month, firstDay }: { days: Date[]; byDay: Map<string, Occurrence[]>; month: number; firstDay: number }) {
   const todayKey = localKey(new Date());
   return (
     <div className="cal-grid">
@@ -167,12 +145,7 @@ function Grid({
         const key = localKey(day);
         const events = byDay.get(key) ?? [];
         return (
-          <div
-            key={key}
-            className={`cal-day${day.getMonth() === month ? "" : " outside"}${
-              key === todayKey ? " today" : ""
-            }`}
-          >
+          <div key={key} className={`cal-day${day.getMonth() === month ? "" : " outside"}${key === todayKey ? " today" : ""}`}>
             <div className="cal-date">{day.getDate()}</div>
             {events.map((o) => (
               <Pill key={o.id} occurrence={o} />
@@ -214,11 +187,7 @@ function Agenda({ occurrences }: { occurrences: Occurrence[] }) {
                 <div className="row-sub">
                   {o.allDay ? "all day" : timeRange(o)} · {o.calendar}
                   {o.location ? ` · ${o.location}` : ""}
-                  {o.recurringUnexpanded && (
-                    <span className="meta tone-warn">
-                      recurring — shown once
-                    </span>
-                  )}
+                  {o.recurringUnexpanded && <span className="meta tone-warn">recurring — shown once</span>}
                 </div>
               </div>
             </div>

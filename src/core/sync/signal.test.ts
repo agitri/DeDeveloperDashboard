@@ -19,7 +19,9 @@ describe("signal", () => {
   });
 
   it("list-unsubscribe outweighs a human-looking address", () => {
-    const v = classify(mail("Sarah from Acme <sarah@acme.io>", "A quick question, Rene", { headers: ["list-unsubscribe"], addressedDirectly: true }));
+    const v = classify(
+      mail("Sarah from Acme <sarah@acme.io>", "A quick question, Rene", { headers: ["list-unsubscribe"], addressedDirectly: true }),
+    );
     expect(v.signal).toBe(false);
   });
 

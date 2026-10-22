@@ -77,11 +77,7 @@ describe("importLayout", () => {
     for (const group of groups) expect(group.id).toMatch(/^g-new/);
     // Nothing kept an id from the document.
     const before = new Set(["t-morning", "t-site", "g-atelier", "w-1", "w-2"]);
-    const after = [
-      ...tabs.map((t) => t.id),
-      ...groups.map((g) => g.id),
-      ...tabs.flatMap((t) => t.widgets.map((w) => w.id)),
-    ];
+    const after = [...tabs.map((t) => t.id), ...groups.map((g) => g.id), ...tabs.flatMap((t) => t.widgets.map((w) => w.id))];
     expect(after.some((id) => before.has(id))).toBe(false);
   });
 
@@ -164,6 +160,5 @@ describe("importLayout", () => {
 
 /** The store's own id source, so the disjointness claim is about the real one. */
 function real() {
-  return (prefix: string) =>
-    `${prefix}-${Math.random().toString(36).slice(2, 8)}${Date.now().toString(36).slice(-3)}`;
+  return (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 8)}${Date.now().toString(36).slice(-3)}`;
 }

@@ -52,9 +52,7 @@ suite("describe", () => {
   });
 
   it("says something sensible when nothing was narrowed", () => {
-    expect(describe({})).toEqual([
-      "Nothing narrowed — this shows everything the widget can.",
-    ]);
+    expect(describe({})).toEqual(["Nothing narrowed — this shows everything the widget can."]);
   });
 
   it("distinguishes unread-only from explicitly showing both", () => {

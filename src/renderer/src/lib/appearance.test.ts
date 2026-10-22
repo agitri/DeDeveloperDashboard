@@ -34,7 +34,20 @@ describe("schemes", () => {
       for (const theme of ["light", "dark"] as const) {
         const classic = schemeVars(s.id, theme, "classic");
         expect(Object.keys(classic).sort()).toEqual(
-          ["--bg", "--err", "--ink", "--ink-2", "--ink-3", "--line", "--line-strong", "--ok", "--raised", "--sunken", "--surface", "--warn"].sort(),
+          [
+            "--bg",
+            "--err",
+            "--ink",
+            "--ink-2",
+            "--ink-3",
+            "--line",
+            "--line-strong",
+            "--ok",
+            "--raised",
+            "--sunken",
+            "--surface",
+            "--warn",
+          ].sort(),
         );
         for (const value of Object.values(classic)) expect(value).toMatch(/^#[0-9a-f]{6}$/);
       }

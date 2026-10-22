@@ -13,15 +13,7 @@ import type { Compiled, Widget } from "../types";
  * first, then compiles — never the other way round, and never a compilation
  * written back into the prose.
  */
-export function InstructionsPanel({
-  widget,
-  environmentId,
-  onClose,
-}: {
-  widget: Widget;
-  environmentId: string;
-  onClose: () => void;
-}) {
+export function InstructionsPanel({ widget, environmentId, onClose }: { widget: Widget; environmentId: string; onClose: () => void }) {
   const [text, setText] = useState("");
   const [path, setPath] = useState("");
   const [loaded, setLoaded] = useState(false);
@@ -128,9 +120,7 @@ export function InstructionsPanel({
         <div className="mono-label panel-error">
           {error}
           <div className="ink-3">
-            {compiled
-              ? "The previous filter is still in force."
-              : "Nothing changed — this widget is still showing what it did."}
+            {compiled ? "The previous filter is still in force." : "Nothing changed — this widget is still showing what it did."}
           </div>
         </div>
       )}
@@ -154,8 +144,7 @@ export function InstructionsPanel({
             </div>
           )}
           <div className="mono-label compiled-by">
-            compiled once by {compiled.model} — the widget applies this filter itself, with no model
-            involved
+            compiled once by {compiled.model} — the widget applies this filter itself, with no model involved
           </div>
         </div>
       )}

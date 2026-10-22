@@ -83,7 +83,11 @@ function net(e: unknown): DddError {
 
 async function send(cx: FetchContext, url: string, init: RequestInit): Promise<Response> {
   try {
-    return await cx.fetch(url, { ...init, headers: { ...headers(cx), ...(init.headers as Record<string, string> | undefined) }, signal: AbortSignal.timeout(TIMEOUT_MS) });
+    return await cx.fetch(url, {
+      ...init,
+      headers: { ...headers(cx), ...(init.headers as Record<string, string> | undefined) },
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
   } catch (e) {
     throw net(e);
   }
@@ -113,11 +117,18 @@ async function check(response: Response): Promise<unknown> {
 /** GraphQL with an optional pagination cursor bound to `$cursor`. GraphQL
  *  answers 200 with an `errors` array, so a happy status proves nothing. */
 async function graphql(cx: FetchContext, query: string, cursor: string | null = null): Promise<unknown> {
-  const response = await send(cx, `${API}/graphql`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ query, variables: { cursor } }) });
+  const response = await send(cx, `${API}/graphql`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ query, variables: { cursor } }),
+  });
   const body = await check(response);
   const errors = at(body, "errors");
   if (Array.isArray(errors) && errors.length > 0) {
-    const message = errors.map((e) => str(obj(e)?.message)).filter((m): m is string => m !== null).join("; ");
+    const message = errors
+      .map((e) => str(obj(e)?.message))
+      .filter((m): m is string => m !== null)
+      .join("; ");
     throw DddError.config(`github graphql: ${message}`);
   }
   return at(body, "data") ?? null;
@@ -218,7 +229,11 @@ async function repositories(cx: FetchContext): Promise<Item[]> {
     const data = await graphql(cx, REPOS_QUERY, cursor);
     const repos = at(data, "viewer.repositories");
     const nodes = at(repos, "nodes");
-    if (Array.isArray(nodes)) for (const node of nodes) { const item = toRepoItem(cx, node); if (item) items.push(item); }
+    if (Array.isArray(nodes))
+      for (const node of nodes) {
+        const item = toRepoItem(cx, node);
+        if (item) items.push(item);
+      }
     const hasNext = bool(at(repos, "pageInfo.hasNextPage"), false);
     const next = str(at(repos, "pageInfo.endCursor"));
     // A missing or unchanged cursor means the API cannot advance, even if it
@@ -288,9 +303,17 @@ export class GitHubAdapter implements SourceAdapter {
   async fetch(cx: FetchContext): Promise<Item[]> {
     const items: Item[] = [];
     const data = await graphql(cx, QUERY);
-    for (const [list, kind] of [["authored", "pull_request"], ["review", "review_request"], ["issues", "issue"]] as const) {
+    for (const [list, kind] of [
+      ["authored", "pull_request"],
+      ["review", "review_request"],
+      ["issues", "issue"],
+    ] as const) {
       const nodes = at(data, `${list}.nodes`);
-      if (Array.isArray(nodes)) for (const node of nodes) { const item = toItem(cx, node, kind); if (item) items.push(item); }
+      if (Array.isArray(nodes))
+        for (const node of nodes) {
+          const item = toItem(cx, node, kind);
+          if (item) items.push(item);
+        }
     }
     items.push(...(await notifications(cx).catch(() => [] as Item[])));
     // A repo listing is not urgent; a failure here must not cost you your PRs.
@@ -315,7 +338,9 @@ export class GitHubAdapter implements SourceAdapter {
         return `Approved ${repo}#${number}`;
       }
       case "mark_read": {
-        const thread = request.item.refs.map((r) => (r.startsWith("github-thread:") ? r.slice("github-thread:".length) : null)).find((t) => t !== null);
+        const thread = request.item.refs
+          .map((r) => (r.startsWith("github-thread:") ? r.slice("github-thread:".length) : null))
+          .find((t) => t !== null);
         if (!thread) throw DddError.config("not a notification");
         const response = await send(cx, `${API}/notifications/threads/${thread}`, { method: "PATCH" });
         await check(response);

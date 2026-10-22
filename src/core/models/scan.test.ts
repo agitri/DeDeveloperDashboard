@@ -95,7 +95,10 @@ describe("scan", () => {
   it("lists Ollama models from their manifests with the summed layer sizes", async () => {
     const roots = emptyRoots(tempRoot("ollama"));
     ollamaStore(roots.ollama, {
-      "qwen3:8b": [[sha(1), 5000], [sha(2), 40, "template"]],
+      "qwen3:8b": [
+        [sha(1), 5000],
+        [sha(2), 40, "template"],
+      ],
       "llama3.2:3b": [[sha(3), 3000]],
     });
     const result = await scan(roots);
@@ -117,9 +120,18 @@ describe("scan", () => {
     ollamaStore(roots.ollama, { "qwen3:8b": [[sha(1), 10]] });
     const dir = join(roots.ollama, "manifests", "registry.ollama.ai", "orcarouter", "Qwen3.8-27B");
     mkdirSync(dir, { recursive: true });
-    writeFileSync(join(dir, "q4_K_M"), JSON.stringify({ schemaVersion: 2, layers: [{ mediaType: "application/vnd.ollama.image.model", digest: `sha256:${sha(7)}`, size: 12 }] }));
+    writeFileSync(
+      join(dir, "q4_K_M"),
+      JSON.stringify({
+        schemaVersion: 2,
+        layers: [{ mediaType: "application/vnd.ollama.image.model", digest: `sha256:${sha(7)}`, size: 12 }],
+      }),
+    );
     const result = await scan(roots);
-    const names = result.stores.find((s) => s.runtime === "ollama")!.models.map((m) => m.name).sort();
+    const names = result.stores
+      .find((s) => s.runtime === "ollama")!
+      .models.map((m) => m.name)
+      .sort();
     expect(names).toEqual(["orcarouter/Qwen3.8-27B:q4_K_M", "qwen3:8b"]);
   });
 

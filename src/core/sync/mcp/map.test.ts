@@ -43,9 +43,7 @@ describe("mapping a resource to an item", () => {
   });
 
   it("prefers the display name and falls back to the uri last", () => {
-    expect(toItem(resource({ uri: "x://1", name: "programmatic", title: "Human Readable" }), null, mapping()).title).toBe(
-      "Human Readable",
-    );
+    expect(toItem(resource({ uri: "x://1", name: "programmatic", title: "Human Readable" }), null, mapping()).title).toBe("Human Readable");
     expect(toItem(resource({ uri: "x://1", name: "programmatic" }), null, mapping()).title).toBe("programmatic");
     // Nameless is addressable rather than blank.
     expect(toItem(resource({ uri: "x://1" }), null, mapping()).title).toBe("x://1");
@@ -53,17 +51,15 @@ describe("mapping a resource to an item", () => {
   });
 
   it("lets a read body beat the description, and the description beat nothing", () => {
-    expect(toItem(resource({ uri: "x://1", description: "the summary" }), "the whole document", mapping()).body).toBe(
-      "the whole document",
-    );
+    expect(toItem(resource({ uri: "x://1", description: "the summary" }), "the whole document", mapping()).body).toBe("the whole document");
     expect(toItem(resource({ uri: "x://1", description: "the summary" }), null, mapping()).body).toBe("the summary");
     expect(toItem(resource({ uri: "x://1" }), null, mapping()).body).toBeNull();
   });
 
   it("keeps the date a resource gives itself", () => {
-    expect(
-      toItem(resource({ uri: "x://1", annotations: { lastModified: "2026-01-02T03:04:05Z" } }), null, mapping()).updatedAt,
-    ).toBe("2026-01-02T03:04:05Z");
+    expect(toItem(resource({ uri: "x://1", annotations: { lastModified: "2026-01-02T03:04:05Z" } }), null, mapping()).updatedAt).toBe(
+      "2026-01-02T03:04:05Z",
+    );
     // Otherwise the sync time, so it sorts somewhere honest rather than at the
     // epoch.
     expect(toItem(resource({ uri: "x://1" }), null, mapping()).updatedAt).toBe("2026-09-04T10:00:00Z");
@@ -85,11 +81,7 @@ describe("mapping a resource to an item", () => {
   });
 
   it("carries what the item shape has no field for in refs", () => {
-    const item = toItem(
-      resource({ uri: "x://1", mimeType: "text/markdown", annotations: { priority: 0.8 } }),
-      null,
-      mapping(),
-    );
+    const item = toItem(resource({ uri: "x://1", mimeType: "text/markdown", annotations: { priority: 0.8 } }), null, mapping());
     expect(item.refs).toContain("mime:text/markdown");
     expect(item.refs).toContain("priority:0.8");
     expect(item.refs).toContain("server:files");

@@ -156,12 +156,7 @@ function startsFromRule(event: EventSpec, rule: string, from: Date, to: Date): D
     // iterator rather than materialising every occurrence first; rrule's
     // `between` takes the same shape as an optional callback, so the cap is
     // applied the same way here instead of generating everything then slicing.
-    const dates = set.between(
-      new Date(utcToZoned(from, tz)),
-      new Date(utcToZoned(to, tz)),
-      true,
-      (_, i) => i < MAX_OCCURRENCES,
-    );
+    const dates = set.between(new Date(utcToZoned(from, tz)), new Date(utcToZoned(to, tz)), true, (_, i) => i < MAX_OCCURRENCES);
     return dates.map((d) => new Date(zonedToUtc(d.getTime(), tz)));
   } catch {
     // rrule throws on an unknown FREQ or a malformed BYDAY.

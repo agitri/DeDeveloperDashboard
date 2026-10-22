@@ -2,7 +2,19 @@ import { describe, expect, it } from "vitest";
 import type { Item } from "../models";
 import { fetchContext } from "./adapter";
 import { forProvider } from "./providers";
-import { IcsAdapter, addDuration, normalizeUrl, parseTime, property, rfc3339, toItems, unescape, unfold, utcToZoned, zonedToUtc } from "./ics";
+import {
+  IcsAdapter,
+  addDuration,
+  normalizeUrl,
+  parseTime,
+  property,
+  rfc3339,
+  toItems,
+  unescape,
+  unfold,
+  utcToZoned,
+  zonedToUtc,
+} from "./ics";
 
 /** The Rust test module's `refs_of`. */
 function refsOf(item: { refs: string[] }, prefix: string): string[] {
@@ -30,12 +42,8 @@ const FEED =
 
 describe("normalizeUrl", () => {
   it("rewrites webcal and refuses every other scheme", () => {
-    expect(normalizeUrl("webcal://p01-calendars.icloud.com/published/2/abc")).toBe(
-      "https://p01-calendars.icloud.com/published/2/abc",
-    );
-    expect(normalizeUrl("webcals://p01-calendars.icloud.com/published/2/abc")).toBe(
-      "https://p01-calendars.icloud.com/published/2/abc",
-    );
+    expect(normalizeUrl("webcal://p01-calendars.icloud.com/published/2/abc")).toBe("https://p01-calendars.icloud.com/published/2/abc");
+    expect(normalizeUrl("webcals://p01-calendars.icloud.com/published/2/abc")).toBe("https://p01-calendars.icloud.com/published/2/abc");
     expect(normalizeUrl("  https://x.dev/a.ics  ")).toBe("https://x.dev/a.ics");
     expect(normalizeUrl("HTTP://x.dev/a.ics")).toBe("HTTP://x.dev/a.ics");
     for (const bad of ["file:///etc/passwd", "ftp://x.dev/a.ics", "/Users/me/a.ics", "javascript:1"]) {
@@ -273,9 +281,9 @@ describe("IcsAdapter.fetch", () => {
       updatedAt: "2026-08-19T09:00:00Z",
       unread: false,
     };
-    await expect(
-      new IcsAdapter().perform(fetchContext({ connection }), { action: "comment", item, input: null }),
-    ).rejects.toThrow("calendar.ics cannot comment");
+    await expect(new IcsAdapter().perform(fetchContext({ connection }), { action: "comment", item, input: null })).rejects.toThrow(
+      "calendar.ics cannot comment",
+    );
   });
 
   it("is what providers.forProvider builds for calendar.ics", () => {

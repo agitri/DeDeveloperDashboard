@@ -56,17 +56,23 @@ describe("the action catalogue", () => {
     const system = systemPrompt(action("thread.summarize")!, "   ");
     expect(system).toContain("No project context");
     expect(system).not.toContain("<project_context>");
-    expect(system.endsWith("\n\nNo project context is available for this item. Stay general rather than inventing conventions.")).toBe(true);
+    expect(system.endsWith("\n\nNo project context is available for this item. Stay general rather than inventing conventions.")).toBe(
+      true,
+    );
   });
 
   it("the prompt carries the item itself", () => {
     const prompt = userPrompt(action("mail.draft")!, item("mail"));
-    expect(prompt).toBe("Source: google (mail)\nProject: ddd\n\nJordy — Thursday still ok?\n\nCan we move to 14:00?\n\n---\nDraft the reply.");
+    expect(prompt).toBe(
+      "Source: google (mail)\nProject: ddd\n\nJordy — Thursday still ok?\n\nCan we move to 14:00?\n\n---\nDraft the reply.",
+    );
   });
 
   it("leaves out an absent project and a blank body", () => {
     const bare = { ...item("issue"), project: null, body: "  " };
-    expect(userPrompt(action("issue.tasks")!, bare)).toBe("Source: google (issue)\n\nJordy — Thursday still ok?\n\n---\nBreak this into tasks.");
+    expect(userPrompt(action("issue.tasks")!, bare)).toBe(
+      "Source: google (issue)\n\nJordy — Thursday still ok?\n\n---\nBreak this into tasks.",
+    );
     expect(userPrompt(action("thread.summarize")!, bare)).toContain("\n---\nSummarize this.");
   });
 

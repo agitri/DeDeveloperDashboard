@@ -82,83 +82,82 @@ describe("prepare and targetDir", () => {
 });
 
 describe("run", () => {
-  it(
-    "clones for real, and links and registers the result",
-    async () => {
-      const home = scratchEnv("clone-e2e");
-      const root = scratch("e2e");
-      const origin = originRepo(root);
-      const parent = join(root, "into");
-      mkdirSync(parent, { recursive: true });
+  it("clones for real, and links and registers the result", async () => {
+    const home = scratchEnv("clone-e2e");
+    const root = scratch("e2e");
+    const origin = originRepo(root);
+    const parent = join(root, "into");
+    mkdirSync(parent, { recursive: true });
 
-      const remote = "github.com/agitri/origin";
-      const target = prepare(parent, remote);
-      const ticks: Progress[] = [];
-      await run(home.env, remote, `file://${origin}`, target, (p) => ticks.push(p));
+    const remote = "github.com/agitri/origin";
+    const target = prepare(parent, remote);
+    const ticks: Progress[] = [];
+    await run(home.env, remote, `file://${origin}`, target, (p) => ticks.push(p));
 
-      const last = ticks[ticks.length - 1]!;
-      expect(last).toEqual({ phase: "Done", percent: 100, done: true, error: null });
-      expect(ticks[0]).toEqual({ phase: "Starting", percent: 0, done: false, error: null });
+    const last = ticks[ticks.length - 1]!;
+    expect(last).toEqual({ phase: "Done", percent: 100, done: true, error: null });
+    expect(ticks[0]).toEqual({ phase: "Starting", percent: 0, done: false, error: null });
 
-      // The point of the exercise: git's carriage-return progress stream was
-      // parsed, not merely survived. If this ever fails because the fixture is
-      // too small for git to bother reporting, the parser is untested again and
-      // the fixture needs to grow — not this assertion.
-      expect(ticks.some((t) => t.phase !== "Starting" && t.phase !== "Done")).toBe(true);
+    // The point of the exercise: git's carriage-return progress stream was
+    // parsed, not merely survived. If this ever fails because the fixture is
+    // too small for git to bother reporting, the parser is untested again and
+    // the fixture needs to grow — not this assertion.
+    expect(ticks.some((t) => t.phase !== "Starting" && t.phase !== "Done")).toBe(true);
 
-      // The checkout is really there.
-      expect(existsSync(join(target, "README.md"))).toBe(true);
+    // The checkout is really there.
+    expect(existsSync(join(target, "README.md"))).toBe(true);
 
-      // …and the link store and project registry both know about it, at the
-      // canonical path the projectId join depends on.
-      const link = find(load(home.env), remote);
-      expect(link).not.toBeNull();
-      expect(link!.path).toBe(canonicalPath(target));
-      expect(link!.source).toBe("manual");
-      expect(link!.confidence).toBe("exact");
-      expect(registry(home.env).projects.some((p) => p.path === link!.path)).toBe(true);
+    // …and the link store and project registry both know about it, at the
+    // canonical path the projectId join depends on.
+    const link = find(load(home.env), remote);
+    expect(link).not.toBeNull();
+    expect(link!.path).toBe(canonicalPath(target));
+    expect(link!.source).toBe("manual");
+    expect(link!.confidence).toBe("exact");
+    expect(registry(home.env).projects.some((p) => p.path === link!.path)).toBe(true);
 
-      rmSync(root, { recursive: true, force: true });
-    },
-    30000,
-  );
+    rmSync(root, { recursive: true, force: true });
+  }, 30000);
 
-  it(
-    "reports git's own words when the clone fails, and stores nothing",
-    async () => {
-      const home = scratchEnv("clone-fails");
-      const root = scratch("fail");
-      const parent = join(root, "into");
-      mkdirSync(parent, { recursive: true });
+  it("reports git's own words when the clone fails, and stores nothing", async () => {
+    const home = scratchEnv("clone-fails");
+    const root = scratch("fail");
+    const parent = join(root, "into");
+    mkdirSync(parent, { recursive: true });
 
-      const remote = "github.com/agitri/nope";
-      const target = prepare(parent, remote);
-      const ticks: Progress[] = [];
-      await run(home.env, remote, `file://${join(root, "does-not-exist")}`, target, (p) => ticks.push(p));
+    const remote = "github.com/agitri/nope";
+    const target = prepare(parent, remote);
+    const ticks: Progress[] = [];
+    await run(home.env, remote, `file://${join(root, "does-not-exist")}`, target, (p) => ticks.push(p));
 
-      const last = ticks[ticks.length - 1]!;
-      expect(last.done).toBe(true);
-      expect(last.phase).toBe("Failed");
-      expect(last.percent).toBe(0);
-      // git's own tail, not a message of ours.
-      expect(last.error).toContain("does not appear to be a git repository");
+    const last = ticks[ticks.length - 1]!;
+    expect(last.done).toBe(true);
+    expect(last.phase).toBe("Failed");
+    expect(last.percent).toBe(0);
+    // git's own tail, not a message of ours.
+    expect(last.error).toContain("does not appear to be a git repository");
 
-      // Nothing half-linked: a failed clone leaves the store as it found it.
-      expect(load(home.env).links).toEqual([]);
-      expect(registry(home.env).projects).toEqual([]);
+    // Nothing half-linked: a failed clone leaves the store as it found it.
+    expect(load(home.env).links).toEqual([]);
+    expect(registry(home.env).projects).toEqual([]);
 
-      rmSync(root, { recursive: true, force: true });
-    },
-    30000,
-  );
+    rmSync(root, { recursive: true, force: true });
+  }, 30000);
 
   it("reports a git that will not start, through the injected spawn", async () => {
     const home = scratchEnv("clone-no-git");
     const never = join(tmpdir(), "ddd-clone-never-created");
     const ticks: Progress[] = [];
-    await run(home.env, "github.com/a/b", "file:///nowhere", never, (p) => ticks.push(p), () => {
-      throw new Error("spawn git ENOENT");
-    });
+    await run(
+      home.env,
+      "github.com/a/b",
+      "file:///nowhere",
+      never,
+      (p) => ticks.push(p),
+      () => {
+        throw new Error("spawn git ENOENT");
+      },
+    );
     expect(ticks[ticks.length - 1]).toEqual({ phase: "Failed", percent: 0, done: true, error: "could not start git: spawn git ENOENT" });
     expect(existsSync(never)).toBe(false);
     expect(load(home.env).links).toEqual([]);
@@ -168,9 +167,16 @@ describe("run", () => {
     const home = scratchEnv("clone-defer");
     const never = join(tmpdir(), "ddd-clone-defer-target");
     const ticks: Progress[] = [];
-    const promise = run(home.env, "github.com/a/b", "file:///nowhere", never, (p) => ticks.push(p), () => {
-      throw new Error("spawn git ENOENT");
-    });
+    const promise = run(
+      home.env,
+      "github.com/a/b",
+      "file:///nowhere",
+      never,
+      (p) => ticks.push(p),
+      () => {
+        throw new Error("spawn git ENOENT");
+      },
+    );
     // Nothing has fired yet, synchronously after the call — same tick as
     // `repo_clone` returning its target to the caller.
     expect(ticks.length).toBe(0);

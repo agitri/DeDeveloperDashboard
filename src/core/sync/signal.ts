@@ -39,23 +39,63 @@ const LEXICAL = 2;
 const ADDRESSED = 3;
 
 const ROBOT_LOCALS = [
-  "noreply", "no-reply", "no_reply", "donotreply", "do-not-reply", "notifications",
-  "notification", "mailer-daemon", "bounce", "bounces", "newsletter", "news", "marketing",
-  "billing", "receipts", "invoice", "alerts", "alert", "automated", "auto-confirm", "jenkins",
-  "build", "ci", "postmaster", "support-noreply",
+  "noreply",
+  "no-reply",
+  "no_reply",
+  "donotreply",
+  "do-not-reply",
+  "notifications",
+  "notification",
+  "mailer-daemon",
+  "bounce",
+  "bounces",
+  "newsletter",
+  "news",
+  "marketing",
+  "billing",
+  "receipts",
+  "invoice",
+  "alerts",
+  "alert",
+  "automated",
+  "auto-confirm",
+  "jenkins",
+  "build",
+  "ci",
+  "postmaster",
+  "support-noreply",
 ];
 
 const ROBOT_HEADERS = [
-  "list-unsubscribe", "list-id", "auto-submitted", "x-auto-response-suppress", "precedence",
-  "x-campaign-id", "x-mailer-daemon", "feedback-id",
+  "list-unsubscribe",
+  "list-id",
+  "auto-submitted",
+  "x-auto-response-suppress",
+  "precedence",
+  "x-campaign-id",
+  "x-mailer-daemon",
+  "feedback-id",
 ];
 
 /** Subject shapes that *suggest* automation. Weak evidence by design. */
 const ROBOT_SUBJECTS = [
-  "build failed", "build passed", "build succeeded", "pipeline failed", "deployment succeeded",
-  "your receipt", "invoice", "order confirmation", "password reset", "verify your email",
-  "unsubscribe", "weekly digest", "daily digest", "newsletter", "security alert",
-  "terms of service", "privacy policy",
+  "build failed",
+  "build passed",
+  "build succeeded",
+  "pipeline failed",
+  "deployment succeeded",
+  "your receipt",
+  "invoice",
+  "order confirmation",
+  "password reset",
+  "verify your email",
+  "unsubscribe",
+  "weekly digest",
+  "daily digest",
+  "newsletter",
+  "security alert",
+  "terms of service",
+  "privacy policy",
 ];
 
 export function classify(mail: MailSignals): Verdict {

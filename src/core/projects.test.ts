@@ -108,7 +108,13 @@ describe("registry", () => {
   });
 });
 
-const GIT_AUTHOR_ENV = { ...process.env, GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@t" };
+const GIT_AUTHOR_ENV = {
+  ...process.env,
+  GIT_AUTHOR_NAME: "t",
+  GIT_AUTHOR_EMAIL: "t@t",
+  GIT_COMMITTER_NAME: "t",
+  GIT_COMMITTER_EMAIL: "t@t",
+};
 
 function gitRepo(name: string): string {
   const dir = tempdir(name);
@@ -137,7 +143,13 @@ describe("git status", () => {
 
   it("is the default for a folder that is not a repository", async () => {
     expect(await gitStatus(tempdir("norepo"))).toEqual({
-      isRepo: false, branch: null, dirtyFiles: 0, ahead: 0, behind: 0, lastCommitSummary: null, lastCommitAt: null,
+      isRepo: false,
+      branch: null,
+      dirtyFiles: 0,
+      ahead: 0,
+      behind: 0,
+      lastCommitSummary: null,
+      lastCommitAt: null,
     });
   });
 
@@ -239,7 +251,10 @@ describe("a project card", () => {
   it("loads every card, in parallel, in registry order", async () => {
     const a = tempdir("all-a");
     const b = gitRepo("all-b");
-    const cards = await loadAll([{ id: "a", path: a }, { id: "b", path: b }]);
+    const cards = await loadAll([
+      { id: "a", path: a },
+      { id: "b", path: b },
+    ]);
     expect(cards.map((c) => c.id)).toEqual(["a", "b"]);
     expect(cards[1]!.git.isRepo).toBe(true);
   });

@@ -83,12 +83,7 @@ export function validateUrl(raw: string): string {
  * a second row that disagrees with the first. Synchronous end to end, so the
  * read and the write cannot interleave with another command.
  */
-export function add(
-  env: EnvRoot,
-  rawPath: string,
-  rawUrl: string | null | undefined,
-  rawNote: string | null | undefined,
-): Watchlist {
+export function add(env: EnvRoot, rawPath: string, rawUrl: string | null | undefined, rawNote: string | null | undefined): Watchlist {
   if (!isDirectory(rawPath)) throw DddError.notFound(`${rawPath} is not a directory`);
   let path: string;
   try {

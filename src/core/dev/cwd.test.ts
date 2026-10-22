@@ -80,9 +80,13 @@ describe("resolving working directories", () => {
     expect(calls).toEqual([]);
   });
 
-  it.skipIf(process.platform !== "darwin")("resolves this very process", async () => {
-    // The end-to-end check that needs no fixture: we know our own cwd.
-    const found = await forPids([process.pid]);
-    expect(realpathSync(found.get(process.pid)!)).toBe(realpathSync(process.cwd()));
-  }, 30_000);
+  it.skipIf(process.platform !== "darwin")(
+    "resolves this very process",
+    async () => {
+      // The end-to-end check that needs no fixture: we know our own cwd.
+      const found = await forPids([process.pid]);
+      expect(realpathSync(found.get(process.pid)!)).toBe(realpathSync(process.cwd()));
+    },
+    30_000,
+  );
 });

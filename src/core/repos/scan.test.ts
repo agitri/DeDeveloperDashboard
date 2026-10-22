@@ -106,11 +106,7 @@ describe("inferProtocol", () => {
   const found = (...urls: (string | null)[]): Found[] => urls.map((url, i) => ({ path: `/p${i}`, url }));
 
   it("infers the protocol the user actually uses", () => {
-    expect(
-      inferProtocol(
-        found("git@github.com:a/b.git", "git@github.com:c/d.git", "https://github.com/e/f.git", null),
-      ),
-    ).toBe("ssh");
+    expect(inferProtocol(found("git@github.com:a/b.git", "git@github.com:c/d.git", "https://github.com/e/f.git", null))).toBe("ssh");
     expect(inferProtocol([])).toBeNull();
   });
 
@@ -125,9 +121,7 @@ describe("inferProtocol", () => {
     // of a private repo fails confusingly without a credential helper, where
     // SSH at least fails at a key the user recognises.
     expect(inferProtocol(found("git@github.com:a/b.git", "https://github.com/c/d.git"))).toBe("ssh");
-    expect(
-      inferProtocol(found("git@github.com:a/b.git", "https://github.com/c/d.git", "https://github.com/e/f.git")),
-    ).toBe("https");
+    expect(inferProtocol(found("git@github.com:a/b.git", "https://github.com/c/d.git", "https://github.com/e/f.git"))).toBe("https");
   });
 
   it("counts ssh urls in both spellings", () => {

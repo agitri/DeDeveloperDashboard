@@ -52,10 +52,7 @@ describe("extractDelta", () => {
     // noise ("AI: tab.sitrep ×N") — and could make an otherwise-empty delta
     // look non-empty purely because the widget generated a summary for itself,
     // which is the same feedback shape newestRelevantTs guards against below.
-    const withSelfEvent = [
-      ...events,
-      { id: 4, ts: "2026-09-11T00:00:00Z", kind: "ai.tab.sitrep", project: "acme" },
-    ] as EventRow[];
+    const withSelfEvent = [...events, { id: 4, ts: "2026-09-11T00:00:00Z", kind: "ai.tab.sitrep", project: "acme" }] as EventRow[];
     const d = extractDelta({
       projectName: "acme",
       projectId: "p1",
@@ -103,10 +100,28 @@ describe("newestRelevantTs", () => {
 
 describe("buildDigest", () => {
   it("renders counts and handles an empty delta", () => {
-    const text = buildDigest({ projectName: "acme", awayDays: 15, processesStopped: ["api"], processesRunning: 1, commits: 4, filesChanged: 12, commitMessages: [], aiActions: [] });
+    const text = buildDigest({
+      projectName: "acme",
+      awayDays: 15,
+      processesStopped: ["api"],
+      processesRunning: 1,
+      commits: 4,
+      filesChanged: 12,
+      commitMessages: [],
+      aiActions: [],
+    });
     expect(text).toContain("12");
     expect(text).toContain("api");
-    const empty = buildDigest({ projectName: "acme", awayDays: 15, processesStopped: [], processesRunning: 0, commits: 0, filesChanged: 0, commitMessages: [], aiActions: [] });
+    const empty = buildDigest({
+      projectName: "acme",
+      awayDays: 15,
+      processesStopped: [],
+      processesRunning: 0,
+      commits: 0,
+      filesChanged: 0,
+      commitMessages: [],
+      aiActions: [],
+    });
     expect(empty.toLowerCase()).toContain("nothing");
   });
 });

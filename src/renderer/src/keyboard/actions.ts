@@ -108,9 +108,7 @@ function moveControl(delta: number): void {
 function widgetOrder(): string[] {
   const tab = useStore.getState().activeTab();
   if (!tab) return [];
-  return [...tab.widgets]
-    .sort((a, b) => a.layout.y - b.layout.y || a.layout.x - b.layout.x)
-    .map((w) => w.id);
+  return [...tab.widgets].sort((a, b) => a.layout.y - b.layout.y || a.layout.x - b.layout.x).map((w) => w.id);
 }
 
 export function buildActions(): Action[] {
@@ -300,7 +298,10 @@ export function buildActions(): Action[] {
         const s = useStore.getState();
         const tab = s.activeTab();
         if (!tab) return;
-        const name = tab.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+        const name = tab.name
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-|-$/g, "");
         void ipc
           .saveTextFile(`${name || "tab"}.json`, s.exportTabs(tab.environmentId, [tab.id]))
           .then((path) => path && useUi.getState().showToast(`Written to ${path}`))
@@ -322,9 +323,7 @@ export function buildActions(): Action[] {
             const count = s.importTabs(envId, text);
             useUi.getState().showToast(`${count} tab${count === 1 ? "" : "s"} added`);
           })
-          .catch((e) =>
-            useUi.getState().showToast(e instanceof Error ? e.message : String(e)),
-          );
+          .catch((e) => useUi.getState().showToast(e instanceof Error ? e.message : String(e)));
       },
     },
     {
@@ -469,11 +468,7 @@ export function buildActions(): Action[] {
     const isActive = env?.id === store.activeEnvironmentId();
     actions.push({
       id: `env.go.${i + 1}`,
-      title: env
-        ? isActive
-          ? `${env.collapsed ? "Unfold" : "Fold"} ${env.name}`
-          : `Go to ${env.name}`
-        : `Go to environment ${i + 1}`,
+      title: env ? (isActive ? `${env.collapsed ? "Unfold" : "Fold"} ${env.name}` : `Go to ${env.name}`) : `Go to environment ${i + 1}`,
       group: "Environments",
       hint: env && isActive ? "You are here — folds its tabs away" : undefined,
       run: () => {
@@ -504,14 +499,16 @@ export function buildActions(): Action[] {
 
   // Everything ⌘1…9 cannot reach — another environment's tabs, and this one's
   // tenth onward — is still reachable by name in the palette.
-  tabs.filter((t) => !envTabs.slice(0, 9).includes(t)).forEach((tab) => {
-    actions.push({
-      id: `tab.open.${tab.id}`,
-      title: `Go to ${tab.name}`,
-      group: "Tabs",
-      run: () => useStore.getState().selectTab(tab.id),
+  tabs
+    .filter((t) => !envTabs.slice(0, 9).includes(t))
+    .forEach((tab) => {
+      actions.push({
+        id: `tab.open.${tab.id}`,
+        title: `Go to ${tab.name}`,
+        group: "Tabs",
+        run: () => useStore.getState().selectTab(tab.id),
+      });
     });
-  });
 
   void ui;
   void focus;

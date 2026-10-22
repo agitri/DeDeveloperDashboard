@@ -25,9 +25,7 @@ function normalize({ tabs, groups }: Ordering): Ordering {
   const known = new Set(kept.map((g) => g.id));
 
   // A tab pointing at a group that is gone would render outside every pill.
-  const cleaned = tabs.map((t) =>
-    t.groupId && !known.has(t.groupId) ? { ...t, groupId: null } : t,
-  );
+  const cleaned = tabs.map((t) => (t.groupId && !known.has(t.groupId) ? { ...t, groupId: null } : t));
 
   // Emit each group's whole run at the position of its first member.
   const out: Tab[] = [];
@@ -135,9 +133,7 @@ export function moveGroup(ordering: Ordering, groupId: string, toIndex: number):
   const rest = ordering.tabs.filter((t) => t.groupId !== groupId);
   // Removing the run shifts every boundary after it left by however many of its
   // members sat before that boundary.
-  const removedBefore = ordering.tabs
-    .slice(0, toIndex)
-    .filter((t) => t.groupId === groupId).length;
+  const removedBefore = ordering.tabs.slice(0, toIndex).filter((t) => t.groupId === groupId).length;
   const target = Math.max(0, Math.min(rest.length, toIndex - removedBefore));
 
   const tabs = [...rest.slice(0, target), ...run, ...rest.slice(target)];
@@ -151,11 +147,7 @@ export function moveGroup(ordering: Ordering, groupId: string, toIndex: number):
  * just past its former run rather than staying put, which would split the run
  * it just left.
  */
-export function setTabGroup(
-  ordering: Ordering,
-  tabId: string,
-  groupId: string | null,
-): Ordering {
+export function setTabGroup(ordering: Ordering, tabId: string, groupId: string | null): Ordering {
   const from = ordering.tabs.findIndex((t) => t.id === tabId);
   if (from === -1) return ordering;
 
@@ -168,9 +160,7 @@ export function setTabGroup(
 
   // Anchor on the run this tab is joining, or on the one it just left.
   const anchor = target_group ?? previousGroup;
-  const lastOfRun = anchor
-    ? rest.reduce((last, t, i) => (t.groupId === anchor ? i : last), -1)
-    : -1;
+  const lastOfRun = anchor ? rest.reduce((last, t, i) => (t.groupId === anchor ? i : last), -1) : -1;
   // No run to anchor to (a brand-new group, or the last member leaving) means
   // the tab has no reason to move at all.
   const target = lastOfRun === -1 ? Math.min(from, rest.length) : lastOfRun + 1;
@@ -190,9 +180,7 @@ export function setTabGroup(
  * rendered elements depends on that: render every ungrouped tab first and then
  * the groups, and a drop computes an index for the wrong tab.
  */
-export function runsOf<T extends { groupId?: string | null }>(
-  envTabs: T[],
-): { groupId: string | null; tabs: T[]; from: number }[] {
+export function runsOf<T extends { groupId?: string | null }>(envTabs: T[]): { groupId: string | null; tabs: T[]; from: number }[] {
   const runs: { groupId: string | null; tabs: T[]; from: number }[] = [];
   envTabs.forEach((tab, i) => {
     const last = runs[runs.length - 1];

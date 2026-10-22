@@ -3,8 +3,10 @@ import { fetchContext } from "./adapter";
 import { encode, issueKey, JiraAdapter, JQL, toItem } from "./jira";
 import { forProvider } from "./providers";
 
-const cx = (fetch?: typeof globalThis.fetch, config: Record<string, string> = { siteUrl: "https://acme.atlassian.net", email: "me@x.io" }) =>
-  fetchContext({ environmentId: "e", connection: { id: "c", provider: "jira", label: "Work Jira", config }, token: "tok", fetch });
+const cx = (
+  fetch?: typeof globalThis.fetch,
+  config: Record<string, string> = { siteUrl: "https://acme.atlassian.net", email: "me@x.io" },
+) => fetchContext({ environmentId: "e", connection: { id: "c", provider: "jira", label: "Work Jira", config }, token: "tok", fetch });
 
 /** The exact URL the Rust builds: `urlencoding::encode` percent-encodes the
  *  parentheses and the `!` that `encodeURIComponent` would leave alone. */
@@ -48,7 +50,8 @@ function fakeJira(handlers: Record<string, (body: string | null) => Response> = 
   return { fetch, calls };
 }
 
-const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json" } });
+const json = (data: unknown, status = 200) =>
+  new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json" } });
 
 describe("the query", () => {
   it("is the JQL the Rust sends, verbatim", () => {
@@ -136,13 +139,19 @@ describe("fetching", () => {
   it("names the missing setting and the connection", async () => {
     const jira = fakeJira();
     await expect(new JiraAdapter().fetch(cx(jira.fetch, { email: "me@x.io" }))).rejects.toThrow("siteUrl is not set for Work Jira");
-    await expect(new JiraAdapter().fetch(cx(jira.fetch, { siteUrl: "https://acme.atlassian.net" }))).rejects.toThrow("email is not set for Work Jira");
-    await expect(new JiraAdapter().fetch(cx(jira.fetch, { siteUrl: "", email: "me@x.io" }))).rejects.toThrow("siteUrl is not set for Work Jira");
+    await expect(new JiraAdapter().fetch(cx(jira.fetch, { siteUrl: "https://acme.atlassian.net" }))).rejects.toThrow(
+      "email is not set for Work Jira",
+    );
+    await expect(new JiraAdapter().fetch(cx(jira.fetch, { siteUrl: "", email: "me@x.io" }))).rejects.toThrow(
+      "siteUrl is not set for Work Jira",
+    );
     expect(jira.calls).toHaveLength(0);
   });
 
   it("turns a failure into a message a human can act on", async () => {
-    const unauthorized = fakeJira({ [SEARCH]: () => new Response(JSON.stringify({ errorMessages: ["Bad token", "second"] }), { status: 401, statusText: "Unauthorized" }) });
+    const unauthorized = fakeJira({
+      [SEARCH]: () => new Response(JSON.stringify({ errorMessages: ["Bad token", "second"] }), { status: 401, statusText: "Unauthorized" }),
+    });
     await expect(new JiraAdapter().fetch(cx(unauthorized.fetch))).rejects.toThrow("jira 401 Unauthorized: Bad token");
 
     // Not JSON, and no reason phrase: the clipped body is the detail.
@@ -151,7 +160,9 @@ describe("fetching", () => {
     await expect(new JiraAdapter().fetch(cx(broken.fetch))).rejects.toThrow(`jira 500: ${[...html].slice(0, 200).join("")}`);
 
     // JSON, but nothing at /errorMessages/0.
-    const odd = fakeJira({ [SEARCH]: () => new Response(JSON.stringify({ errors: { x: "y" } }), { status: 400, statusText: "Bad Request" }) });
+    const odd = fakeJira({
+      [SEARCH]: () => new Response(JSON.stringify({ errors: { x: "y" } }), { status: 400, statusText: "Bad Request" }),
+    });
     await expect(new JiraAdapter().fetch(cx(odd.fetch))).rejects.toThrow(`jira 400 Bad Request: ${JSON.stringify({ errors: { x: "y" } })}`);
 
     const down = cx(async () => {
@@ -180,13 +191,23 @@ describe("performing", () => {
 
   it("refuses a comment with no body", async () => {
     const jira = fakeJira();
-    await expect(new JiraAdapter().perform(cx(jira.fetch), { action: "comment", item, input: null })).rejects.toThrow("a comment needs a body");
+    await expect(new JiraAdapter().perform(cx(jira.fetch), { action: "comment", item, input: null })).rejects.toThrow(
+      "a comment needs a body",
+    );
     expect(jira.calls).toHaveLength(0);
   });
 
   it("looks the transition id up by name, case insensitively, then posts it", async () => {
     const jira = fakeJira({
-      [TRANSITIONS]: (body) => (body === null ? json({ transitions: [{ id: "11", name: "Backlog" }, { id: "31", name: "Done" }] }) : json({})),
+      [TRANSITIONS]: (body) =>
+        body === null
+          ? json({
+              transitions: [
+                { id: "11", name: "Backlog" },
+                { id: "31", name: "Done" },
+              ],
+            })
+          : json({}),
     });
     const c = cx(jira.fetch);
     expect(await new JiraAdapter().perform(c, { action: "transition", item, input: "done" })).toBe("Moved ENG-1 to done");
@@ -213,7 +234,9 @@ describe("performing", () => {
   it("refuses an item that is not a Jira issue", async () => {
     const jira = fakeJira();
     const stray = { ...item, refs: [], title: "Some row" };
-    await expect(new JiraAdapter().perform(cx(jira.fetch), { action: "comment", item: stray, input: "x" })).rejects.toThrow("Some row has no Jira key");
+    await expect(new JiraAdapter().perform(cx(jira.fetch), { action: "comment", item: stray, input: "x" })).rejects.toThrow(
+      "Some row has no Jira key",
+    );
   });
 });
 

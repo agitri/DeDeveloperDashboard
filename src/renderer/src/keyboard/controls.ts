@@ -16,8 +16,7 @@
  */
 
 /** Everything that can hold focus, in the order the markup puts it on screen. */
-const FOCUSABLE =
-  'button, input, select, textarea, a[href], [tabindex]:not([tabindex="-1"])';
+const FOCUSABLE = 'button, input, select, textarea, a[href], [tabindex]:not([tabindex="-1"])';
 
 /**
  * The controls of one widget, in visual order.
@@ -62,11 +61,7 @@ function isAvailable(el: HTMLElement): boolean {
  * backward step on the last — the same rule `moveWidgetFocus` uses, so both
  * levels behave the same way when you arrive at them.
  */
-export function nextControl(
-  controls: HTMLElement[],
-  active: Element | null,
-  delta: number,
-): HTMLElement | null {
+export function nextControl(controls: HTMLElement[], active: Element | null, delta: number): HTMLElement | null {
   if (controls.length === 0) return null;
   // `indexOf`, not an `instanceof` narrowing: an element that is no longer in
   // the list — the widget refreshed while it held focus — has to read the same

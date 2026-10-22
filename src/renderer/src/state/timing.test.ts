@@ -3,8 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const logged: Array<{ env: string; kind: string; meta: any }> = [];
 vi.mock("../lib/ipc", () => ({
   ipc: {
-    eventLog: (env: string, event: { kind: string; meta: unknown }) =>
-      logged.push({ env, kind: event.kind, meta: event.meta }),
+    eventLog: (env: string, event: { kind: string; meta: unknown }) => logged.push({ env, kind: event.kind, meta: event.meta }),
   },
 }));
 
@@ -43,7 +42,11 @@ describe("tab switch timing", () => {
     await Promise.all([firstLoad("items", () => after(30)), firstLoad("eol", () => after(90))]);
     await after(400);
 
-    expect(widgets().map((e) => e.meta.widget).sort()).toEqual(["eol", "items"]);
+    expect(
+      widgets()
+        .map((e) => e.meta.widget)
+        .sort(),
+    ).toEqual(["eol", "items"]);
     const eol = widgets().find((e) => e.meta.widget === "eol")!;
     expect(eol.meta.ms).toBeGreaterThanOrEqual(80);
     expect(eol.meta.sinceSwitch).toBeGreaterThanOrEqual(eol.meta.ms);

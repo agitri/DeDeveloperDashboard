@@ -18,7 +18,21 @@ function tempDir(name: string): string {
 }
 
 function item(project: string | null): Item {
-  return { id: "i", environmentId: "default", connectionId: "c", source: "github", kind: "issue", project, title: "t", body: null, url: null, refs: [], actions: [], updatedAt: "now", unread: false };
+  return {
+    id: "i",
+    environmentId: "default",
+    connectionId: "c",
+    source: "github",
+    kind: "issue",
+    project,
+    title: "t",
+    body: null,
+    url: null,
+    refs: [],
+    actions: [],
+    updatedAt: "now",
+    unread: false,
+  };
 }
 
 describe("resolveProjectDir", () => {

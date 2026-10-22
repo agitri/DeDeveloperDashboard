@@ -132,20 +132,13 @@ const unixSpawn: Spawn = async (run, dir, logPath) => {
 };
 
 const win32Spawn: Spawn = async () => {
-  throw DddError.config(
-    "running products is not offered on Windows: the only way to stop one would be a force kill",
-  );
+  throw DddError.config("running products is not offered on Windows: the only way to stop one would be a force kill");
 };
 
 const defaultSpawn: Spawn = process.platform === "win32" ? win32Spawn : unixSpawn;
 
 /** Everything the widget needs about one declared product. */
-export async function assemble(
-  env: EnvRoot,
-  projectId: string,
-  projectPath: string,
-  decls: ProductDecl[],
-): Promise<Product[]> {
+export async function assemble(env: EnvRoot, projectId: string, projectPath: string, decls: ProductDecl[]): Promise<Product[]> {
   const supervision = records(env);
   const approvals = consent.load(env.productApprovalsFile());
   const usable = declare.usable(projectPath, decls);
@@ -190,13 +183,7 @@ export function revoke(env: EnvRoot, key: string): void {
 }
 
 /** Start a product, detached, with its output captured. */
-export function start(
-  env: EnvRoot,
-  key: string,
-  run: string,
-  dir: string,
-  spawn: Spawn = defaultSpawn,
-): Promise<Record> {
+export function start(env: EnvRoot, key: string, run: string, dir: string, spawn: Spawn = defaultSpawn): Promise<Record> {
   return serialize(async () => {
     const approvals = consent.load(env.productApprovalsFile());
     const missing = consent.check(approvals, key, run, dir);
@@ -267,8 +254,6 @@ export function stop(env: EnvRoot, key: string): Promise<State> {
       return { state: "stopped" };
     }
     if (c.kind === "gone") return { state: "exited", since: rec.since };
-    throw DddError.config(
-      `declined: pid ${rec.pid} belongs to ${c.now} now, not to this product — the record has been cleared`,
-    );
+    throw DddError.config(`declined: pid ${rec.pid} belongs to ${c.now} now, not to this product — the record has been cleared`);
   });
 }

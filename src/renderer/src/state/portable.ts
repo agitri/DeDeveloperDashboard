@@ -37,13 +37,8 @@ export interface Portable {
  * A group nobody references would arrive as an empty pill, so it is dropped
  * here rather than left for `normalize` to clean up after the fact.
  */
-export function exportLayout(
-  layout: Layout,
-  options: { tabIds?: string[]; from?: string; exportedAt?: string } = {},
-): Portable {
-  const tabs = options.tabIds
-    ? layout.tabs.filter((t) => options.tabIds!.includes(t.id))
-    : layout.tabs;
+export function exportLayout(layout: Layout, options: { tabIds?: string[]; from?: string; exportedAt?: string } = {}): Portable {
+  const tabs = options.tabIds ? layout.tabs.filter((t) => options.tabIds!.includes(t.id)) : layout.tabs;
   const used = new Set(tabs.map((t) => t.groupId).filter(Boolean) as string[]);
 
   return {
@@ -65,10 +60,7 @@ export class ImportError extends Error {}
  * `mint` is injected so the property that matters — that nothing keeps its old
  * id — can be tested without depending on randomness.
  */
-export function importLayout(
-  input: unknown,
-  mint: (prefix: string) => string,
-): { tabs: Tab[]; groups: TabGroup[] } {
+export function importLayout(input: unknown, mint: (prefix: string) => string): { tabs: Tab[]; groups: TabGroup[] } {
   const doc = parse(input);
 
   // Groups first: a tab's new `groupId` has to point at the group's new id, and
@@ -125,9 +117,7 @@ function parse(input: unknown): Portable {
     throw new ImportError("That file is not a DDD layout.");
   }
   if (typeof candidate.version !== "number" || candidate.version > PORTABLE_VERSION) {
-    throw new ImportError(
-      `That layout was written by a newer DDD (version ${candidate.version}). Update, then import it.`,
-    );
+    throw new ImportError(`That layout was written by a newer DDD (version ${candidate.version}). Update, then import it.`);
   }
   if (!Array.isArray(candidate.tabs) || candidate.tabs.length === 0) {
     throw new ImportError("That layout has no tabs in it.");

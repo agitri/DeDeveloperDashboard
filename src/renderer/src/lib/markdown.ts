@@ -128,14 +128,7 @@ export function parse(source: string): Block[] {
     const parts: string[] = [];
     while (i < lines.length) {
       const l = lines[i]!;
-      if (
-        l.trim() === "" ||
-        RULE.test(l) ||
-        HEADING.test(l) ||
-        QUOTE.test(l) ||
-        BULLET.test(l) ||
-        ORDERED.test(l)
-      ) {
+      if (l.trim() === "" || RULE.test(l) || HEADING.test(l) || QUOTE.test(l) || BULLET.test(l) || ORDERED.test(l)) {
         break;
       }
       parts.push(l.trim());

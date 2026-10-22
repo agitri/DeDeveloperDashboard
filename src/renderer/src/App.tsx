@@ -154,7 +154,10 @@ export default function App() {
         // the shell are both chosen at boot. Saying so beats a setting that
         // appears to do nothing.
         <div className="toast">
-          Look changed — <button className="btn sm" onClick={() => location.reload()}>reload</button>{" "}
+          Look changed —{" "}
+          <button className="btn sm" onClick={() => location.reload()}>
+            reload
+          </button>{" "}
           to see it
         </div>
       )}
@@ -186,9 +189,7 @@ export default function App() {
           }}
           onOpenSettings={openAppSettings}
         />
-        <div className="board">
-          {content}
-        </div>
+        <div className="board">{content}</div>
         {overlays}
       </div>
     );
@@ -219,11 +220,7 @@ export default function App() {
         <button
           className="icon-btn"
           data-wizard-target="settings"
-          title={
-            settingsBinding
-              ? `App settings (${formatBinding(settingsBinding)})`
-              : "App settings"
-          }
+          title={settingsBinding ? `App settings (${formatBinding(settingsBinding)})` : "App settings"}
           aria-label="App settings"
           onClick={openAppSettings}
         >

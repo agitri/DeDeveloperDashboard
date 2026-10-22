@@ -100,9 +100,7 @@ describe("a listener", () => {
 describe("parsing lsof's machine-readable form", () => {
   it("reads a listener per n line, carrying the pid and command down from the p and c lines", () => {
     const found = parseLsof(LSOF);
-    expect(found.filter((l) => l.port === 8005)).toEqual([
-      { port: 8005, address: "127.0.0.1", pid: 25197, process: "symfony" },
-    ]);
+    expect(found.filter((l) => l.port === 8005)).toEqual([{ port: 8005, address: "127.0.0.1", pid: 25197, process: "symfony" }]);
     expect(found.find((l) => l.port === 5199)).toEqual({ port: 5199, address: "::1", pid: 24845, process: "node" });
     // f lines are emitted even though only `pcn` was asked for.
     expect(found.every((l) => l.pid !== null)).toBe(true);

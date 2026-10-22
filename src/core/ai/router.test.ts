@@ -36,10 +36,14 @@ describe("route", () => {
     const deps = { fetch: noFetch, secrets };
     const s = defaultSettings();
     // No key yet: the provider builds, and refuses at call time — as the Rust does.
-    await expect(route(env, s, "mail.draft", deps).provider.complete({ system: "", prompt: "", maxTokens: 1, model: "m" })).rejects.toThrow("No Anthropic API key");
+    await expect(route(env, s, "mail.draft", deps).provider.complete({ system: "", prompt: "", maxTokens: 1, model: "m" })).rejects.toThrow(
+      "No Anthropic API key",
+    );
     secrets.set(env, ANTHROPIC_KEY, "sk-live");
     // With a key it gets as far as the network, which this test forbids.
-    await expect(route(env, s, "mail.draft", deps).provider.complete({ system: "", prompt: "", maxTokens: 1, model: "m" })).rejects.toThrow("anthropic request failed: no network in tests");
+    await expect(route(env, s, "mail.draft", deps).provider.complete({ system: "", prompt: "", maxTokens: 1, model: "m" })).rejects.toThrow(
+      "anthropic request failed: no network in tests",
+    );
   });
 
   it("openai-compatible needs an endpoint, and reads its own key", () => {

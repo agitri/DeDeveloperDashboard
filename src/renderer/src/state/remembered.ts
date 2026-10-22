@@ -41,10 +41,7 @@ export function forgetAll(): void {
  * widgets showing the same thing share an answer and one widget in two
  * environments does not.
  */
-export function useRemembered<T>(
-  key: string,
-  initial: T,
-): [T, (value: T | ((previous: T) => T)) => void] {
+export function useRemembered<T>(key: string, initial: T): [T, (value: T | ((previous: T) => T)) => void] {
   const [value, setValue] = useState<T>(() => remembered<T>(key) ?? initial);
   // The key can change while mounted — an environment switch — so the write
   // has to use the key of the moment rather than the one from first render.
@@ -56,8 +53,7 @@ export function useRemembered<T>(
   // exactly how a probe result lands.
   const set = useCallback((next: T | ((previous: T) => T)) => {
     setValue((previous) => {
-      const resolved =
-        typeof next === "function" ? (next as (p: T) => T)(previous) : next;
+      const resolved = typeof next === "function" ? (next as (p: T) => T)(previous) : next;
       remember(current.current, resolved);
       return resolved;
     });

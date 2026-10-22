@@ -39,9 +39,7 @@ export function environmentsDir(): string {
 export function validateEnvId(id: string): void {
   const ok = id.length > 0 && id.length <= 64 && /^[A-Za-z0-9_-]+$/.test(id);
   if (!ok) {
-    throw DddError.config(
-      `invalid environment id ${JSON.stringify(id)}: use letters, digits, - and _ (max 64)`,
-    );
+    throw DddError.config(`invalid environment id ${JSON.stringify(id)}: use letters, digits, - and _ (max 64)`);
   }
 }
 
@@ -64,36 +62,74 @@ export class EnvRoot {
     return new EnvRoot(id, dir);
   }
 
-  settingsFile(): string { return join(this.dir, "settings.json"); }
-  layoutFile(): string { return join(this.dir, "layout.json"); }
-  keymapFile(): string { return join(this.dir, "keymap.json"); }
-  projectsFile(): string { return join(this.dir, "projects.json"); }
+  settingsFile(): string {
+    return join(this.dir, "settings.json");
+  }
+  layoutFile(): string {
+    return join(this.dir, "layout.json");
+  }
+  keymapFile(): string {
+    return join(this.dir, "keymap.json");
+  }
+  projectsFile(): string {
+    return join(this.dir, "projects.json");
+  }
   /** Which local folder is which GitHub repo. Outside the item cache, which
    *  is wiped and replaced on every sync. */
-  repoLinksFile(): string { return join(this.dir, "repo-links.json"); }
+  repoLinksFile(): string {
+    return join(this.dir, "repo-links.json");
+  }
   /** Your own calendar events. Same durability reason as repo-links. */
-  calendarFile(): string { return join(this.dir, "calendar.json"); }
-  watchlistFile(): string { return join(this.dir, "watchlist.json"); }
+  calendarFile(): string {
+    return join(this.dir, "calendar.json");
+  }
+  watchlistFile(): string {
+    return join(this.dir, "watchlist.json");
+  }
   /** Derived data: safe to delete, costs one request per product. */
-  eolCacheFile(): string { return join(this.dir, "eol-cache.json"); }
-  productsFile(): string { return join(this.dir, "products.json"); }
-  productApprovalsFile(): string { return join(this.dir, "product-approvals.json"); }
-  productsLogDir(): string { return join(this.dir, "products"); }
-  eventsDb(): string { return join(this.dir, "events.sqlite"); }
-  cacheDb(): string { return join(this.dir, "cache.sqlite"); }
+  eolCacheFile(): string {
+    return join(this.dir, "eol-cache.json");
+  }
+  productsFile(): string {
+    return join(this.dir, "products.json");
+  }
+  productApprovalsFile(): string {
+    return join(this.dir, "product-approvals.json");
+  }
+  productsLogDir(): string {
+    return join(this.dir, "products");
+  }
+  eventsDb(): string {
+    return join(this.dir, "events.sqlite");
+  }
+  cacheDb(): string {
+    return join(this.dir, "cache.sqlite");
+  }
   /** Keychain service name — secrets are namespaced per environment so work
    *  tokens and personal tokens can never collide. */
-  keychainService(): string { return `ddd:${this.id}`; }
+  keychainService(): string {
+    return `ddd:${this.id}`;
+  }
 }
 
 /** `<project>/.ddd` — the contract folder shared with Claude Code. */
 export class DddFolder {
   constructor(public readonly dir: string) {}
-  static of(project: string): DddFolder { return new DddFolder(join(project, ".ddd")); }
-  config(): string { return join(this.dir, "config.json"); }
-  todos(): string { return join(this.dir, "todos.json"); }
-  recap(): string { return join(this.dir, "recap.md"); }
-  icm(): string { return join(this.dir, "icm"); }
+  static of(project: string): DddFolder {
+    return new DddFolder(join(project, ".ddd"));
+  }
+  config(): string {
+    return join(this.dir, "config.json");
+  }
+  todos(): string {
+    return join(this.dir, "todos.json");
+  }
+  recap(): string {
+    return join(this.dir, "recap.md");
+  }
+  icm(): string {
+    return join(this.dir, "icm");
+  }
 }
 
 /** Settings → Data shows where an environment's files are. */

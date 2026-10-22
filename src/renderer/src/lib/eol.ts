@@ -45,8 +45,7 @@ export function badge(support: Support, dates: { eolDate?: string | null; suppor
       return {
         label: "no schedule",
         color: "var(--ink-3)",
-        title:
-          "No published support dates for this release line — usually a version newer than the data. Not a verdict.",
+        title: "No published support dates for this release line — usually a version newer than the data. Not a verdict.",
       };
   }
 }
@@ -104,9 +103,7 @@ export function headline(rows: { worst: Support; url: string | null }[]): string
   const parts: string[] = [];
   if (ended.length > 0) {
     const live = ended.filter((r) => r.url).length;
-    parts.push(
-      `${ended.length} out of support${live > 0 ? `, ${live} of them serving` : ""}`,
-    );
+    parts.push(`${ended.length} out of support${live > 0 ? `, ${live} of them serving` : ""}`);
   }
   if (soon.length > 0) parts.push(`${soon.length} ending soon`);
   return parts.join(" · ");

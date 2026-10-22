@@ -21,12 +21,20 @@ describe("repo links", () => {
     expect(stored.links.map((l) => l.path)).toEqual(["/p/x2", "/p/local1", "/p/local2"]);
     // Same path again replaces in place (well, at the end — the Rust pushes).
     upsert(env, { remote: "github.com/a/y", path: "/p/local1", source: "manual", confidence: "exact" });
-    expect(load(env).links.map((l) => [l.path, l.remote])).toEqual([["/p/x2", "github.com/a/x"], ["/p/local2", null], ["/p/local1", "github.com/a/y"]]);
+    expect(load(env).links.map((l) => [l.path, l.remote])).toEqual([
+      ["/p/x2", "github.com/a/x"],
+      ["/p/local2", null],
+      ["/p/local1", "github.com/a/y"],
+    ]);
   });
 
   it("writes the Rust's field order and reads an old file whose records all have a remote", () => {
     const { env } = scratchEnv("links-shape");
-    save(env, { links: [{ remote: "github.com/a/x", path: "/p/x", source: "scan", confidence: "exact" }], scanRoots: ["/p"], preferredProtocol: "ssh" });
+    save(env, {
+      links: [{ remote: "github.com/a/x", path: "/p/x", source: "scan", confidence: "exact" }],
+      scanRoots: ["/p"],
+      preferredProtocol: "ssh",
+    });
     const text = readFileSync(env.repoLinksFile(), "utf8");
     expect(text).toBe(
       '{\n  "links": [\n    {\n      "remote": "github.com/a/x",\n      "path": "/p/x",\n      "source": "scan",\n      "confidence": "exact"\n    }\n  ],\n  "scanRoots": [\n    "/p"\n  ],\n  "preferredProtocol": "ssh"\n}',
@@ -136,7 +144,11 @@ describe("findWithTier reports the tier this lookup used", () => {
   });
 
   it("skips a checkout with no remote at the fallback tier too", () => {
-    const stored: RepoLinks = { links: [{ remote: null, path: "/repo", source: "scan", confidence: "exact" }], scanRoots: [], preferredProtocol: null };
+    const stored: RepoLinks = {
+      links: [{ remote: null, path: "/repo", source: "scan", confidence: "exact" }],
+      scanRoots: [],
+      preferredProtocol: null,
+    };
     expect(findWithTier(stored, "github.com/agitri/ddd", "https://github.com/agitri/ddd")).toBeNull();
   });
 });

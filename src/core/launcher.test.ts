@@ -2,7 +2,21 @@ import { describe, expect, it } from "vitest";
 import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { KNOWN_EDITORS, KNOWN_TERMINALS, MAC_APP_ROOTS, detect, detectEditors, detectTerminals, launch, linuxCandidates, openInEditor, resolveTerminal, shellQuote, splitTemplate, writeLaunchScript } from "./launcher";
+import {
+  KNOWN_EDITORS,
+  KNOWN_TERMINALS,
+  MAC_APP_ROOTS,
+  detect,
+  detectEditors,
+  detectTerminals,
+  launch,
+  linuxCandidates,
+  openInEditor,
+  resolveTerminal,
+  shellQuote,
+  splitTemplate,
+  writeLaunchScript,
+} from "./launcher";
 
 const tempdir = () => mkdtempSync(join(tmpdir(), "ddd-launcher-test-"));
 
@@ -80,7 +94,6 @@ describe("launching", () => {
     const missing = join(tmpdir(), "ddd-definitely-not-here");
     await expect(launch(missing, null, "claude")).rejects.toThrow(`${missing} is not a directory`);
   });
-
 });
 
 describe("opening an editor", () => {
@@ -132,9 +145,15 @@ describe("the app catalogs", () => {
   });
 
   it("detection never throws and returns only catalog entries", () => {
-    for (const [catalog, found] of [[KNOWN_EDITORS, detectEditors()], [KNOWN_TERMINALS, detectTerminals()]] as const) {
+    for (const [catalog, found] of [
+      [KNOWN_EDITORS, detectEditors()],
+      [KNOWN_TERMINALS, detectTerminals()],
+    ] as const) {
       for (const app of found) {
-        expect(catalog.some((k) => k.id === app.id), app.id).toBe(true);
+        expect(
+          catalog.some((k) => k.id === app.id),
+          app.id,
+        ).toBe(true);
         expect(app.target).not.toBe("");
       }
     }

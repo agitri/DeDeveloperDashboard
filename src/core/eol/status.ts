@@ -16,11 +16,7 @@ export const HORIZON_DAYS = 90;
 
 /** The Rust's `#[serde(tag = "state", content = "days")]`. */
 export type Support =
-  | { state: "active" }
-  | { state: "securityOnly" }
-  | { state: "endingSoon"; days: number }
-  | { state: "ended" }
-  | { state: "unknown" };
+  { state: "active" } | { state: "securityOnly" } | { state: "endingSoon"; days: number } | { state: "ended" } | { state: "unknown" };
 
 /** Worst first. The ordering the board is sorted by. */
 export function severity(support: Support): number {

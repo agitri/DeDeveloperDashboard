@@ -90,7 +90,13 @@ async function copyTree(src: string, dst: string, tick: (n: number) => void): Pr
 
 /** Move a file or folder: rename when the volume allows it, otherwise copy,
  *  verify the byte count, and only then remove the source. */
-async function relocate(src: string, dst: string, total: number, report: (phase: MoveProgress["phase"], done: number) => void, deps: MoveDeps): Promise<void> {
+async function relocate(
+  src: string,
+  dst: string,
+  total: number,
+  report: (phase: MoveProgress["phase"], done: number) => void,
+  deps: MoveDeps,
+): Promise<void> {
   await fsp.mkdir(dirname(dst), { recursive: true });
   const rename = deps.rename ?? ((a: string, b: string) => fsp.rename(a, b));
   try {
@@ -186,7 +192,14 @@ export function paramLines(json: string): string[] {
   return out;
 }
 
-async function exportOllama(m: LocalModel, root: string, dest: string, total: number, report: (phase: MoveProgress["phase"], done: number) => void, deps: MoveDeps): Promise<void> {
+async function exportOllama(
+  m: LocalModel,
+  root: string,
+  dest: string,
+  total: number,
+  report: (phase: MoveProgress["phase"], done: number) => void,
+  deps: MoveDeps,
+): Promise<void> {
   const layers = readManifest(m.path);
   const folder = ollamaFolderName(m.name);
   const kind = (mediaType: string) => mediaType.replace("application/vnd.ollama.image.", "");
@@ -250,7 +263,10 @@ async function exportOllama(m: LocalModel, root: string, dest: string, total: nu
     else if (k === "params") lines.push(...paramLines(text));
     else if (k === "messages") lines.push(`# messages layer (not exported): ${layer.digest}`);
   }
-  await fsp.writeFile(join(dest, "Modelfile"), `# Exported from Ollama (${m.name}) by DDD. Re-import: ollama create ${m.name} -f Modelfile\n${lines.join("\n")}\n`);
+  await fsp.writeFile(
+    join(dest, "Modelfile"),
+    `# Exported from Ollama (${m.name}) by DDD. Re-import: ollama create ${m.name} -f Modelfile\n${lines.join("\n")}\n`,
+  );
 
   // Now remove it from Ollama: the manifest first, then whatever the remaining
   // manifests no longer point at.
@@ -292,9 +308,11 @@ export async function moveModel(
   if (!(await exists(m.path))) throw DddError.notFound(`${m.id} is no longer at ${m.path}`);
 
   const destination =
-    m.runtime === "ollama" ? join(destRoot, "ollama", ollamaFolderName(m.name))
-    : m.runtime === "huggingface" ? join(destRoot, "huggingface", relative(root, m.path))
-    : join(destRoot, m.runtime, relative(root, m.path));
+    m.runtime === "ollama"
+      ? join(destRoot, "ollama", ollamaFolderName(m.name))
+      : m.runtime === "huggingface"
+        ? join(destRoot, "huggingface", relative(root, m.path))
+        : join(destRoot, m.runtime, relative(root, m.path));
   if (await exists(destination)) throw DddError.invalid(`${destination} already exists; move or remove it first`);
 
   const total = m.runtime === "ollama" ? readManifest(m.path).reduce((n, l) => n + l.size, 0) : sizeOf(m.path);
@@ -306,7 +324,8 @@ export async function moveModel(
     throw DddError.config(`not enough free space at ${destRoot}: ${m.name} needs ${total} bytes, ${free} available`);
   }
 
-  const report = (phase: MoveProgress["phase"], bytesDone: number) => onProgress?.({ id: m.id, phase, bytesDone: Math.min(bytesDone, total), bytesTotal: total });
+  const report = (phase: MoveProgress["phase"], bytesDone: number) =>
+    onProgress?.({ id: m.id, phase, bytesDone: Math.min(bytesDone, total), bytesTotal: total });
   try {
     if (m.runtime === "ollama") await exportOllama(m, root, destination, total, report, deps);
     else {

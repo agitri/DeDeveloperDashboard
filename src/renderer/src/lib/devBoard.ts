@@ -37,8 +37,7 @@ export function badge(health: Health, latencyMs: number | null): Badge {
       return {
         label: "busy",
         color: "var(--warn)",
-        title:
-          "Connected, but nothing came back in time. Usually compiling — not dead, and not worth killing.",
+        title: "Connected, but nothing came back in time. Usually compiling — not dead, and not worth killing.",
       };
     case "down":
       return {
@@ -67,8 +66,7 @@ export function badge(health: Health, latencyMs: number | null): Badge {
  */
 export function nextInterval(baseMs: number, currentMs: number, lastScanMs: number): number {
   const CEILING = 30_000;
-  const next =
-    lastScanMs > 750 ? currentMs * 2 : lastScanMs < 400 ? Math.floor(currentMs / 2) : currentMs;
+  const next = lastScanMs > 750 ? currentMs * 2 : lastScanMs < 400 ? Math.floor(currentMs / 2) : currentMs;
   return Math.min(Math.max(next, baseMs), Math.max(CEILING, baseMs));
 }
 

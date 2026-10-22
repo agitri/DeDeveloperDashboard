@@ -55,7 +55,12 @@ describe("record", () => {
 
   it("recordFromJson defaults a missing command to empty", () => {
     const r = recordFromJson({
-      key: "p/x", projectId: "p", productId: "x", pid: 7, startedAt: "S", since: "T",
+      key: "p/x",
+      projectId: "p",
+      productId: "x",
+      pid: 7,
+      startedAt: "S",
+      since: "T",
     });
     expect(r.command).toBe("");
     expect(Object.keys(r)).toEqual(["key", "projectId", "productId", "pid", "startedAt", "command", "since"]);

@@ -19,6 +19,10 @@ export async function changesSince(runner: Runner, repoPath: string, sinceIso: s
   const rows = lines(log.stdout).filter((l) => l.length > 0);
   const messages = rows.map((l) => l.split("\t").slice(1).join("\t")).filter((s) => s.length > 0);
   const names = await runner("git", [...base, "log", `--since=${sinceIso}`, "--name-only", "--format="]);
-  const files = new Set(lines(names.stdout).map((l) => l.trim()).filter((l) => l.length > 0));
+  const files = new Set(
+    lines(names.stdout)
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0),
+  );
   return { commits: rows.length, filesChanged: files.size, messages };
 }

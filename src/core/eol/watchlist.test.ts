@@ -72,9 +72,7 @@ describe("the watchlist", () => {
 
   it("a path that is not a directory is refused", () => {
     const { env } = scratchEnv("eol-nodir");
-    expect(() => add(env, "/nonexistent-checkout-xyz", null, null)).toThrow(
-      "/nonexistent-checkout-xyz is not a directory",
-    );
+    expect(() => add(env, "/nonexistent-checkout-xyz", null, null)).toThrow("/nonexistent-checkout-xyz is not a directory");
   });
 
   it("removing forgets the record and leaves the folder alone", () => {

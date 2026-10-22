@@ -16,9 +16,7 @@ import type { Widget } from "../types";
 export function packWidgets(widgets: Widget[], cols: number): Widget[] {
   // Reading order across the grid: down first, then across, which is how the
   // canvas is laid out and how j/k already traverses it.
-  const ordered = [...widgets].sort(
-    (a, b) => a.layout.y - b.layout.y || a.layout.x - b.layout.x,
-  );
+  const ordered = [...widgets].sort((a, b) => a.layout.y - b.layout.y || a.layout.x - b.layout.x);
 
   let x = 0;
   let rowTop = 0;

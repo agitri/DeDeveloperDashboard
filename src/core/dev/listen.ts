@@ -80,7 +80,10 @@ export function order(found: Listener[]): Listener[] {
   const sorted = [...found].sort((a, b) => a.port - b.port || (a.address < b.address ? -1 : a.address > b.address ? 1 : 0));
   return sorted.filter((l, i) => {
     const previous = sorted[i - 1];
-    return previous === undefined || !(previous.port === l.port && previous.address === l.address && previous.pid === l.pid && previous.process === l.process);
+    return (
+      previous === undefined ||
+      !(previous.port === l.port && previous.address === l.address && previous.pid === l.pid && previous.process === l.process)
+    );
   });
 }
 

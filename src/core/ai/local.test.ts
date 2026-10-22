@@ -28,7 +28,12 @@ describe("OllamaProvider", () => {
         { role: "user", content: "hello" },
       ],
     });
-    expect(draft).toEqual({ text: "Sure.", model: "llama3.1:8b", usage: { inputTokens: 40, outputTokens: 3, costMicros: 0 }, refusal: null });
+    expect(draft).toEqual({
+      text: "Sure.",
+      model: "llama3.1:8b",
+      usage: { inputTokens: 40, outputTokens: 3, costMicros: 0 },
+      refusal: null,
+    });
   });
 
   it("says where it looked when Ollama is not running", async () => {
@@ -41,8 +46,12 @@ describe("OllamaProvider", () => {
   });
 
   it("surfaces Ollama's own error and an unreadable body", async () => {
-    await expect(new OllamaProvider(fakeFetch({ error: "model 'x' not found" }, 404).fetch, "http://h").complete(completion)).rejects.toThrow("ollama: model 'x' not found");
-    await expect(new OllamaProvider(fakeFetch("<nope>").fetch, "http://h").complete(completion)).rejects.toThrow(/^ollama returned unreadable JSON: /);
+    await expect(
+      new OllamaProvider(fakeFetch({ error: "model 'x' not found" }, 404).fetch, "http://h").complete(completion),
+    ).rejects.toThrow("ollama: model 'x' not found");
+    await expect(new OllamaProvider(fakeFetch("<nope>").fetch, "http://h").complete(completion)).rejects.toThrow(
+      /^ollama returned unreadable JSON: /,
+    );
   });
 
   it("a reply without counts or content is an empty, free draft", async () => {
@@ -81,15 +90,26 @@ describe("OpenAiCompatProvider", () => {
   it("reads the first choice and the usage block, at zero cost", async () => {
     const { fetch } = fakeFetch({ choices: [{ message: { content: "Answer" } }], usage: { prompt_tokens: 7, completion_tokens: 2 } });
     const draft = await new OpenAiCompatProvider(fetch, "http://h", "").complete(completion);
-    expect(draft).toEqual({ text: "Answer", model: "llama3.1:8b", usage: { inputTokens: 7, outputTokens: 2, costMicros: 0 }, refusal: null });
+    expect(draft).toEqual({
+      text: "Answer",
+      model: "llama3.1:8b",
+      usage: { inputTokens: 7, outputTokens: 2, costMicros: 0 },
+      refusal: null,
+    });
   });
 
   it("reports the endpoint's error, an unreadable body, and a dead endpoint", async () => {
-    await expect(new OpenAiCompatProvider(fakeFetch({ error: { message: "model not loaded" } }, 400).fetch, "http://h", "").complete(completion)).rejects.toThrow("endpoint: model not loaded");
-    await expect(new OpenAiCompatProvider(fakeFetch("nope").fetch, "http://h", "").complete(completion)).rejects.toThrow(/^endpoint returned unreadable JSON: /);
+    await expect(
+      new OpenAiCompatProvider(fakeFetch({ error: { message: "model not loaded" } }, 400).fetch, "http://h", "").complete(completion),
+    ).rejects.toThrow("endpoint: model not loaded");
+    await expect(new OpenAiCompatProvider(fakeFetch("nope").fetch, "http://h", "").complete(completion)).rejects.toThrow(
+      /^endpoint returned unreadable JSON: /,
+    );
     const dead = (async () => {
       throw new TypeError("ECONNREFUSED");
     }) as typeof globalThis.fetch;
-    await expect(new OpenAiCompatProvider(dead, "http://h:1", "").complete(completion)).rejects.toThrow("endpoint http://h:1 did not answer: ECONNREFUSED");
+    await expect(new OpenAiCompatProvider(dead, "http://h:1", "").complete(completion)).rejects.toThrow(
+      "endpoint http://h:1 did not answer: ECONNREFUSED",
+    );
   });
 });

@@ -70,7 +70,8 @@ export function isEmptyDelta(d: SitrepInput): boolean {
 export function buildDigest(d: SitrepInput): string {
   if (isEmptyDelta(d)) return `Nothing changed in ${d.projectName} while you were away.`;
   const parts: string[] = [];
-  if (d.commits > 0) parts.push(`${d.commits} commit${d.commits === 1 ? "" : "s"} touched ${d.filesChanged} file${d.filesChanged === 1 ? "" : "s"}`);
+  if (d.commits > 0)
+    parts.push(`${d.commits} commit${d.commits === 1 ? "" : "s"} touched ${d.filesChanged} file${d.filesChanged === 1 ? "" : "s"}`);
   if (d.processesStopped.length > 0) parts.push(`${d.processesStopped.join(", ")} stopped`);
   if (d.aiActions.length > 0) parts.push("AI: " + d.aiActions.map((a) => `${a.action} ×${a.count}`).join(", "));
   return parts.join(". ") + ".";

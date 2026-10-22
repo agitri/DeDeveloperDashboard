@@ -82,10 +82,13 @@ export function userPrompt(action: AiAction, item: Item): string {
   if (item.body !== undefined && item.body !== null && item.body.trim() !== "") out += `\n${item.body}\n`;
 
   const task =
-    action.id === "mail.draft" ? "Draft the reply."
-    : action.id === "thread.summarize" ? "Summarize this."
-    : action.id === "issue.tasks" ? "Break this into tasks."
-    : "Respond.";
+    action.id === "mail.draft"
+      ? "Draft the reply."
+      : action.id === "thread.summarize"
+        ? "Summarize this."
+        : action.id === "issue.tasks"
+          ? "Break this into tasks."
+          : "Respond.";
   out += `\n---\n${task}`;
   return out;
 }

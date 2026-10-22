@@ -14,14 +14,7 @@ import type { EventRow } from "../types";
  * how `eventsQuery` returns it), so this never re-sorts, only filters and
  * caps.
  */
-export function recentForProject(
-  events: EventRow[],
-  projectName: string | undefined,
-  limit = 8,
-  projectId?: string,
-): EventRow[] {
+export function recentForProject(events: EventRow[], projectName: string | undefined, limit = 8, projectId?: string): EventRow[] {
   if (!projectName) return [];
-  return events
-    .filter((e) => e.project === projectName || (!!projectId && e.project === projectId))
-    .slice(0, limit);
+  return events.filter((e) => e.project === projectName || (!!projectId && e.project === projectId)).slice(0, limit);
 }

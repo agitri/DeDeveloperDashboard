@@ -15,15 +15,7 @@ import { describe } from "../lib/instructions";
  * The focus ring is not decoration — §5.10 makes it a requirement, because
  * keyboard navigation is unusable when you cannot see where you are.
  */
-export function WidgetFrame({
-  widget,
-  environmentId,
-  children,
-}: {
-  widget: Widget;
-  environmentId: string;
-  children: ReactNode;
-}) {
+export function WidgetFrame({ widget, environmentId, children }: { widget: Widget; environmentId: string; children: ReactNode }) {
   const def = widgetDef(widget.kind);
   const focusedWidgetId = useFocus((s) => s.focusedWidgetId);
   const focusWidget = useFocus((s) => s.focusWidget);
@@ -42,9 +34,7 @@ export function WidgetFrame({
   const focused = focusedWidgetId === widget.id;
 
   function resize(w: number, h: number | null) {
-    updateWidgetLayout([
-      { id: widget.id, x: widget.layout.x, y: widget.layout.y, w, h: h ?? widget.layout.h },
-    ]);
+    updateWidgetLayout([{ id: widget.id, x: widget.layout.x, y: widget.layout.y, w, h: h ?? widget.layout.h }]);
   }
 
   /**
@@ -55,9 +45,7 @@ export function WidgetFrame({
   function items(x: number, y: number): MenuItem[] {
     return [
       { kind: "action", label: "Edit widget…", run: () => setEditing(true) },
-      ...(instructable
-        ? [{ kind: "action" as const, label: "Tell it what to show…", run: () => setInstructing(true) }]
-        : []),
+      ...(instructable ? [{ kind: "action" as const, label: "Tell it what to show…", run: () => setInstructing(true) }] : []),
       ...(def?.menuItems?.(widget) ?? []),
       {
         kind: "submenu",
@@ -109,18 +97,12 @@ export function WidgetFrame({
             already names the kind — "REPOSITORIES Repositories" reads as a
             truncation bug rather than a label. Show a title only when it says
             something the kicker does not. */}
-        <span className="title w-title">
-          {widget.title && widget.title !== def?.name ? widget.title : ""}
-        </span>
+        <span className="title w-title">{widget.title && widget.title !== def?.name ? widget.title : ""}</span>
         <div className="widget-actions w-actions">
           {instructable && (
             <button
               className={`icon-btn text${compiled ? " on" : ""}`}
-              title={
-                compiled
-                  ? "This widget has instructions — click to read or change them"
-                  : "Tell this widget what to show, in words"
-              }
+              title={compiled ? "This widget has instructions — click to read or change them" : "Tell this widget what to show, in words"}
               aria-label="Widget instructions"
               onMouseDown={(e) => e.stopPropagation()}
               onClick={() => setInstructing(true)}
@@ -149,13 +131,7 @@ export function WidgetFrame({
           }}
         />
       )}
-      {instructing && (
-        <InstructionsPanel
-          widget={widget}
-          environmentId={environmentId}
-          onClose={() => setInstructing(false)}
-        />
-      )}
+      {instructing && <InstructionsPanel widget={widget} environmentId={environmentId} onClose={() => setInstructing(false)} />}
       {compiled && !instructing && (
         // An empty widget must be explained rather than mysterious: whatever is
         // (or is not) below is the result of a sentence you wrote, and this is
@@ -188,20 +164,10 @@ export function WidgetFrame({
  * in its own filter bar — because two places to set one thing is how the two
  * drift apart.
  */
-function WidgetEditor({
-  widget,
-  onClose,
-  onSave,
-}: {
-  widget: Widget;
-  onClose: () => void;
-  onSave: (patch: Partial<Widget>) => void;
-}) {
+function WidgetEditor({ widget, onClose, onSave }: { widget: Widget; onClose: () => void; onSave: (patch: Partial<Widget>) => void }) {
   const [title, setTitle] = useState(widget.title ?? "");
   const [refresh, setRefresh] = useState(
-    widget.refreshSeconds === null || widget.refreshSeconds === undefined
-      ? ""
-      : String(widget.refreshSeconds),
+    widget.refreshSeconds === null || widget.refreshSeconds === undefined ? "" : String(widget.refreshSeconds),
   );
 
   function save() {

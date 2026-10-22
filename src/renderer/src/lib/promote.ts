@@ -24,30 +24,46 @@ export function buildPromotedTab(input: PromoteInput, mintId: (prefix: string) =
     layout,
   });
 
-  const launcher = widget("launcher", { x: 0, y: 0, w: 4, h: 4 }, {
-    title: input.name,
-    config: {
-      targets: [
-        { id: mintId("t"), label: "Terminal", path: input.path, open: "terminal" },
-        { id: mintId("t"), label: "Editor", path: input.path, open: "ide" },
-      ],
+  const launcher = widget(
+    "launcher",
+    { x: 0, y: 0, w: 4, h: 4 },
+    {
+      title: input.name,
+      config: {
+        targets: [
+          { id: mintId("t"), label: "Terminal", path: input.path, open: "terminal" },
+          { id: mintId("t"), label: "Editor", path: input.path, open: "ide" },
+        ],
+      },
     },
-  });
-  const about = widget("about", { x: 4, y: 0, w: 8, h: 4 }, {
-    title: input.name,
-    config: { projectId: input.projectId, name: input.name, path: input.path, remote: input.remote },
-  });
-  const products = widget("products", { x: 0, y: 4, w: 6, h: 6 }, {
-    // A project-scoped Products widget looks identical to an unscoped one
-    // unless it says so — the title is that label.
-    title: input.name,
-    filter: { projectId: input.projectId },
-  });
+  );
+  const about = widget(
+    "about",
+    { x: 4, y: 0, w: 8, h: 4 },
+    {
+      title: input.name,
+      config: { projectId: input.projectId, name: input.name, path: input.path, remote: input.remote },
+    },
+  );
+  const products = widget(
+    "products",
+    { x: 0, y: 4, w: 6, h: 6 },
+    {
+      // A project-scoped Products widget looks identical to an unscoped one
+      // unless it says so — the title is that label.
+      title: input.name,
+      filter: { projectId: input.projectId },
+    },
+  );
   const notes = widget("notes", { x: 6, y: 4, w: 6, h: 6 }, { config: { text: "" } });
-  const sitrep = widget("sitrep", { x: 0, y: 10, w: 12, h: 6 }, {
-    title: input.name,
-    config: { projectId: input.projectId },
-  });
+  const sitrep = widget(
+    "sitrep",
+    { x: 0, y: 10, w: 12, h: 6 },
+    {
+      title: input.name,
+      config: { projectId: input.projectId },
+    },
+  );
 
   return {
     id: mintId("tab"),

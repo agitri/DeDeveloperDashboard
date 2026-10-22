@@ -133,10 +133,7 @@ interface Store {
   appearance(): AppearanceSettings;
   saveAppearance(next: AppearanceSettings): Promise<void>;
   createEnvironment(name: string, color: string): Promise<void>;
-  updateEnvironment(
-    id: string,
-    patch: { name?: string; color?: string; hidden?: boolean; collapsed?: boolean },
-  ): Promise<void>;
+  updateEnvironment(id: string, patch: { name?: string; color?: string; hidden?: boolean; collapsed?: boolean }): Promise<void>;
   deleteEnvironment(id: string): Promise<void>;
 
   logEvent(event: EventInput): void;
@@ -158,9 +155,7 @@ function computeTabs(global: Global | null, layouts: Record<string, Layout>): En
   if (!global) return [];
   return global.environments
     .filter((env) => !env.hidden)
-    .flatMap((env) =>
-      (layouts[env.id]?.tabs ?? []).map((tab) => ({ ...tab, environmentId: env.id })),
-    );
+    .flatMap((env) => (layouts[env.id]?.tabs ?? []).map((tab) => ({ ...tab, environmentId: env.id })));
 }
 
 /** Layout writes are debounced per environment: dragging a widget fires dozens
@@ -204,19 +199,13 @@ export const useStore = create<Store>((set, get) => ({
     // what makes clicking the "Life" tab feel like nothing at all.
     await Promise.all(
       global.environments.map(async (env) => {
-        const [layout, s] = await Promise.all([
-          ipc.layoutLoad(env.id),
-          ipc.settingsLoad(env.id).catch(() => DEFAULT_SETTINGS),
-        ]);
+        const [layout, s] = await Promise.all([ipc.layoutLoad(env.id), ipc.settingsLoad(env.id).catch(() => DEFAULT_SETTINGS)]);
         layouts[env.id] = layout;
         settings[env.id] = s;
       }),
     );
 
-    const firstTab =
-      layouts[global.activeEnvironmentId]?.tabs[0]?.id ??
-      Object.values(layouts).flatMap((l) => l.tabs)[0]?.id ??
-      null;
+    const firstTab = layouts[global.activeEnvironmentId]?.tabs[0]?.id ?? Object.values(layouts).flatMap((l) => l.tabs)[0]?.id ?? null;
 
     set({ ready: true, global, layouts, settings, activeTabId: firstTab });
   },
@@ -237,7 +226,11 @@ export const useStore = create<Store>((set, get) => ({
 
   activeTab() {
     const { activeTabId } = get();
-    return get().tabs().find((t) => t.id === activeTabId) ?? null;
+    return (
+      get()
+        .tabs()
+        .find((t) => t.id === activeTabId) ?? null
+    );
   },
 
   activeEnvironmentId() {
@@ -277,7 +270,12 @@ export const useStore = create<Store>((set, get) => ({
     // Reached from the palette or a shortcut, this tab may live in a folded
     // environment. Unfold it: a board with no visible handle in the strip is
     // the same trap a collapsed tab group is not allowed to set.
-    if (envId && get().environments().find((e) => e.id === envId)?.collapsed) {
+    if (
+      envId &&
+      get()
+        .environments()
+        .find((e) => e.id === envId)?.collapsed
+    ) {
       void get().updateEnvironment(envId, { collapsed: false });
     }
     if (envId && envId !== get().global?.activeEnvironmentId) {
@@ -301,9 +299,7 @@ export const useStore = create<Store>((set, get) => ({
           if (!layout) return {};
           const next = {
             ...layout,
-            tabs: layout.tabs.map((t) =>
-              t.id === previous ? { ...t, lastVisitedAt: new Date().toISOString() } : t,
-            ),
+            tabs: layout.tabs.map((t) => (t.id === previous ? { ...t, lastVisitedAt: new Date().toISOString() } : t)),
           };
           persistLayout(prevEnvId, next);
           return { layouts: { ...s.layouts, [prevEnvId]: next } };
@@ -322,7 +318,9 @@ export const useStore = create<Store>((set, get) => ({
    */
   selectTabByIndex(index) {
     const envId = get().activeEnvironmentId();
-    const tab = get().tabs().filter((t) => t.environmentId === envId)[index];
+    const tab = get()
+      .tabs()
+      .filter((t) => t.environmentId === envId)[index];
     if (tab) get().selectTab(tab.id);
   },
 
@@ -334,7 +332,9 @@ export const useStore = create<Store>((set, get) => ({
    * back to it.
    */
   activateEnvironment(envId) {
-    const envTabs = get().tabs().filter((t) => t.environmentId === envId);
+    const envTabs = get()
+      .tabs()
+      .filter((t) => t.environmentId === envId);
     if (envTabs.length === 0) return;
     void get().updateEnvironment(envId, { collapsed: false });
     const remembered = get().lastTabByEnv[envId];
@@ -352,7 +352,9 @@ export const useStore = create<Store>((set, get) => ({
 
   addTab(environmentId) {
     const envId = environmentId ?? get().activeEnvironmentId();
-    const env = get().environments().find((e) => e.id === envId);
+    const env = get()
+      .environments()
+      .find((e) => e.id === envId);
     const tab = {
       id: uid("tab"),
       name: "New tab",
@@ -381,10 +383,7 @@ export const useStore = create<Store>((set, get) => ({
     const envId = input.environmentId ?? get().activeEnvironmentId();
     // Register first: a failure here must not leave a half-built tab behind.
     const project = await ipc.projectRegister(envId, input.path);
-    const tab = buildPromotedTab(
-      { projectId: project.id, name: input.name, path: input.path, remote: input.remote },
-      uid,
-    );
+    const tab = buildPromotedTab({ projectId: project.id, name: input.name, path: input.path, remote: input.remote }, uid);
     set((s) => {
       const layout = s.layouts[envId] ?? { version: 1, groups: [], tabs: [] };
       const next = { ...layout, tabs: [...layout.tabs, tab] };
@@ -412,7 +411,6 @@ export const useStore = create<Store>((set, get) => ({
       return { layouts: { ...s.layouts, [envId]: next } };
     });
   },
-
 
   showOverview(envId) {
     set({ overviewEnvId: envId, view: "board" });
@@ -447,12 +445,10 @@ export const useStore = create<Store>((set, get) => ({
   exportTabs(envId, tabIds) {
     const layout = get().layouts[envId];
     if (!layout) return "";
-    const env = get().environments().find((e) => e.id === envId);
-    return JSON.stringify(
-      exportLayout(layout, { tabIds, from: env?.name, exportedAt: new Date().toISOString() }),
-      null,
-      2,
-    );
+    const env = get()
+      .environments()
+      .find((e) => e.id === envId);
+    return JSON.stringify(exportLayout(layout, { tabIds, from: env?.name, exportedAt: new Date().toISOString() }), null, 2);
   },
 
   importTabs(envId, document) {
@@ -622,9 +618,7 @@ export const useStore = create<Store>((set, get) => ({
       const layout = s.layouts[envId]!;
       const next = {
         ...layout,
-        tabs: layout.tabs.map((t) =>
-          t.id === tab.id ? { ...t, widgets: [...t.widgets, widget] } : t,
-        ),
+        tabs: layout.tabs.map((t) => (t.id === tab.id ? { ...t, widgets: [...t.widgets, widget] } : t)),
       };
       persistLayout(envId, next);
       return { layouts: { ...s.layouts, [envId]: next } };
@@ -640,9 +634,7 @@ export const useStore = create<Store>((set, get) => ({
       const layout = s.layouts[envId]!;
       const next = {
         ...layout,
-        tabs: layout.tabs.map((t) =>
-          t.id === tab.id ? { ...t, widgets: t.widgets.filter((w) => w.id !== widgetId) } : t,
-        ),
+        tabs: layout.tabs.map((t) => (t.id === tab.id ? { ...t, widgets: t.widgets.filter((w) => w.id !== widgetId) } : t)),
       };
       persistLayout(envId, next);
       return { layouts: { ...s.layouts, [envId]: next } };
@@ -689,9 +681,7 @@ export const useStore = create<Store>((set, get) => ({
       const next = {
         ...layout,
         tabs: layout.tabs.map((t) =>
-          t.id === tab.id
-            ? { ...t, widgets: t.widgets.map((w) => (w.id === widgetId ? { ...w, ...patch } : w)) }
-            : t,
+          t.id === tab.id ? { ...t, widgets: t.widgets.map((w) => (w.id === widgetId ? { ...w, ...patch } : w)) } : t,
         ),
       };
       persistLayout(envId, next);
@@ -707,9 +697,7 @@ export const useStore = create<Store>((set, get) => ({
       const next = {
         ...layout,
         tabs: layout.tabs.map((t) =>
-          t.id === tabId
-            ? { ...t, widgets: t.widgets.map((w) => (w.id === widgetId ? { ...w, ...patch } : w)) }
-            : t,
+          t.id === tabId ? { ...t, widgets: t.widgets.map((w) => (w.id === widgetId ? { ...w, ...patch } : w)) } : t,
         ),
       };
       persistLayout(envId, next);
@@ -758,12 +746,13 @@ export const useStore = create<Store>((set, get) => ({
   },
 
   async createEnvironment(name, color) {
-    const id = name.toLowerCase().replace(/[^a-z0-9_-]+/g, "-").replace(/^-|-$/g, "") || uid("env");
+    const id =
+      name
+        .toLowerCase()
+        .replace(/[^a-z0-9_-]+/g, "-")
+        .replace(/^-|-$/g, "") || uid("env");
     const global = await ipc.environmentCreate(id, name, color);
-    const [layout, settings] = await Promise.all([
-      ipc.layoutLoad(id),
-      ipc.settingsLoad(id).catch(() => DEFAULT_SETTINGS),
-    ]);
+    const [layout, settings] = await Promise.all([ipc.layoutLoad(id), ipc.settingsLoad(id).catch(() => DEFAULT_SETTINGS)]);
     // Land in the new environment rather than leaving the user where they were:
     // you make it, you go there. It has no tabs yet, so show its overview and
     // make it the active environment (so the next `New tab` lands in it, not

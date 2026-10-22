@@ -7,8 +7,15 @@ import { memorySecrets } from "./adapter";
 import { accessToken, awaitRedirect, connect, parseQuery, pkceChallenge, providerFor } from "./oauth";
 
 const conn = (extra: Partial<Connection> = {}): Connection => ({
-  id: "gmail-1", provider: "mail.gmail", label: "me@gmail.com", status: "disconnected", scopes: [],
-  config: { clientId: "cid", clientSecret: "sec" }, lastSyncAt: null, error: null, ...extra,
+  id: "gmail-1",
+  provider: "mail.gmail",
+  label: "me@gmail.com",
+  status: "disconnected",
+  scopes: [],
+  config: { clientId: "cid", clientSecret: "sec" },
+  lastSyncAt: null,
+  error: null,
+  ...extra,
 });
 
 describe("providers", () => {
@@ -43,13 +50,18 @@ describe("the redirect", () => {
 });
 
 /** Plays the browser and the token endpoint. */
-function fakeConsent(opts: { tokenBody?: unknown; tokenStatus?: number; tokenStatusText?: string; deny?: boolean; wrongState?: boolean } = {}) {
+function fakeConsent(
+  opts: { tokenBody?: unknown; tokenStatus?: number; tokenStatusText?: string; deny?: boolean; wrongState?: boolean } = {},
+) {
   const secrets = memorySecrets();
   const tokenCalls: string[] = [];
   let opened: string | null = null;
   const fetch: typeof globalThis.fetch = async (_input, init) => {
     tokenCalls.push(String(init?.body));
-    return new Response(JSON.stringify(opts.tokenBody ?? { access_token: "AT", refresh_token: "RT", expires_in: 3600 }), { status: opts.tokenStatus ?? 200, statusText: opts.tokenStatusText ?? "" });
+    return new Response(JSON.stringify(opts.tokenBody ?? { access_token: "AT", refresh_token: "RT", expires_in: 3600 }), {
+      status: opts.tokenStatus ?? 200,
+      statusText: opts.tokenStatusText ?? "",
+    });
   };
   const openUrl = async (url: string) => {
     opened = url;
@@ -96,7 +108,9 @@ describe("consent", () => {
 
   it("fails closed on a state mismatch, and reports a denial", async () => {
     const { env } = scratchEnv("oauth-state");
-    await expect(connect(env, conn(), fakeConsent({ wrongState: true }).deps)).rejects.toThrow("OAuth state mismatch — nothing was connected");
+    await expect(connect(env, conn(), fakeConsent({ wrongState: true }).deps)).rejects.toThrow(
+      "OAuth state mismatch — nothing was connected",
+    );
     await expect(connect(env, conn(), fakeConsent({ deny: true }).deps)).rejects.toThrow("consent was denied");
   });
 
@@ -136,11 +150,27 @@ describe("consent", () => {
 
   it("explains a rejected token exchange, including Slack's ok:false", async () => {
     const { env } = scratchEnv("oauth-reject");
-    await expect(connect(env, conn(), fakeConsent({ tokenStatus: 400, tokenStatusText: "Bad Request", tokenBody: { error: "invalid_grant", error_description: "Bad code" } }).deps)).rejects.toThrow("oauth 400 Bad Request: Bad code");
+    await expect(
+      connect(
+        env,
+        conn(),
+        fakeConsent({
+          tokenStatus: 400,
+          tokenStatusText: "Bad Request",
+          tokenBody: { error: "invalid_grant", error_description: "Bad code" },
+        }).deps,
+      ),
+    ).rejects.toThrow("oauth 400 Bad Request: Bad code");
     // No reason phrase from the server: no dangling space before the colon.
-    await expect(connect(env, conn(), fakeConsent({ tokenStatus: 400, tokenBody: { error: "invalid_grant", error_description: "Bad code" } }).deps)).rejects.toThrow("oauth 400: Bad code");
-    await expect(connect(env, conn(), fakeConsent({ tokenBody: { ok: false, error: "invalid_code" } }).deps)).rejects.toThrow("oauth: invalid_code");
-    await expect(connect(env, conn(), fakeConsent({ tokenBody: { nothing: true } }).deps)).rejects.toThrow("no access token in the response");
+    await expect(
+      connect(env, conn(), fakeConsent({ tokenStatus: 400, tokenBody: { error: "invalid_grant", error_description: "Bad code" } }).deps),
+    ).rejects.toThrow("oauth 400: Bad code");
+    await expect(connect(env, conn(), fakeConsent({ tokenBody: { ok: false, error: "invalid_code" } }).deps)).rejects.toThrow(
+      "oauth: invalid_code",
+    );
+    await expect(connect(env, conn(), fakeConsent({ tokenBody: { nothing: true } }).deps)).rejects.toThrow(
+      "no access token in the response",
+    );
   });
 });
 

@@ -95,9 +95,7 @@ export function zonedToUtc(wall: number, tz: string): number {
   const offsetAt = (t: number) => utcToZoned(new Date(t), tz) - t;
   // A day either side brackets every real transition; a candidate that reads
   // back as the same wall clock is a real instant.
-  const candidates = [wall - offsetAt(wall - DAY_MS), wall - offsetAt(wall + DAY_MS)].filter(
-    (t) => utcToZoned(new Date(t), tz) === wall,
-  );
+  const candidates = [wall - offsetAt(wall - DAY_MS), wall - offsetAt(wall + DAY_MS)].filter((t) => utcToZoned(new Date(t), tz) === wall);
   // An ambiguous local time (the hour that repeats when DST ends) resolves to
   // the earlier instant rather than being dropped, as chrono's `.earliest()`
   // does.
@@ -227,8 +225,7 @@ function toItem(fields: string[], connectionId: string, environmentId: string, c
   const end =
     dtend !== null
       ? dtend[0]
-      : ((duration === null ? null : addDuration(start, duration)) ??
-        new Date(start.getTime() + (allDay ? DAY_MS : HOUR_MS)));
+      : ((duration === null ? null : addDuration(start, duration)) ?? new Date(start.getTime() + (allDay ? DAY_MS : HOUR_MS)));
 
   const refs = [`dtstart:${rfc3339(start)}`, `dtend:${rfc3339(end)}`, `allday:${allDay}`];
   if (startTz !== null) refs.push(`tzid:${startTz}`);
@@ -443,10 +440,5 @@ function durationSeconds(spec: string): number | null {
 
 /** iCalendar escapes commas, semicolons and newlines in text values. */
 export function unescape(value: string): string {
-  return value
-    .replaceAll("\\n", "\n")
-    .replaceAll("\\N", "\n")
-    .replaceAll("\\,", ",")
-    .replaceAll("\\;", ";")
-    .replaceAll("\\\\", "\\");
+  return value.replaceAll("\\n", "\n").replaceAll("\\N", "\n").replaceAll("\\,", ",").replaceAll("\\;", ";").replaceAll("\\\\", "\\");
 }

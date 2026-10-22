@@ -1,4 +1,14 @@
-import { existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  readlinkSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -31,7 +41,11 @@ function ollamaStore(root: string, models: Record<string, Array<[string, number,
       JSON.stringify({
         schemaVersion: 2,
         config: { mediaType: "application/vnd.docker.container.image.v1+json", digest: `sha256:${sha(999)}`, size: 2 },
-        layers: layers.map(([digest, size, kind]) => ({ mediaType: `application/vnd.ollama.image.${kind ?? "model"}`, digest: `sha256:${digest}`, size })),
+        layers: layers.map(([digest, size, kind]) => ({
+          mediaType: `application/vnd.ollama.image.${kind ?? "model"}`,
+          digest: `sha256:${digest}`,
+          size,
+        })),
       }),
     );
     for (const [digest, size] of layers) writeFileSync(join(root, "blobs", `sha256-${digest}`), "x".repeat(size));
@@ -178,8 +192,17 @@ describe("moveModel — Ollama export", () => {
     const base = tempRoot("ollama");
     const r = roots(base);
     ollamaStore(r.ollama, {
-      "qwen3:8b": [[sha(1), 500], [sha(2), 30, "template"], [sha(3), 20, "system"], [sha(4), 40, "params"], [sha(5), 15, "license"]],
-      "qwen3:4b": [[sha(6), 300], [sha(2), 30, "template"]],
+      "qwen3:8b": [
+        [sha(1), 500],
+        [sha(2), 30, "template"],
+        [sha(3), 20, "system"],
+        [sha(4), 40, "params"],
+        [sha(5), 15, "license"],
+      ],
+      "qwen3:4b": [
+        [sha(6), 300],
+        [sha(2), 30, "template"],
+      ],
     });
     writeFileSync(join(r.ollama, "blobs", `sha256-${sha(2)}`), "{{ .Prompt }}");
     writeFileSync(join(r.ollama, "blobs", `sha256-${sha(3)}`), "Be brief.");

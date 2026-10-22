@@ -10,7 +10,11 @@ function fakeFetch(body: unknown, init: { status?: number; statusText?: string }
   const fetch = (async (url: string | URL | Request, reqInit?: RequestInit) => {
     calls.push({ url: String(url), init: reqInit ?? {} });
     const text = typeof body === "string" ? body : JSON.stringify(body);
-    return new Response(text, { status: init.status ?? 200, statusText: init.statusText ?? "", headers: { "content-type": "application/json" } });
+    return new Response(text, {
+      status: init.status ?? 200,
+      statusText: init.statusText ?? "",
+      headers: { "content-type": "application/json" },
+    });
   }) as typeof globalThis.fetch;
   return { fetch, calls };
 }
@@ -27,7 +31,11 @@ describe("AnthropicProvider", () => {
       model: "claude-opus-5-20260101",
       stop_reason: "end_turn",
       usage: { input_tokens: 100, output_tokens: 10 },
-      content: [{ type: "thinking", thinking: "…" }, { type: "text", text: "Hi " }, { type: "text", text: "there" }],
+      content: [
+        { type: "thinking", thinking: "…" },
+        { type: "text", text: "Hi " },
+        { type: "text", text: "there" },
+      ],
     });
     const draft = await new AnthropicProvider(fetch, "sk-test").complete(completion);
 
@@ -61,7 +69,13 @@ describe("AnthropicProvider", () => {
   });
 
   it("a refusal is HTTP 200 with an empty content array — an outcome, not an error", async () => {
-    const { fetch } = fakeFetch({ model: "claude-opus-5", stop_reason: "refusal", stop_details: { explanation: "Not this." }, usage: { input_tokens: 5, output_tokens: 0 }, content: [] });
+    const { fetch } = fakeFetch({
+      model: "claude-opus-5",
+      stop_reason: "refusal",
+      stop_details: { explanation: "Not this." },
+      usage: { input_tokens: 5, output_tokens: 0 },
+      content: [],
+    });
     const draft = await new AnthropicProvider(fetch, "k").complete(completion);
     expect(draft.refusal).toBe("Not this.");
     expect(draft.text).toBe("");
@@ -75,7 +89,10 @@ describe("AnthropicProvider", () => {
   });
 
   it("a non-2xx reply is a config error naming status, reason and the API's message", async () => {
-    const { fetch } = fakeFetch({ error: { type: "authentication_error", message: "invalid x-api-key" } }, { status: 401, statusText: "Unauthorized" });
+    const { fetch } = fakeFetch(
+      { error: { type: "authentication_error", message: "invalid x-api-key" } },
+      { status: 401, statusText: "Unauthorized" },
+    );
     await expect(new AnthropicProvider(fetch, "k").complete(completion)).rejects.toThrow("anthropic 401 Unauthorized: invalid x-api-key");
   });
 

@@ -35,12 +35,7 @@ describe("one call per question", () => {
     // The board that motivated this: two projects widgets, doubled again by
     // StrictMode's double mount, asking the same question four times. Measured,
     // those four cost 481ms where one cost 124ms.
-    const asked = [
-      ipc.projectsList("work"),
-      ipc.projectsList("work"),
-      ipc.projectsList("work"),
-      ipc.projectsList("work"),
-    ];
+    const asked = [ipc.projectsList("work"), ipc.projectsList("work"), ipc.projectsList("work"), ipc.projectsList("work")];
     await settled();
     expect(calls).toHaveLength(1);
 

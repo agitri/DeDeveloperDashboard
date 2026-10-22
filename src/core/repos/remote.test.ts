@@ -42,7 +42,11 @@ describe("normalize", () => {
 
 describe("fallbackKey", () => {
   it("drops the host", () => {
-    for (const form of ["git@github.com:agitri/ddd.git", "https://github.com/agitri/ddd", "https://self-hosted.example.com/agitri/ddd.git"]) {
+    for (const form of [
+      "git@github.com:agitri/ddd.git",
+      "https://github.com/agitri/ddd",
+      "https://self-hosted.example.com/agitri/ddd.git",
+    ]) {
       expect(fallbackKey(form), form).toBe("agitri/ddd");
     }
   });

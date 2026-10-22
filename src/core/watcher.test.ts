@@ -98,42 +98,34 @@ describe("watching registered projects", { retry: 2 }, () => {
   let watcher: ProjectWatcher | null = null;
   afterEach(() => watcher?.close());
 
-  it(
-    "emits one project-changed per project per burst when .ddd/ is written",
-    async () => {
-      const dir = tempdir("todo");
-      mkdirSync(join(dir, ".ddd"));
-      const emitter = recordingEmitter();
-      watcher = new ProjectWatcher(emitter);
-      watcher.sync("work", [{ id: "p1", path: dir }]);
-      await new Promise((r) => setTimeout(r, SETTLE_MS));
+  it("emits one project-changed per project per burst when .ddd/ is written", async () => {
+    const dir = tempdir("todo");
+    mkdirSync(join(dir, ".ddd"));
+    const emitter = recordingEmitter();
+    watcher = new ProjectWatcher(emitter);
+    watcher.sync("work", [{ id: "p1", path: dir }]);
+    await new Promise((r) => setTimeout(r, SETTLE_MS));
 
-      // An editor save is several events; a `/todo` is one file, twice.
-      writeFileSync(join(dir, ".ddd", "todos.json"), '{"todos":[]}');
-      writeFileSync(join(dir, ".ddd", "todos.json"), '{"todos":[{"id":"t","text":"x"}]}');
-      await until(() => emitter.events.length > 0, 8000);
-      await new Promise((r) => setTimeout(r, DEBOUNCE_MS + 200));
-      expect(emitter.events).toEqual([{ name: "ddd://project-changed", payload: { environmentId: "work", projectId: "p1" } }]);
-    },
-    15000,
-  );
+    // An editor save is several events; a `/todo` is one file, twice.
+    writeFileSync(join(dir, ".ddd", "todos.json"), '{"todos":[]}');
+    writeFileSync(join(dir, ".ddd", "todos.json"), '{"todos":[{"id":"t","text":"x"}]}');
+    await until(() => emitter.events.length > 0, 8000);
+    await new Promise((r) => setTimeout(r, DEBOUNCE_MS + 200));
+    expect(emitter.events).toEqual([{ name: "ddd://project-changed", payload: { environmentId: "work", projectId: "p1" } }]);
+  }, 15000);
 
-  it(
-    "notices the .ddd folder appearing on a project that had none",
-    async () => {
-      const dir = tempdir("appear");
-      const emitter = recordingEmitter();
-      watcher = new ProjectWatcher(emitter);
-      watcher.sync("work", [{ id: "p2", path: dir }]);
-      await new Promise((r) => setTimeout(r, SETTLE_MS));
+  it("notices the .ddd folder appearing on a project that had none", async () => {
+    const dir = tempdir("appear");
+    const emitter = recordingEmitter();
+    watcher = new ProjectWatcher(emitter);
+    watcher.sync("work", [{ id: "p2", path: dir }]);
+    await new Promise((r) => setTimeout(r, SETTLE_MS));
 
-      mkdirSync(join(dir, ".ddd"));
-      await until(() => emitter.events.length > 0, 8000);
-      await new Promise((r) => setTimeout(r, DEBOUNCE_MS + 200));
-      expect(emitter.events[0]).toEqual({ name: "ddd://project-changed", payload: { environmentId: "work", projectId: "p2" } });
-    },
-    15000,
-  );
+    mkdirSync(join(dir, ".ddd"));
+    await until(() => emitter.events.length > 0, 8000);
+    await new Promise((r) => setTimeout(r, DEBOUNCE_MS + 200));
+    expect(emitter.events[0]).toEqual({ name: "ddd://project-changed", payload: { environmentId: "work", projectId: "p2" } });
+  }, 15000);
 
   it("does not fire for edits outside .ddd/, and re-syncing an unchanged registry is a no-op", async () => {
     const dir = tempdir("outside");
@@ -147,47 +139,39 @@ describe("watching registered projects", { retry: 2 }, () => {
     expect(emitter.events).toEqual([]);
   });
 
-  it(
-    "rebuilds after close() so a later sync of the same list watches again",
-    async () => {
-      const dir = tempdir("reclose");
-      mkdirSync(join(dir, ".ddd"));
-      const emitter = recordingEmitter();
-      watcher = new ProjectWatcher(emitter);
-      const list = [{ id: "p4", path: dir }];
-      watcher.sync("work", list);
-      watcher.close();
-      // Same list: without registry.clear() in close(), sync() would hit its
-      // "nothing changed" early return and never rebuild the watchers.
-      watcher.sync("work", list);
-      await new Promise((r) => setTimeout(r, SETTLE_MS));
+  it("rebuilds after close() so a later sync of the same list watches again", async () => {
+    const dir = tempdir("reclose");
+    mkdirSync(join(dir, ".ddd"));
+    const emitter = recordingEmitter();
+    watcher = new ProjectWatcher(emitter);
+    const list = [{ id: "p4", path: dir }];
+    watcher.sync("work", list);
+    watcher.close();
+    // Same list: without registry.clear() in close(), sync() would hit its
+    // "nothing changed" early return and never rebuild the watchers.
+    watcher.sync("work", list);
+    await new Promise((r) => setTimeout(r, SETTLE_MS));
 
-      writeFileSync(join(dir, ".ddd", "todos.json"), '{"todos":[]}');
-      await until(() => emitter.events.length > 0, 8000);
-      await new Promise((r) => setTimeout(r, DEBOUNCE_MS + 200));
-      expect(emitter.events[0]).toEqual({ name: "ddd://project-changed", payload: { environmentId: "work", projectId: "p4" } });
-    },
-    15000,
-  );
+    writeFileSync(join(dir, ".ddd", "todos.json"), '{"todos":[]}');
+    await until(() => emitter.events.length > 0, 8000);
+    await new Promise((r) => setTimeout(r, DEBOUNCE_MS + 200));
+    expect(emitter.events[0]).toEqual({ name: "ddd://project-changed", payload: { environmentId: "work", projectId: "p4" } });
+  }, 15000);
 
-  it(
-    "watches the union across environments",
-    async () => {
-      const a = tempdir("env-a");
-      const b = tempdir("env-b");
-      mkdirSync(join(a, ".ddd"));
-      mkdirSync(join(b, ".ddd"));
-      const emitter = recordingEmitter();
-      watcher = new ProjectWatcher(emitter);
-      watcher.sync("work", [{ id: "pa", path: a }]);
-      watcher.sync("personal", [{ id: "pb", path: b }]);
-      await new Promise((r) => setTimeout(r, SETTLE_MS));
-      writeFileSync(join(b, ".ddd", "recap.md"), "# recap");
-      await until(() => emitter.events.length > 0, 8000);
-      await new Promise((r) => setTimeout(r, DEBOUNCE_MS + 200));
-      expect(emitter.events[0]!.payload).toEqual({ environmentId: "personal", projectId: "pb" });
-      expect(emitter.events.some((e) => (e.payload as ProjectChanged).projectId === "pa")).toBe(false);
-    },
-    15000,
-  );
+  it("watches the union across environments", async () => {
+    const a = tempdir("env-a");
+    const b = tempdir("env-b");
+    mkdirSync(join(a, ".ddd"));
+    mkdirSync(join(b, ".ddd"));
+    const emitter = recordingEmitter();
+    watcher = new ProjectWatcher(emitter);
+    watcher.sync("work", [{ id: "pa", path: a }]);
+    watcher.sync("personal", [{ id: "pb", path: b }]);
+    await new Promise((r) => setTimeout(r, SETTLE_MS));
+    writeFileSync(join(b, ".ddd", "recap.md"), "# recap");
+    await until(() => emitter.events.length > 0, 8000);
+    await new Promise((r) => setTimeout(r, DEBOUNCE_MS + 200));
+    expect(emitter.events[0]!.payload).toEqual({ environmentId: "personal", projectId: "pb" });
+    expect(emitter.events.some((e) => (e.payload as ProjectChanged).projectId === "pa")).toBe(false);
+  }, 15000);
 });

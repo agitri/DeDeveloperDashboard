@@ -9,13 +9,31 @@ describe("events", () => {
   it("logs rows and reads them newest first, with a null for every absent field", () => {
     const { env } = scratchEnv("events");
     const first = log(env, { kind: "tab.switch" });
-    const second = log(env, { kind: "ai.mail.draft", source: "anthropic", project: "ddd", tokensIn: 10, tokensOut: 5, costMicros: 175, meta: { model: "x" } });
+    const second = log(env, {
+      kind: "ai.mail.draft",
+      source: "anthropic",
+      project: "ddd",
+      tokensIn: 10,
+      tokensOut: 5,
+      costMicros: 175,
+      meta: { model: "x" },
+    });
     expect(second).toBe(first + 1);
     expect(existsSync(env.eventsDb())).toBe(true);
 
     const rows = query(env, { limit: 500 });
     expect(rows.map((r) => r.kind)).toEqual(["ai.mail.draft", "tab.switch"]);
-    expect(rows[1]).toEqual({ id: first, ts: rows[1]!.ts, kind: "tab.switch", source: null, project: null, tokensIn: null, tokensOut: null, costMicros: null, meta: null });
+    expect(rows[1]).toEqual({
+      id: first,
+      ts: rows[1]!.ts,
+      kind: "tab.switch",
+      source: null,
+      project: null,
+      tokensIn: null,
+      tokensOut: null,
+      costMicros: null,
+      meta: null,
+    });
     expect(rows[0]!.meta).toEqual({ model: "x" });
     expect(rows[0]!.costMicros).toBe(175);
     expect(rows[0]!.ts).toMatch(/^\d{4}-\d{2}-\d{2}T/);

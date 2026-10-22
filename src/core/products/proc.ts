@@ -14,8 +14,7 @@ import type { ProcInfo } from "./record";
  *  default ceiling is 4194304 and macOS wraps at 99999. */
 export const PID_CEILING = 4_194_304;
 
-const WIN_MESSAGE =
-  "running products is not offered on Windows: the only way to stop one would be a force kill";
+const WIN_MESSAGE = "running products is not offered on Windows: the only way to stop one would be a force kill";
 
 async function run(runner: Runner, args: string[]): Promise<string[]> {
   // `ps` exits non-zero when *no* PID matched, which is a normal empty answer

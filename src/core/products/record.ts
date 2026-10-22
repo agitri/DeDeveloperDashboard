@@ -51,10 +51,7 @@ export function recordFromJson(raw: unknown): Record {
 }
 
 /** Whether a record still describes the process it was written for. */
-export type Claim =
-  | { kind: "ours" }
-  | { kind: "gone" }
-  | { kind: "reused"; now: string };
+export type Claim = { kind: "ours" } | { kind: "gone" } | { kind: "reused"; now: string };
 
 /** Does this record still hold? The start time is the entire test; the command
  *  name deliberately is not. */

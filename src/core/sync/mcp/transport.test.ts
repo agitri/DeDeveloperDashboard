@@ -66,9 +66,7 @@ describe("consent", () => {
   it("refuses an unapproved server rather than prompting for it", () => {
     // A scheduler tick must never be the thing that starts a process, so this
     // refuses where a prompt would be.
-    expect(() => checkConsent(["npx", "server"], null)).toThrow(
-      "this server has not been approved to run — approve it in Settings first",
-    );
+    expect(() => checkConsent(["npx", "server"], null)).toThrow("this server has not been approved to run — approve it in Settings first");
   });
 
   it("cannot have its argv parts rearranged without voiding the approval", () => {
@@ -111,9 +109,7 @@ describe("opening a transport", () => {
     expect(stdio).toBeInstanceOf(StdioClientTransport);
     // Nothing is spawned until the client starts it.
     expect((stdio as StdioClientTransport).pid).toBeNull();
-    expect(openTransport({ kind: "http", endpoint: "https://x.test/mcp", token: null })).toBeInstanceOf(
-      StreamableHTTPClientTransport,
-    );
+    expect(openTransport({ kind: "http", endpoint: "https://x.test/mcp", token: null })).toBeInstanceOf(StreamableHTTPClientTransport);
   });
 
   it("sends the bearer on every request and the negotiated version on every one after the handshake", async () => {

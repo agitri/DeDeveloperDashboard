@@ -76,12 +76,7 @@ export function buttonById(id: string): ToolbarButton | undefined {
   return TOOLBAR_BUTTONS.find((b) => b.id === id);
 }
 
-export function applyButton(
-  button: ToolbarButton,
-  text: string,
-  selStart: number,
-  selEnd: number,
-): Edit {
+export function applyButton(button: ToolbarButton, text: string, selStart: number, selEnd: number): Edit {
   if (button.kind === "inline") return inline(button.marker, text, selStart, selEnd);
   if (button.kind === "block") return block(button, text, selStart, selEnd);
   return {
@@ -96,11 +91,7 @@ function inline(marker: string, text: string, selStart: number, selEnd: number):
 
   // Already marked? Then this is an un-mark. Pressing Bold on bold text
   // meaning "more bold" would be a trap with no way back out.
-  if (
-    selected.length >= marker.length * 2 &&
-    selected.startsWith(marker) &&
-    selected.endsWith(marker)
-  ) {
+  if (selected.length >= marker.length * 2 && selected.startsWith(marker) && selected.endsWith(marker)) {
     const inner = selected.slice(marker.length, selected.length - marker.length);
     return {
       text: text.slice(0, selStart) + inner + text.slice(selEnd),
@@ -122,12 +113,7 @@ function inline(marker: string, text: string, selStart: number, selEnd: number):
   };
 }
 
-function block(
-  button: Extract<ToolbarButton, { kind: "block" }>,
-  text: string,
-  selStart: number,
-  selEnd: number,
-): Edit {
+function block(button: Extract<ToolbarButton, { kind: "block" }>, text: string, selStart: number, selEnd: number): Edit {
   const lines = text.split("\n");
   const first = lineOf(text, selStart);
   // A caret with no selection still addresses its own line — otherwise the

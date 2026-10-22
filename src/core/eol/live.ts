@@ -123,12 +123,7 @@ export function short(e: unknown): string {
 }
 
 /** Refresh the URLs whose last answer is stale, leaving the rest alone. */
-export async function refresh(
-  fetch: typeof globalThis.fetch,
-  checks: Checks,
-  urls: string[],
-  now: string,
-): Promise<void> {
+export async function refresh(fetch: typeof globalThis.fetch, checks: Checks, urls: string[], now: string): Promise<void> {
   for (const url of urls) {
     const existing = checks[url];
     if (existing !== undefined && isFresh(existing, now)) continue;

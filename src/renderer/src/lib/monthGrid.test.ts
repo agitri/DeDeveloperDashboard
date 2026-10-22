@@ -4,8 +4,7 @@ import { monthGrid } from "./monthGrid";
 // Local, deliberately: toISOString() converts to UTC, which turns local
 // midnight into the previous day anywhere east of Greenwich — the exact
 // off-by-one this grid exists to avoid.
-const iso = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 describe("monthGrid", () => {
   it("returns whole weeks", () => {

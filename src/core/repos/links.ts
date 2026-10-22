@@ -76,7 +76,9 @@ export function save(env: EnvRoot, links: RepoLinks): void {
  *  exempt: any number of checkouts may have no origin. */
 export function upsert(env: EnvRoot, link: RepoLink): void {
   const stored = load(env);
-  stored.links = stored.links.filter((existing) => existing.path !== link.path && !(link.remote !== null && existing.remote === link.remote));
+  stored.links = stored.links.filter(
+    (existing) => existing.path !== link.path && !(link.remote !== null && existing.remote === link.remote),
+  );
   stored.links.push(link);
   save(env, stored);
 }

@@ -419,11 +419,7 @@ export interface Compiled {
 
 /** `{ state: "endingSoon", days: 46 }` — the days ride along with the state. */
 export type Support =
-  | { state: "active" }
-  | { state: "securityOnly" }
-  | { state: "endingSoon"; days: number }
-  | { state: "ended" }
-  | { state: "unknown" };
+  { state: "active" } | { state: "securityOnly" } | { state: "endingSoon"; days: number } | { state: "ended" } | { state: "unknown" };
 
 export interface EolFinding {
   product: string;
@@ -444,9 +440,7 @@ export interface EolFinding {
 
 /** What a watched live URL answered. A timeout is `noAnswer`, never `unreachable`. */
 export type Liveness =
-  | { state: "answering"; detail: number }
-  | { state: "noAnswer"; detail: string }
-  | { state: "unreachable"; detail: string };
+  { state: "answering"; detail: number } | { state: "noAnswer"; detail: string } | { state: "unreachable"; detail: string };
 
 export interface EolRow {
   path: string;

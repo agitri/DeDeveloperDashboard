@@ -27,15 +27,7 @@ export function Status({ state, label, title }: { state: State; label: string; t
  * "nothing is listening" is usually good news, and an empty state that looks
  * like a failure is the app crying wolf at itself.
  */
-export function Empty({
-  title,
-  body,
-  meta,
-}: {
-  title: string;
-  body?: React.ReactNode;
-  meta?: React.ReactNode;
-}) {
+export function Empty({ title, body, meta }: { title: string; body?: React.ReactNode; meta?: React.ReactNode }) {
   return (
     <div className="empty">
       <div className="empty-title">{title}</div>

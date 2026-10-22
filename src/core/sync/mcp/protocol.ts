@@ -209,13 +209,7 @@ export function shouldRead(resource: Resource): boolean {
   if (resource.size !== null && resource.size > BODY_CAP) return false;
   if (resource.mimeType === null) return true;
   const mime = resource.mimeType.toLowerCase();
-  return (
-    mime.startsWith("text/") ||
-    mime.includes("json") ||
-    mime.includes("xml") ||
-    mime.includes("yaml") ||
-    mime.includes("markdown")
-  );
+  return mime.startsWith("text/") || mime.includes("json") || mime.includes("xml") || mime.includes("yaml") || mime.includes("markdown");
 }
 
 /**

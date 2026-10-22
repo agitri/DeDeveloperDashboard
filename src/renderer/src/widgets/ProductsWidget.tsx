@@ -89,22 +89,16 @@ export function ProductsWidget({ widget, environmentId, focused, itemIndex }: Wi
         body={
           scoped ? (
             <>
-              This project has no products declared in its{" "}
-              <code>.ddd/config.json</code>.
+              This project has no products declared in its <code>.ddd/config.json</code>.
             </>
           ) : (
             <>
-              A product is something a repo knows how to run. Declare one in that
-              repo&rsquo;s <code>.ddd/config.json</code> and it shows up here — and
-              travels with the checkout.
+              A product is something a repo knows how to run. Declare one in that repo&rsquo;s <code>.ddd/config.json</code> and it shows up
+              here — and travels with the checkout.
             </>
           )
         }
-        meta={
-          scoped ? undefined : (
-            <code>{'{ "products": [{ "id": "serve", "run": "npm run dev" }] }'}</code>
-          )
-        }
+        meta={scoped ? undefined : <code>{'{ "products": [{ "id": "serve", "run": "npm run dev" }] }'}</code>}
       />
     );
   }
@@ -114,9 +108,7 @@ export function ProductsWidget({ widget, environmentId, focused, itemIndex }: Wi
     <div className="rows">
       {groups.map((group) => (
         <div key={group.projectId}>
-          {groups.length > 1 && (
-            <div className="mono-label section-head">{group.projectId}</div>
-          )}
+          {groups.length > 1 && <div className="mono-label section-head">{group.projectId}</div>}
           {group.products.map((product) => {
             index += 1;
             const v = verdict(product.state);
@@ -131,17 +123,9 @@ export function ProductsWidget({ widget, environmentId, focused, itemIndex }: Wi
                     <div className="row-title">{product.name}</div>
                     <div className="row-sub">
                       <Status state={v.state} label={v.label} title={v.title} />
-                      {running && product.state.state === "running" && (
-                        <span className="meta ink-3">{since(product.state.since)}</span>
-                      )}
-                      {product.state.state === "exited" && (
-                        <span className="meta ink-3">
-                          ran {since(product.state.since)} ago
-                        </span>
-                      )}
-                      {product.port != null && (
-                        <span className="meta ink-3">:{product.port}</span>
-                      )}
+                      {running && product.state.state === "running" && <span className="meta ink-3">{since(product.state.since)}</span>}
+                      {product.state.state === "exited" && <span className="meta ink-3">ran {since(product.state.since)} ago</span>}
+                      {product.port != null && <span className="meta ink-3">:{product.port}</span>}
                       {/* `.pathline`, not `.mono-label`: that one uppercases,
                           and a command is case-sensitive — `PYTHON -M X` is
                           not a thing you could run. */}
@@ -161,14 +145,7 @@ export function ProductsWidget({ widget, environmentId, focused, itemIndex }: Wi
                         disabled={working}
                         title={`Approve running: ${product.run}`}
                         onClick={() =>
-                          void act(product.key, () =>
-                            ipc.productApprove(
-                              environmentId,
-                              product.key,
-                              product.run,
-                              product.dir,
-                            ),
-                          )
+                          void act(product.key, () => ipc.productApprove(environmentId, product.key, product.run, product.dir))
                         }
                       >
                         Approve…
@@ -179,9 +156,7 @@ export function ProductsWidget({ widget, environmentId, focused, itemIndex }: Wi
                         className="btn sm"
                         disabled={working}
                         title="Ask it to stop (SIGTERM)"
-                        onClick={() =>
-                          void act(product.key, () => ipc.productStop(environmentId, product.key))
-                        }
+                        onClick={() => void act(product.key, () => ipc.productStop(environmentId, product.key))}
                       >
                         ■ Stop
                       </button>
@@ -190,25 +165,12 @@ export function ProductsWidget({ widget, environmentId, focused, itemIndex }: Wi
                         className="btn sm"
                         disabled={working || why !== null}
                         title={why ?? `Run: ${product.run}`}
-                        onClick={() =>
-                          void act(product.key, () =>
-                            ipc.productStart(
-                              environmentId,
-                              product.key,
-                              product.run,
-                              product.dir,
-                            ),
-                          )
-                        }
+                        onClick={() => void act(product.key, () => ipc.productStart(environmentId, product.key, product.run, product.dir))}
                       >
                         ▶ Start
                       </button>
                     )}
-                    <button
-                      className="btn sm"
-                      title="What it printed"
-                      onClick={() => setReading(open ? null : product.key)}
-                    >
+                    <button className="btn sm" title="What it printed" onClick={() => setReading(open ? null : product.key)}>
                       {open ? "▾" : "▸"} Output
                     </button>
                   </div>

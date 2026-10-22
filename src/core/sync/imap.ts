@@ -83,12 +83,7 @@ export interface Mailbox {
  * Never throws: one unparseable message in a mailbox of two hundred must cost
  * that message, not the sync.
  */
-export async function toItem(
-  raw: RawMessage,
-  mailbox: Mailbox,
-  connectionId: string,
-  environmentId: string,
-): Promise<Item | null> {
+export async function toItem(raw: RawMessage, mailbox: Mailbox, connectionId: string, environmentId: string): Promise<Item | null> {
   let parsed: Email;
   try {
     parsed = await PostalMime.parse(raw.raw);

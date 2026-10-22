@@ -28,15 +28,7 @@ export function ContextMenu() {
   const closeMenu = useUi((s) => s.closeMenu);
 
   if (!menu) return null;
-  return (
-    <MenuSurface
-      key={`${menu.x}:${menu.y}`}
-      x={menu.x}
-      y={menu.y}
-      items={menu.items}
-      onClose={closeMenu}
-    />
-  );
+  return <MenuSurface key={`${menu.x}:${menu.y}`} x={menu.x} y={menu.y} items={menu.items} onClose={closeMenu} />;
 }
 
 function MenuSurface({
@@ -99,10 +91,7 @@ function MenuSurface({
   // Keyboard-first is a requirement of this app, not a nicety (§5.10).
   // Memoised: it is an effect dependency, and a fresh array each render
   // would tear down and re-add the window listener on every keystroke.
-  const selectable = useMemo(
-    () => items.flatMap((item, i) => (item.kind === "separator" ? [] : [i])),
-    [items],
-  );
+  const selectable = useMemo(() => items.flatMap((item, i) => (item.kind === "separator" ? [] : [i])), [items]);
   useEffect(() => {
     if (nested) return;
     function onKey(e: KeyboardEvent) {
@@ -134,12 +123,7 @@ function MenuSurface({
   }, [nested, items, cursor, selectable, onClose]);
 
   return (
-    <div
-      ref={ref}
-      className="menu"
-      style={{ left: pos.x, top: pos.y }}
-      onContextMenu={(e) => e.preventDefault()}
-    >
+    <div ref={ref} className="menu" style={{ left: pos.x, top: pos.y }} onContextMenu={(e) => e.preventDefault()}>
       {items.map((item, i) => {
         if (item.kind === "separator") return <div key={i} className="menu-sep" />;
         if (item.kind === "submenu") {
@@ -155,13 +139,7 @@ function MenuSurface({
                 <span className="menu-more">▸</span>
               </button>
               {openSub === i && rect && (
-                <MenuSurface
-                  nested
-                  x={rect.right - 3}
-                  y={rect.top + i * 24}
-                  items={item.items}
-                  onClose={onClose}
-                />
+                <MenuSurface nested x={rect.right - 3} y={rect.top + i * 24} items={item.items} onClose={onClose} />
               )}
             </div>
           );

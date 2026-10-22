@@ -51,11 +51,7 @@ export function useGlobalKeys(keymap: Record<string, string[]>) {
       // cheat sheet would pop over the wizard's own spotlight on every step —
       // suppress it while the tour is running (the coach panel shows the one
       // shortcut that matters).
-      if (
-        (e.key === "Meta" || e.key === "Control") &&
-        !useUi.getState().paletteOpen &&
-        !useWizard.getState().active
-      ) {
+      if ((e.key === "Meta" || e.key === "Control") && !useUi.getState().paletteOpen && !useWizard.getState().active) {
         useUi.getState().setHints(true);
       }
 

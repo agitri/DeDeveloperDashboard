@@ -43,9 +43,7 @@ describe("wizard steps", () => {
     expect(doneOf("settings")(base, base)).toBe(false);
   });
   it("settings step stays false when the view is unchanged, even if another field moves", () => {
-    expect(doneOf("settings")(base, { ...base, envCount: 9, tabCount: 9, widgetCount: 9, activeTabId: "t9" })).toBe(
-      false,
-    );
+    expect(doneOf("settings")(base, { ...base, envCount: 9, tabCount: 9, widgetCount: 9, activeTabId: "t9" })).toBe(false);
   });
   it("features step completes when the guide opens", () => {
     expect(doneOf("features")(base, { ...base, guideOpen: true })).toBe(true);
